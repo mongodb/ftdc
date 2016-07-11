@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/10gen/ftdc-utils"
 )
@@ -17,12 +19,13 @@ json-out         write chunks to json file
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("must supply diagnostic file")
+		fmt.Println(help)
+		return
 	}
 	filename := os.Args[1]
 	f, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("failed to open '%s': %s", filename, err)
+		fmt.Fprintf(os.Stderr, "failed to open '%s': %s", filename, err)
 	}
 	defer f.Close()
 
@@ -36,7 +39,8 @@ func main() {
 
 	cs := []map[string][]int{}
 	for c := range o {
-		log.Printf("got chunk with %d metrics and %d deltas", len(c.Metrics), len(c.Metrics[0].Values))
+		t := time.Unix(int64(c.Map()["start"][0])/1000, 0).Format(time.RFC1123)
+		fmt.Printf("chunk with %d metrics and %d deltas on %s\n", len(c.Metrics), len(c.Metrics[0].Values), t)
 		cs = append(cs, c.Map())
 	}
 
