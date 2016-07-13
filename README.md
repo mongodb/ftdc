@@ -14,6 +14,8 @@ go get github.com/10gen/ftdc-utils
 ```sh
 # for general chunk info
 ftdc metrics.TIMESTAMP
-# write the decoded chunks to a json file
-ftdc metrics.TIMESTAMP out.json
+# write statistical output to a json file
+ftdc metrics.TIMESTAMP --out out.json
+# write the raw decoded chunks to a json file
+ftdc metrics.TIMESTAMP --raw --out out.json
 ```
