@@ -1,8 +1,10 @@
 package ftdc
 
 import (
+	"io"
 	"math"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -35,6 +37,28 @@ func (c *Chunk) Stats() (s Stats) {
 	end := m["start"][s.NSamples-1] / 1000
 	s.Start = time.Unix(int64(start), 0)
 	s.End = time.Unix(int64(end), 0)
+	return
+}
+
+// ComputeStats takes an FTDC diagnostic file in the form of an io.Reader,
+// and computes the global statistics for all metrics.
+func ComputeStats(r io.Reader) (g Stats, err error) {
+	s := []Stats{}
+	ch := make(chan Chunk)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		for c := range ch {
+			s = append(s, c.Stats())
+		}
+		wg.Done()
+	}()
+	err = Chunks(r, ch)
+	if err != nil {
+		return
+	}
+	wg.Wait()
+	g = MergeStats(s...)
 	return
 }
 
