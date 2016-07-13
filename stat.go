@@ -10,10 +10,12 @@ import (
 
 // MetricStat represents basic statistics for a single metric
 type MetricStat struct {
-	// Median is the median
+	// Median is the median of the metric's deltas. It is analogous to the
+	// first derivative.
 	Median int
 
-	// MAD is the Median Absolute Deviation
+	// MAD is the Median Absolute Deviation. It is analogous to the second
+	// derivative.
 	MAD int
 }
 
@@ -27,14 +29,16 @@ type Stats struct {
 
 // Stats produces Stats for the Chunk
 func (c *Chunk) Stats() (s Stats) {
-	s.NSamples = len(c.Metrics[0].Values)
+	s.NSamples = len(c.Metrics[0].Deltas)
 	s.Metrics = make(map[string]MetricStat)
-	m := c.Map()
-	for k, v := range m {
-		s.Metrics[k] = computeMetricStat(v)
+	var start, end int
+	for _, m := range c.Metrics {
+		s.Metrics[m.Key] = computeMetricStat(m)
+		if m.Key == "start" {
+			start = m.Value / 1000
+			end = (m.Value + sum(m.Deltas...)) / 1000
+		}
 	}
-	start := m["start"][0] / 1000
-	end := m["start"][s.NSamples-1] / 1000
 	s.Start = time.Unix(int64(start), 0)
 	s.End = time.Unix(int64(end), 0)
 	return
@@ -103,12 +107,14 @@ func MergeStats(cs ...Stats) (m Stats) {
 	return
 }
 
-func computeMetricStat(l []int) MetricStat {
+func computeMetricStat(m Metric) MetricStat {
+	l := make([]int, len(m.Deltas))
+	copy(l, m.Deltas)
 	sort.Ints(l)
-	m := l[len(l)/2]
+	med := l[len(l)/2]
 	dev := make([]int, len(l))
 	for i, v := range l {
-		dev[i] = v - m
+		dev[i] = v - med
 		if dev[i] < 0 {
 			dev[i] = -dev[i]
 		}
@@ -116,7 +122,7 @@ func computeMetricStat(l []int) MetricStat {
 	sort.Ints(dev)
 	mad := dev[len(l)/2]
 	return MetricStat{
-		Median: m,
+		Median: med,
 		MAD:    mad,
 	}
 }

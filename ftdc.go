@@ -12,10 +12,10 @@ type Chunk struct {
 }
 
 // Map converts the chunk to a map representation.
-func (c *Chunk) Map() map[string][]int {
-	m := make(map[string][]int)
+func (c *Chunk) Map() map[string]Metric {
+	m := make(map[string]Metric)
 	for _, metric := range c.Metrics {
-		m[metric.Key] = metric.Values
+		m[metric.Key] = metric
 	}
 	return m
 }
@@ -47,7 +47,10 @@ type Metric struct {
 	// 'start', 'end', or starts with 'serverStatus.'.
 	Key string
 
-	// Values is the slice of values for the metric, accumulating deltas per
-	// sample.
-	Values []int
+	// Value is the value of the metric at the beginning of the sample
+	Value int
+
+	// Deltas is the slice of deltas, which accumulate on Value to yield the
+	// specific sample's value.
+	Deltas []int
 }

@@ -49,12 +49,12 @@ func main() {
 	}()
 
 	logChunk := func(c ftdc.Chunk) {
-		t := time.Unix(int64(c.Map()["start"][0])/1000, 0).Format(time.RFC1123)
-		fmt.Fprintf(os.Stderr, "chunk with %d metrics and %d deltas on %s\n", len(c.Metrics), len(c.Metrics[0].Values), t)
+		t := time.Unix(int64(c.Map()["start"].Value)/1000, 0).Format(time.RFC1123)
+		fmt.Fprintf(os.Stderr, "chunk with %d metrics and %d deltas on %s\n", len(c.Metrics), len(c.Metrics[0].Deltas), t)
 	}
 
-	cs := []map[string][]int{} // for raw
-	ss := []ftdc.Stats{}       // for stat
+	cs := []map[string]ftdc.Metric{} // for raw
+	ss := []ftdc.Stats{}             // for stat
 	for c := range o {
 		logChunk(c)
 		if opts.Out == "" {

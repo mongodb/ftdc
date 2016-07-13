@@ -52,7 +52,8 @@ func readChunks(ch <-chan bson.D, o chan<- Chunk) error {
 			}
 			nzeroes := 0
 			for i, v := range metrics {
-				rollingValue := v.Values[0]
+				metrics[i].Value = v.Value
+				metrics[i].Deltas = make([]int, ndeltas)
 				for j := 0; j < ndeltas; j++ {
 					var delta int
 					if nzeroes != 0 {
@@ -70,8 +71,7 @@ func readChunks(ch <-chan bson.D, o chan<- Chunk) error {
 							}
 						}
 					}
-					rollingValue += delta
-					metrics[i].Values = append(metrics[i].Values, rollingValue)
+					metrics[i].Deltas[j] = delta
 				}
 			}
 			o <- Chunk{

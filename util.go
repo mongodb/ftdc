@@ -16,28 +16,49 @@ func flattenBSON(d bson.D) (o []Metric) {
 			n := flattenBSON(child)
 			for _, ne := range n {
 				o = append(o, Metric{
-					Key:    e.Name + "." + ne.Key,
-					Values: ne.Values,
+					Key:   e.Name + "." + ne.Key,
+					Value: ne.Value,
 				})
 			}
 		case []interface{}: // skip
 		case string: // skip
 		case bool:
 			if child {
-				o = append(o, Metric{e.Name, []int{1}})
+				o = append(o, Metric{
+					Key:   e.Name,
+					Value: 1,
+				})
 			} else {
-				o = append(o, Metric{e.Name, []int{0}})
+				o = append(o, Metric{
+					Key:   e.Name,
+					Value: 0,
+				})
 			}
 		case float64:
-			o = append(o, Metric{e.Name, []int{int(child)}})
+			o = append(o, Metric{
+				Key:   e.Name,
+				Value: int(child),
+			})
 		case int:
-			o = append(o, Metric{e.Name, []int{child}})
+			o = append(o, Metric{
+				Key:   e.Name,
+				Value: child,
+			})
 		case int32:
-			o = append(o, Metric{e.Name, []int{int(child)}})
+			o = append(o, Metric{
+				Key:   e.Name,
+				Value: int(child),
+			})
 		case int64:
-			o = append(o, Metric{e.Name, []int{int(child)}})
+			o = append(o, Metric{
+				Key:   e.Name,
+				Value: int(child),
+			})
 		case time.Time:
-			o = append(o, Metric{e.Name, []int{int(child.Unix()) * 1000}})
+			o = append(o, Metric{
+				Key:   e.Name,
+				Value: int(child.Unix()) * 1000,
+			})
 		}
 	}
 	return o
@@ -72,4 +93,11 @@ func unpackInt(bl []byte) int {
 		(uint32(bl[1]) << 8) |
 		(uint32(bl[2]) << 16) |
 		(uint32(bl[3]) << 24)))
+}
+
+func sum(l ...int) (s int) {
+	for _, v := range l {
+		s += v
+	}
+	return
 }
