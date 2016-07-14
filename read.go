@@ -76,6 +76,7 @@ func readChunks(ch <-chan bson.D, o chan<- Chunk) error {
 			}
 			o <- Chunk{
 				Metrics: metrics,
+				NDeltas: ndeltas,
 			}
 		}
 	}

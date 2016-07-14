@@ -29,7 +29,7 @@ type Stats struct {
 
 // Stats produces Stats for the Chunk
 func (c *Chunk) Stats() (s Stats) {
-	s.NSamples = len(c.Metrics[0].Deltas)
+	s.NSamples = 1 + c.NDeltas
 	s.Metrics = make(map[string]MetricStat)
 	var start, end int
 	for _, m := range c.Metrics {
@@ -54,6 +54,31 @@ func ComputeStats(r io.Reader) (g Stats, err error) {
 	go func() {
 		for c := range ch {
 			s = append(s, c.Stats())
+		}
+		wg.Done()
+	}()
+	err = Chunks(r, ch)
+	if err != nil {
+		return
+	}
+	wg.Wait()
+	g = MergeStats(s...)
+	return
+}
+
+// ComputeStatsInterval takes an FTDC diagnostic file in the form of an
+// io.Reader, and computes the global statistics for all metrics within the
+// given time frame.
+func ComputeStatsInterval(r io.Reader, start, end time.Time) (g Stats, err error) {
+	s := []Stats{}
+	ch := make(chan Chunk)
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		for c := range ch {
+			if c.Clip(start, end) {
+				s = append(s, c.Stats())
+			}
 		}
 		wg.Done()
 	}()
