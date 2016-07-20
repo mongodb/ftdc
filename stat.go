@@ -44,16 +44,15 @@ func (c *Chunk) Stats() (s Stats) {
 	return
 }
 
-// ComputeStats takes an FTDC diagnostic file in the form of an io.Reader,
-// and computes the global statistics for all metrics.
-func ComputeStats(r io.Reader) (g Stats, err error) {
-	s := []Stats{}
+// ComputeAllChunkStats takes an FTDC diagnostic file in the form of an
+// io.Reader, and computes statistics for all metrics on each chunk.
+func ComputeStats(r io.Reader) (cs []Stats, err error) {
 	ch := make(chan Chunk)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
 	go func() {
 		for c := range ch {
-			s = append(s, c.Stats())
+			cs = append(cs, c.Stats())
 		}
 		wg.Done()
 	}()
@@ -62,22 +61,20 @@ func ComputeStats(r io.Reader) (g Stats, err error) {
 		return
 	}
 	wg.Wait()
-	g = MergeStats(s...)
 	return
 }
 
 // ComputeStatsInterval takes an FTDC diagnostic file in the form of an
-// io.Reader, and computes the global statistics for all metrics within the
-// given time frame.
-func ComputeStatsInterval(r io.Reader, start, end time.Time) (g Stats, err error) {
-	s := []Stats{}
+// io.Reader, and computes statistics for all metrics within the given time
+// frame, clipping chunks to fit.
+func ComputeStatsInterval(r io.Reader, start, end time.Time) (cs []Stats, err error) {
 	ch := make(chan Chunk)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
 	go func() {
 		for c := range ch {
 			if c.Clip(start, end) {
-				s = append(s, c.Stats())
+				cs = append(cs, c.Stats())
 			}
 		}
 		wg.Done()
@@ -87,7 +84,6 @@ func ComputeStatsInterval(r io.Reader, start, end time.Time) (g Stats, err error
 		return
 	}
 	wg.Wait()
-	g = MergeStats(s...)
 	return
 }
 
@@ -133,6 +129,9 @@ func MergeStats(cs ...Stats) (m Stats) {
 }
 
 func computeMetricStat(m Metric) MetricStat {
+	if len(m.Deltas) == 0 {
+		return MetricStat{-1, -1}
+	}
 	l := make([]int, len(m.Deltas))
 	copy(l, m.Deltas)
 	sort.Ints(l)

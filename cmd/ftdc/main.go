@@ -11,118 +11,236 @@ import (
 	"github.com/jessevdk/go-flags"
 )
 
-var opts struct {
-	Out       string `short:"o" long:"out" description:"write stats output, in json, to given file"`
-	Raw       bool   `long:"raw" descriptions:"write raw data (in json) instead of stats"`
-	StartTime string `long:"start" description:"clip data preceding start time (layout UnixDate)"`
-	EndTime   string `long:"end" description:"clip data after end time (layout UnixDate)"`
+func main() {
+	opts := struct{}{}
+	parser := flags.NewParser(&opts, flags.Default)
+	parser.AddCommand("decode", "decode diagnostic files into raw JSON output", "", &DecodeCommand{})
+	parser.AddCommand("stats", "read diagnostic file(s) into aggregated statistical output", "", &StatsCommand{})
+	parser.AddCommand("compare", "compare statistical output", "", &CompareCommand{})
+
+	_, err := parser.Parse()
+	if err != nil {
+		os.Exit(1)
+	}
+}
+
+type DecodeCommand struct {
+	StartTime string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
+	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
+	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write diagnostic output, in JSON, to given file" required:"true"`
+	Silent    bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
 	Args      struct {
-		File string `positional-arg-name:"FILE" description:"diagnostic file"`
+		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
 	} `positional-args:"yes" required:"yes"`
 }
 
-func main() {
-	_, err := flags.Parse(&opts)
+func (decOpts *DecodeCommand) Execute(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unknown argument: %s", args[0])
+	}
+
+	output, err := decode(decOpts.Args.Files, decOpts.StartTime, decOpts.EndTime, decOpts.Silent)
 	if err != nil {
-		os.Exit(1)
+		return err
 	}
-	if opts.Args.File == "" {
-		fmt.Fprintf(os.Stderr, "error: must provide FILE\n")
-		os.Exit(1)
-	}
-	if opts.Raw && opts.Out == "" {
-		fmt.Fprintf(os.Stderr, "error: --raw option requires --out to be set\n")
-		os.Exit(1)
-	}
+	err = writeJSONtoFile(output, decOpts.Out)
+	return err
+}
 
-	useTime := false
-	var start, end time.Time
-	if opts.StartTime != "" || opts.EndTime != "" {
-		useTime = true
-		if opts.StartTime != "" {
-			start, err = time.Parse(time.UnixDate, opts.StartTime)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: failed to parse start time '%s': %s", opts.StartTime, err)
-				os.Exit(1)
-			}
-		} else {
-			start = time.Unix(math.MinInt64, 0)
-		}
-		if opts.EndTime != "" {
-			end, err = time.Parse(time.UnixDate, opts.EndTime)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: failed to parse start time '%s': %s", opts.StartTime, err)
-				os.Exit(1)
-			}
-		} else {
-			end = time.Unix(math.MaxInt64, 0)
-		}
-	}
+type StatsCommand struct {
+	StartTime string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
+	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
+	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write stats output, in JSON, to given file" required:"true"`
+	Args      struct {
+		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
+	} `positional-args:"yes" required:"yes"`
+}
 
-	f, err := os.Open(opts.Args.File)
+func (statOpts *StatsCommand) Execute(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unknown argument: %s", args[0])
+	}
+	output, err := stats(statOpts.Args.Files, statOpts.StartTime, statOpts.EndTime)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: failed to open '%s': %s\n", opts.Args.File, err)
-		os.Exit(1)
+		return err
 	}
-	defer f.Close()
+	err = writeJSONtoFile(output, statOpts.Out)
+	return err
+}
 
-	o := make(chan ftdc.Chunk)
-	go func() {
-		err := ftdc.Chunks(f, o)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: failed to parse chunks: %s\n", err)
-			os.Exit(1)
-		}
-	}()
+type CompareCommand struct {
+	Threshold float64 `short:"t" long:"threshold" value-name:"<FLOAT>" description:"threshold of deviation in comparison" default:"0.3"`
+	Args      struct {
+		FileA string `positional-arg-name:"STAT1" description:"statistical file (JSON)"`
+		FileB string `positional-arg-name:"STAT2" description:"statistical file (JSON)"`
+	} `positional-args:"yes" required:"yes"`
+}
 
-	logChunk := func(c ftdc.Chunk) {
-		t := time.Unix(int64(c.Map()["start"].Value)/1000, 0).Format(time.UnixDate)
-		fmt.Fprintf(os.Stderr, "chunk with %d metrics and %d deltas on %s\n", len(c.Metrics), c.NDeltas, t)
+func (cmp *CompareCommand) Execute(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unknown argument: %s", args[0])
 	}
-
-	cs := []map[string]ftdc.Metric{} // for raw
-	ss := []ftdc.Stats{}             // for stat
-	for c := range o {
-		if useTime && !c.Clip(start, end) {
-			continue
-		}
-		logChunk(c)
-		if opts.Out == "" {
-			continue
-		}
-		if opts.Raw {
-			cs = append(cs, c.Map())
-		} else {
-			ss = append(ss, c.Stats())
-		}
+	ftdc.CmpThreshold = cmp.Threshold
+	sa, err := readJSONStats(cmp.Args.FileA)
+	if err != nil {
+		return err
+	}
+	sb, err := readJSONStats(cmp.Args.FileB)
+	if err != nil {
+		return err
 	}
 
-	if opts.Out == "" {
+	msg, score, ok := ftdc.Proximal(sa, sb)
+	// msg to stderr, score to stdout, ok to status code
+	fmt.Fprint(os.Stderr, msg)
+	fmt.Fprintln(os.Stderr) // newline for clarity
+	fmt.Printf("score: %f\n", score)
+	var result string
+	if ok {
+		result = "SUCCESS"
+	} else {
+		result = "FAILURE"
+	}
+
+	err = fmt.Errorf("comparison completed. result: %s", result)
+	if ok {
+		fmt.Fprintln(os.Stderr, err)
+		return nil
+	}
+	return err
+}
+
+func readJSONStats(file string) (s ftdc.Stats, err error) {
+	f, err := os.Open(file)
+	if err != nil {
 		return
 	}
+	err = json.NewDecoder(f).Decode(&s)
+	f.Close()
+	return
+}
 
-	if len(cs) == 0 && len(ss) == 0 {
-		fmt.Fprint(os.Stderr, "nothing to write to out")
-		os.Exit(1)
+func parseTimes(tStart, tEnd string) (start, end time.Time, err error) {
+	if tStart != "" {
+		start, err = time.Parse(time.UnixDate, tStart)
+		if err != nil {
+			err = fmt.Errorf("error: failed to parse start time '%s': %s", tStart, err)
+			return
+		}
+	} else {
+		start = time.Unix(math.MinInt64, 0)
+	}
+	if tEnd != "" {
+		end, err = time.Parse(time.UnixDate, tEnd)
+		if err != nil {
+			err = fmt.Errorf("error: failed to parse end time '%s': %s", tEnd, err)
+			return
+		}
+	} else {
+		end = time.Unix(math.MaxInt64, 0)
+	}
+	return
+}
+
+func stats(files []string, tStart, tEnd string) (interface{}, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("error: must provide FILE")
 	}
 
-	of, err := os.OpenFile(opts.Out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	start, end, err := parseTimes(tStart, tEnd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open write file '%s': %s\n", opts.Out, err)
-		os.Exit(1)
+		return nil, err
+	}
+
+	ss := []ftdc.Stats{}
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			return nil, fmt.Errorf("error: failed to open '%s': %s", file, err)
+		}
+
+		cs, err := ftdc.ComputeStatsInterval(f, start, end)
+		if err != nil {
+			return nil, err
+		}
+		ss = append(ss, cs...)
+		f.Close()
+	}
+
+	if len(ss) == 0 {
+		return nil, fmt.Errorf("no chunks found")
+	}
+	ms := ftdc.MergeStats(ss...)
+	fmt.Fprintf(os.Stderr, "found %d samples\n", ms.NSamples)
+
+	return ftdc.MergeStats(ss...), nil
+}
+
+func decode(files []string, tStart, tEnd string, silent bool) (interface{}, error) {
+	if len(files) == 0 {
+		return nil, fmt.Errorf("error: must provide FILE")
+	}
+
+	start, end, err := parseTimes(tStart, tEnd)
+	if err != nil {
+		return nil, err
+	}
+
+	// this will consume a LOT of memory
+	cs := []map[string]ftdc.Metric{}
+	count := 0
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			return nil, fmt.Errorf("error: failed to open '%s': %s", file, err)
+		}
+
+		o := make(chan ftdc.Chunk)
+		go func() {
+			err := ftdc.Chunks(f, o)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: failed to parse chunks: %s\n", err)
+			}
+		}()
+
+		logChunk := func(c ftdc.Chunk) {
+			t := time.Unix(int64(c.Map()["start"].Value)/1000, 0).Format(time.UnixDate)
+			fmt.Fprintf(os.Stderr, "chunk in file '%s' with %d metrics and "+
+				"%d deltas on %s\n", file, len(c.Metrics), c.NDeltas, t)
+		}
+
+		for c := range o {
+			if !c.Clip(start, end) {
+				continue
+			}
+			if !silent {
+				logChunk(c)
+			}
+			cs = append(cs, c.Map())
+			count += c.NDeltas
+		}
+		f.Close()
+	}
+
+	if len(cs) == 0 {
+		return nil, fmt.Errorf("no chunks found")
+	}
+	fmt.Fprintf(os.Stderr, "found %d samples\n", count)
+
+	return cs, nil
+}
+
+func writeJSONtoFile(output interface{}, file string) error {
+	of, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open write file '%s': %s", file, err)
 	}
 	defer of.Close()
 	enc := json.NewEncoder(of)
 
-	if opts.Raw {
-		err = enc.Encode(cs)
-	} else {
-		ms := ftdc.MergeStats(ss...)
-		err = enc.Encode(ms)
-	}
-
+	err = enc.Encode(output)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write output to '%s': %s\n", opts.Out, err)
-		os.Exit(1)
+		return fmt.Errorf("failed to write output to '%s': %s", file, err)
 	}
+	return nil
 }
