@@ -5,11 +5,45 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 )
 
 // CmpThreshold is the threshold for comparison of metrics used by the
 // Proximal function.
-var CmpThreshold float64 = 0.3
+var CmpThreshold float64 = 0.2
+
+var cmpMetrics = map[string]bool{
+	"end":                                            true,
+	"start":                                          true,
+	"serverStatus.start":                             true,
+	"serverStatus.end":                               true,
+	"serverStatus.asserts":                           true,
+	"serverStatus.mem.mapped":                        true,
+	"serverStatus.mem.mappedWithJournal":             true,
+	"serverStatus.mem.resident":                      true,
+	"serverStatus.mem.supported":                     true,
+	"serverStatus.mem.virtual":                       true,
+	"serverStatus.metrics.commands":                  true,
+	"serverStatus.metrics.cursor.open":               true,
+	"serverStatus.metrics.document":                  true,
+	"serverStatus.metrics.operation":                 true,
+	"serverStatus.metrics.queryExecutor":             true,
+	"serverStatus.metrics.record":                    true,
+	"serverStatus.metrics.repl":                      true,
+	"serverStatus.metrics.storage":                   true,
+	"serverStatus.metrics.ttl":                       true,
+	"serverStatus.opcounters":                        true,
+	"serverStatus.opcountersRepl":                    true,
+	"serverStatus.wiredTiger.LSM":                    true,
+	"serverStatus.wiredTiger.async":                  true,
+	"serverStatus.wiredTiger.block-manager":          true,
+	"serverStatus.wiredTiger.cache":                  true,
+	"serverStatus.wiredTiger.concurrentTransactions": true,
+	"serverStatus.wiredTiger.data-handle":            true,
+	"serverStatus.wiredTiger.reconciliation":         true,
+	"serverStatus.wiredTiger.session":                true,
+	"serverStatus.writeBacksQueued":                  true,
+}
 
 const badTimePenalty = -0.1
 
@@ -28,6 +62,17 @@ func (s cmpScores) Less(i, j int) bool {
 }
 func (s cmpScores) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+func isCmpMetric(key string) bool {
+	s := strings.Split(key, ".")
+	for i := range s {
+		prefix := strings.Join(s[:i+1], ".")
+		if _, ok := cmpMetrics[prefix]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // Proximal computes a measure of deviation between two sets of metric
@@ -54,19 +99,19 @@ func Proximal(a, b Stats) (msg string, score float64, ok bool) {
 		if _, ok := b.Metrics[key]; !ok {
 			continue
 		}
+		if !isCmpMetric(key) {
+			continue
+		}
 		cmp := compareMetrics(a, b, key)
 		scores = append(scores, cmp)
 		sumScores += cmp.num
 	}
 	sort.Sort(scores)
 
-	// score is half the average...
-	score = sumScores / (2 * float64(len(scores)))
-
-	// and half the weighted sum of 1/2, 1/4, 1/8, ...
+	// weighted sum of 1/2, 1/4, 1/8, ...
 	// with scores from worst to best
 	for i, c := range scores {
-		score += math.Pow(2, -float64(i+2)) * c.num
+		score += math.Pow(2, -float64(i+1)) * c.num
 	}
 	// score is quadratic, so sqrt for linear
 	score = math.Sqrt(score)

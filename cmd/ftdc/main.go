@@ -69,7 +69,7 @@ func (statOpts *StatsCommand) Execute(args []string) error {
 }
 
 type CompareCommand struct {
-	Threshold float64 `short:"t" long:"threshold" value-name:"<FLOAT>" description:"threshold of deviation in comparison" default:"0.3"`
+	Threshold float64 `short:"t" long:"threshold" value-name:"<FLOAT>" description:"threshold of deviation in comparison" default:"0.2"`
 	Args      struct {
 		FileA string `positional-arg-name:"STAT1" description:"statistical file (JSON)"`
 		FileB string `positional-arg-name:"STAT2" description:"statistical file (JSON)"`
