@@ -29,6 +29,7 @@ type DecodeCommand struct {
 	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
 	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write diagnostic output, in JSON, to given file" required:"true"`
 	Silent    bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
+	Merge     bool   `short:"m" long:"merge" description:"merge chunks into one object"`
 	Args      struct {
 		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
 	} `positional-args:"yes" required:"yes"`
@@ -39,7 +40,7 @@ func (decOpts *DecodeCommand) Execute(args []string) error {
 		return fmt.Errorf("unknown argument: %s", args[0])
 	}
 
-	output, err := decode(decOpts.Args.Files, decOpts.StartTime, decOpts.EndTime, decOpts.Silent)
+	output, err := decode(decOpts.Args.Files, decOpts.StartTime, decOpts.EndTime, decOpts.Silent, decOpts.Merge)
 	if err != nil {
 		return err
 	}
@@ -176,7 +177,7 @@ func stats(files []string, tStart, tEnd string) (interface{}, error) {
 	return ftdc.MergeStats(ss...), nil
 }
 
-func decode(files []string, tStart, tEnd string, silent bool) (interface{}, error) {
+func decode(files []string, tStart, tEnd string, silent, shouldMerge bool) (interface{}, error) {
 	if len(files) == 0 {
 		return nil, fmt.Errorf("error: must provide FILE")
 	}
@@ -187,7 +188,7 @@ func decode(files []string, tStart, tEnd string, silent bool) (interface{}, erro
 	}
 
 	// this will consume a LOT of memory
-	cs := []map[string]ftdc.Metric{}
+	cs := []ftdc.Chunk{}
 	count := 0
 	for _, file := range files {
 		f, err := os.Open(file)
@@ -216,7 +217,7 @@ func decode(files []string, tStart, tEnd string, silent bool) (interface{}, erro
 			if !silent {
 				logChunk(c)
 			}
-			cs = append(cs, c.Map())
+			cs = append(cs, c)
 			count += c.NDeltas
 		}
 		f.Close()
@@ -225,9 +226,40 @@ func decode(files []string, tStart, tEnd string, silent bool) (interface{}, erro
 	if len(cs) == 0 {
 		return nil, fmt.Errorf("no chunks found")
 	}
-	fmt.Fprintf(os.Stderr, "found %d samples\n", count)
 
+	if !silent {
+		fmt.Fprintf(os.Stderr, "found %d samples\n", count)
+	}
+
+	if shouldMerge {
+		total := map[string]ftdc.Metric{}
+		for _, c := range cs {
+			for _, m := range c.Metrics {
+				k := m.Key
+				if _, ok := total[k]; ok {
+					// !! this expects contigious chunks
+					newDeltas := make([]int, 0, len(total[k].Deltas)+len(m.Deltas))
+					newDeltas = append(newDeltas, total[k].Deltas...)
+					newDeltas = append(newDeltas, m.Deltas...)
+					total[k] = ftdc.Metric{
+						Key:    k,
+						Value:  total[k].Value,
+						Deltas: newDeltas,
+					}
+				} else {
+					total[k] = m
+				}
+			}
+		}
+		return total, nil
+	}
+
+	maps := []map[string]ftdc.Metric{}
+	for _, c := range cs {
+		maps = append(maps, c.Map())
+	}
 	return cs, nil
+
 }
 
 func writeJSONtoFile(output interface{}, file string) error {

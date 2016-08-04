@@ -29,6 +29,7 @@ Usage:
         --end=<TIME>      clip data after end time (layout UnixDate)
     -o, --out=<FILE>      write diagnostic output, in JSON, to given file
     -s, --silent          suppress chunk overview output
+    -m, --merge           merge chunks into one object
     FILE:                 diagnostic file(s)
 ```
 
