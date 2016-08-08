@@ -101,3 +101,7 @@ func sum(l ...int) (s int) {
 	}
 	return
 }
+
+func square(n int) int {
+	return n * n
+}

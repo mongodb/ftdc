@@ -98,7 +98,7 @@ func (cmp *CompareCommand) Execute(args []string) error {
 	sort.Sort(sort.Reverse(scores))
 	for _, s := range scores {
 		if cmp.Explicit {
-			fmt.Printf("%s: %f\n", s.Metric, s.Score)
+			fmt.Printf("%5f: %s\n", s.Score, s.Metric)
 		}
 		if s.Err != nil {
 			fmt.Fprint(os.Stderr, s.Err)

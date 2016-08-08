@@ -3,20 +3,18 @@ package ftdc
 import (
 	"io"
 	"math"
-	"sort"
 	"sync"
 	"time"
 )
 
 // MetricStat represents basic statistics for a single metric
 type MetricStat struct {
-	// Median is the median of the metric's deltas. It is analogous to the
-	// first derivative.
-	Median int
-
-	// MAD is the Median Absolute Deviation. It is analogous to the second
+	// Avg is the mean of the metric's deltas. It is analogous to the first
 	// derivative.
-	MAD int
+	Avg int
+
+	// Var is the variance. It is related to the absolute second derivative.
+	Var int
 }
 
 // Stats represents basic statistics for a set of metric samples.
@@ -92,8 +90,8 @@ func MergeStats(cs ...Stats) (m Stats) {
 	var start int64 = math.MaxInt64
 	var end int64 = math.MinInt64
 	weights := make([]int, len(cs))
-	meds := make(map[string][]int)
-	mads := make(map[string][]int)
+	avgs := make(map[string][]int)
+	vars := make(map[string][]int)
 	for i, s := range cs {
 		m.NSamples += s.NSamples
 		sStart := s.Start.Unix()
@@ -106,23 +104,23 @@ func MergeStats(cs ...Stats) (m Stats) {
 		}
 		weights[i] = int(sEnd - sStart)
 		for k, v := range s.Metrics {
-			if _, ok := meds[k]; !ok {
-				meds[k] = make([]int, len(cs))
-				mads[k] = make([]int, len(cs))
+			if _, ok := avgs[k]; !ok {
+				avgs[k] = make([]int, len(cs))
+				vars[k] = make([]int, len(cs))
 			}
-			meds[k][i] = v.Median
-			mads[k][i] = v.MAD
+			avgs[k][i] = v.Avg
+			vars[k][i] = v.Var
 		}
 	}
 	m.Start = time.Unix(start, 0)
 	m.End = time.Unix(end, 0)
 	m.Metrics = make(map[string]MetricStat)
-	for k := range meds {
-		med := weightedMed(meds[k], weights)
-		mad := weightedMed(mads[k], weights)
+	for k := range avgs {
+		avg := weightedAvg(avgs[k], weights)
+		variance := weightedVar(avg, avgs[k], vars[k], weights)
 		m.Metrics[k] = MetricStat{
-			Median: med,
-			MAD:    mad,
+			Avg: avg,
+			Var: variance,
 		}
 	}
 	return
@@ -134,50 +132,34 @@ func computeMetricStat(m Metric) MetricStat {
 	}
 	l := make([]int, len(m.Deltas))
 	copy(l, m.Deltas)
-	sort.Ints(l)
-	med := l[len(l)/2]
-	dev := make([]int, len(l))
-	for i, v := range l {
-		dev[i] = v - med
-		if dev[i] < 0 {
-			dev[i] = -dev[i]
-		}
+	avg := sum(l...) / len(l)
+	var variance int
+	for _, x := range l {
+		variance += square(x - avg)
 	}
-	sort.Ints(dev)
-	mad := dev[len(l)/2]
+	variance /= len(l)
 	return MetricStat{
-		Median: med,
-		MAD:    mad,
+		Avg: avg,
+		Var: variance,
 	}
 }
 
-func weightedMed(l, w []int) int {
+func weightedAvg(l, w []int) (v int) {
 	W := 0
-	for _, wt := range w {
-		W += wt
+	for i := range w {
+		v += w[i] * l[i]
+		W += w[i]
 	}
-	// sort(x) ~ sort(l), but w must correspond
-	x := &weightedInts{l, w}
-	sort.Sort(x)
-	k := 0
-	sum := W - x.w[0]
-	for sum > W/2 {
-		k++
-		sum -= x.w[k]
-	}
-	return x.l[k]
+	v /= W
+	return
 }
 
-type weightedInts struct {
-	l, w []int
-}
-
-func (w *weightedInts) Len() int {
-	return len(w.l)
-}
-func (w *weightedInts) Less(i, j int) bool {
-	return w.l[i] < w.l[j]
-}
-func (w *weightedInts) Swap(i, j int) {
-	w.l[i], w.w[i], w.l[j], w.w[j] = w.l[j], w.w[j], w.l[i], w.w[i]
+func weightedVar(avg int, avgs, vars, w []int) (v int) {
+	W := 0
+	for i := range w {
+		v += w[i] * (vars[i] + square(avgs[i]-avg))
+		W += w[i]
+	}
+	v /= W
+	return
 }

@@ -141,34 +141,34 @@ func compareMetrics(sa, sb Stats, key string) (score CmpScore) {
 	score.Metric = key
 	a := sa.Metrics[key]
 	b := sb.Metrics[key]
-	if a.Median == b.Median {
+	if a.Avg == b.Avg {
 		score.Score = 1
 		return
 	}
-	maxmad := math.Max(math.Abs(float64(a.MAD)), math.Abs(float64(b.MAD)))
-	maxmed := math.Max(math.Abs(float64(a.Median)), math.Abs(float64(b.Median)))
-	if maxmad == 0 || maxmed == 0 {
+	maxavg := math.Max(math.Abs(float64(a.Avg)), math.Abs(float64(b.Avg)))
+	maxvar := math.Max(math.Abs(float64(a.Var)), math.Abs(float64(b.Var)))
+	if maxavg == 0 || maxvar == 0 {
 		score.Score = 1
 		return
 	}
 
-	relmad := math.Abs(float64(a.MAD-b.MAD)) / maxmad
-	relmed := math.Abs(float64(a.Median-b.Median)) / maxmed
-	score.Score = (1 - relmed) * (1 - relmad)
+	relavg := math.Abs(float64(a.Avg-b.Avg)) / maxavg
+	relvar := math.Abs(float64(a.Var-b.Var)) / maxvar
+	score.Score = (1 - relavg) * (1 - relvar)
 
 	var msg string
-	if relmad > CmpThreshold {
+	if relavg > CmpThreshold {
 		msg = fmt.Sprintf("metric '%s' not proximal: "+
-			"deviations (%d, %d) are not within threshold (%d)\n",
-			key, a.MAD, b.MAD, int(CmpThreshold*100))
+			"averages (%d, %d) are not within threshold (%d%%)\n",
+			key, a.Avg, b.Avg, int(CmpThreshold*100))
 	}
-	if relmed > CmpThreshold {
+	if relvar > CmpThreshold {
 		msg += fmt.Sprintf("metric '%s' not proximal: "+
-			"medians (%d, %d) are not within threshold (%d)\n",
-			key, a.Median, b.Median, int(CmpThreshold*100))
+			"variances (%d, %d) are not within threshold (%d%%)\n",
+			key, a.Var, b.Var, int(CmpThreshold*100))
 	}
 	if msg != "" {
-		score.Err = fmt.Errorf(msg)
+		score.Err = fmt.Errorf("%s", msg)
 	}
 	return
 }
