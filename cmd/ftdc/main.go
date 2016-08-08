@@ -27,9 +27,9 @@ func main() {
 type DecodeCommand struct {
 	StartTime string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
 	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
+	Merge     bool   `short:"m" long:"merge" description:"merge chunks into one object"`
 	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write diagnostic output, in JSON, to given file" required:"true"`
 	Silent    bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
-	Merge     bool   `short:"m" long:"merge" description:"merge chunks into one object"`
 	Args      struct {
 		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
 	} `positional-args:"yes" required:"yes"`
@@ -70,6 +70,7 @@ func (statOpts *StatsCommand) Execute(args []string) error {
 }
 
 type CompareCommand struct {
+	Explicit  bool    `short:"e" long:"explicit" description:"show comparison values for all compared metrics; sorted by score, descending"`
 	Threshold float64 `short:"t" long:"threshold" value-name:"<FLOAT>" description:"threshold of deviation in comparison" default:"0.2"`
 	Args      struct {
 		FileA string `positional-arg-name:"STAT1" description:"statistical file (JSON)"`
@@ -91,9 +92,16 @@ func (cmp *CompareCommand) Execute(args []string) error {
 		return err
 	}
 
-	msg, score, ok := ftdc.Proximal(sa, sb)
-	// msg to stderr, score to stdout, ok to status code
-	fmt.Fprint(os.Stderr, msg)
+	score, scores, ok := ftdc.Proximal(sa, sb)
+	// score to stdout, scores to stdout, msg to stderr, ok to status code
+	for _, s := range scores {
+		if cmp.Explicit {
+			fmt.Printf("%s: %f\n", s.Metric, s.Score)
+		}
+		if s.Err != nil {
+			fmt.Fprint(os.Stderr, s.Err)
+		}
+	}
 	fmt.Fprintln(os.Stderr) // newline for clarity
 	fmt.Printf("score: %f\n", score)
 	var result string

@@ -27,9 +27,9 @@ Usage:
 
         --start=<TIME>    clip data preceding start time (layout UnixDate)
         --end=<TIME>      clip data after end time (layout UnixDate)
+    -m, --merge           merge chunks into one object
     -o, --out=<FILE>      write diagnostic output, in JSON, to given file
     -s, --silent          suppress chunk overview output
-    -m, --merge           merge chunks into one object
     FILE:                 diagnostic file(s)
 ```
 
@@ -51,6 +51,8 @@ Usage:
 Usage:
   ftdc compare [OPTIONS] STAT1 STAT2
 
+    -e, --explicit             show comparison values for all compared metrics;
+                               sorted by score, descending
     -t, --threshold=<FLOAT>    threshold of deviation in comparison (default: 0.3)
     STAT1:                     statistical file (JSON)
     STAT2:                     statistical file (JSON)
