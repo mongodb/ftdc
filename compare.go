@@ -58,15 +58,16 @@ type CmpScore struct {
 	Err error
 }
 
-type cmpScores []CmpScore
+// CmpScores implements sort.Interface for CmpScore slices
+type CmpScores []CmpScore
 
-func (s cmpScores) Len() int {
+func (s CmpScores) Len() int {
 	return len(s)
 }
-func (s cmpScores) Less(i, j int) bool {
+func (s CmpScores) Less(i, j int) bool {
 	return s[i].Score < s[j].Score
 }
-func (s cmpScores) Swap(i, j int) {
+func (s CmpScores) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
@@ -88,7 +89,7 @@ func isCmpMetric(key string) bool {
 // Return values: score holds the numeric rating (1.0 = perfect), scores is
 // the sorted list of scores for all compared metrics, and ok is whether the
 // threshold was met.
-func Proximal(a, b Stats) (score float64, allScores []CmpScore, ok bool) {
+func Proximal(a, b Stats) (score float64, scores CmpScores, ok bool) {
 	aCount := float64(a.NSamples)
 	bCount := float64(b.NSamples)
 	diff := math.Abs(aCount - bCount)
@@ -104,7 +105,7 @@ func Proximal(a, b Stats) (score float64, allScores []CmpScore, ok bool) {
 			a.NSamples, b.NSamples, int(CmpThreshold*100))
 	}
 
-	scores := make(cmpScores, 0)
+	scores = make(CmpScores, 0)
 	scores = append(scores, nsampleScore)
 	var sumScores float64
 	for key := range a.Metrics {
@@ -128,7 +129,6 @@ func Proximal(a, b Stats) (score float64, allScores []CmpScore, ok bool) {
 	// score is quadratic, so sqrt for linear
 	score = math.Sqrt(score)
 
-	allScores = []CmpScore(scores)
 	ok = score >= (1 - CmpThreshold)
 	return
 }

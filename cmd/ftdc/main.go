@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/10gen/ftdc-utils"
@@ -94,6 +95,7 @@ func (cmp *CompareCommand) Execute(args []string) error {
 
 	score, scores, ok := ftdc.Proximal(sa, sb)
 	// score to stdout, scores to stdout, msg to stderr, ok to status code
+	sort.Sort(sort.Reverse(scores))
 	for _, s := range scores {
 		if cmp.Explicit {
 			fmt.Printf("%s: %f\n", s.Metric, s.Score)
