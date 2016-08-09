@@ -154,7 +154,7 @@ func compareMetrics(sa, sb Stats, key string) (score CmpScore) {
 
 	relavg := math.Abs(float64(a.Avg-b.Avg)) / maxavg
 	relvar := math.Abs(float64(a.Var-b.Var)) / maxvar
-	score.Score = (1 - relavg) * (1 - relvar)
+	score.Score = math.Abs((1 - relavg) * (1 - relvar))
 
 	var msg string
 	if relavg > CmpThreshold {

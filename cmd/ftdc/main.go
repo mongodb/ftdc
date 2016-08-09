@@ -94,17 +94,18 @@ func (cmp *CompareCommand) Execute(args []string) error {
 	}
 
 	score, scores, ok := ftdc.Proximal(sa, sb)
-	// score to stdout, scores to stdout, msg to stderr, ok to status code
+	// score to stdout, scores to stdout, ok to status code
 	sort.Sort(sort.Reverse(scores))
+	var msg string
 	for _, s := range scores {
 		if cmp.Explicit {
 			fmt.Printf("%5f: %s\n", s.Score, s.Metric)
 		}
 		if s.Err != nil {
-			fmt.Fprint(os.Stderr, s.Err)
+			msg += s.Err.Error()
 		}
 	}
-	fmt.Fprintln(os.Stderr) // newline for clarity
+	fmt.Fprintln(os.Stderr, msg)
 	fmt.Printf("score: %f\n", score)
 	var result string
 	if ok {
