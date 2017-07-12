@@ -7,6 +7,7 @@ import (
 	"os"
 	"sort"
 	"time"
+	"io"
 
 	"github.com/10gen/ftdc-utils"
 	"github.com/jessevdk/go-flags"
@@ -18,6 +19,7 @@ func main() {
 	parser.AddCommand("decode", "decode diagnostic files into raw JSON output", "", &DecodeCommand{})
 	parser.AddCommand("stats", "read diagnostic file(s) into aggregated statistical output", "", &StatsCommand{})
 	parser.AddCommand("compare", "compare statistical output", "", &CompareCommand{})
+	parser.AddCommand("export", "export JSON rows in a format suitable for importing into MongoDB", "", &ExportCommand{})
 
 	_, err := parser.Parse()
 	if err != nil {
@@ -47,6 +49,41 @@ func (decOpts *DecodeCommand) Execute(args []string) error {
 	}
 	err = writeJSONtoFile(output, decOpts.Out)
 	return err
+}
+
+type ExportCommand struct {
+	StartTime string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
+	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
+	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write output, in JSON, to given file instead of STDOUT"`
+	Silent    bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
+	Args      struct {
+		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
+	} `positional-args:"yes" required:"yes"`
+}
+
+func (expOpts *ExportCommand) Execute(args []string) error {
+	if len(args) > 0 {
+		return fmt.Errorf("unknown argument: %s", args[0])
+	}
+
+	out := os.Stdout
+
+	if expOpts.Out != "" {
+		var err error
+		out, err = os.OpenFile(expOpts.Out, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			return fmt.Errorf("failed to open write file '%s': %s", expOpts.Out, err)
+		}
+		defer out.Close()
+		fmt.Fprintf(os.Stderr, "Writing output to %s\n", expOpts.Out)		
+	}
+
+	err := export(expOpts.Args.Files, expOpts.StartTime, expOpts.EndTime, expOpts.Silent, out)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type StatsCommand struct {
@@ -185,7 +222,7 @@ func stats(files []string, tStart, tEnd string) (interface{}, error) {
 	ms := ftdc.MergeStats(ss...)
 	fmt.Fprintf(os.Stderr, "found %d samples\n", ms.NSamples)
 
-	return ftdc.MergeStats(ss...), nil
+	return ms, nil
 }
 
 func decode(files []string, tStart, tEnd string, silent, shouldMerge bool) (interface{}, error) {
@@ -265,12 +302,98 @@ func decode(files []string, tStart, tEnd string, silent, shouldMerge bool) (inte
 		return total, nil
 	}
 
-	maps := []map[string]ftdc.Metric{}
-	for _, c := range cs {
-		maps = append(maps, c.Map())
-	}
 	return cs, nil
 
+}
+
+
+func export(files []string, tStart string, tEnd string, silent bool, out io.Writer) error {
+	if len(files) == 0 {
+		return fmt.Errorf("error: must provide FILE")
+	}
+
+	start, end, err := parseTimes(tStart, tEnd)
+	if err != nil {
+		return err
+	}
+
+	enc := json.NewEncoder(out)
+
+	chunkCount := 0
+	count := 0
+	for _, file := range files {
+		f, err := os.Open(file)
+		if err != nil {
+			return fmt.Errorf("error: failed to open '%s': %s", file, err)
+		}
+
+		o := make(chan ftdc.Chunk)
+		go func() {
+			err := ftdc.Chunks(f, o)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: failed to parse chunks: %s\n", err)
+			}
+		}()
+
+		logChunk := func(c ftdc.Chunk) {
+			t := time.Unix(int64(c.Map()["start"].Value)/1000, 0).Format(time.UnixDate)
+			fmt.Fprintf(os.Stderr, "chunk in file '%s' with %d metrics and "+
+				"%d deltas on %s\n", file, len(c.Metrics), c.NDeltas, t)
+		}
+
+		for c := range o {
+			if !c.Clip(start, end) {
+				continue
+			}
+
+			chunkCount += 1
+			
+			if !silent {
+				logChunk(c)
+			}
+			
+			for i, d := range expandDeltas(c) {
+				err := enc.Encode(d)
+				if err != nil {
+					return fmt.Errorf("failed to write output (chunk: %d, delta: %d): %s", chunkCount, i, err)
+				}
+				count += 1
+			}
+		}
+		f.Close()
+	}
+
+	if !silent {
+		fmt.Fprintf(os.Stderr, "found %d samples\n", count)
+	}
+
+	return nil
+
+}
+
+func expandDeltas(c ftdc.Chunk) []map[string]int {
+	// Initialize data structures
+	deltas := make([]map[string]int, 0, c.NDeltas + 1)
+	last := make(map[string]int)
+	
+	// Expand deltas
+	for i := -1; i < c.NDeltas; i++ {
+		d := make(map[string]int)
+		for _, m := range c.Metrics {
+			v, ok := last[m.Key]
+			if !ok {
+				v = m.Value
+			}
+			if i > -1 && len(m.Deltas) > 0 {
+				v += m.Deltas[i]
+			}
+			d[m.Key] = v
+			last[m.Key] = v
+		}
+		deltas = append(deltas, d)
+	}
+
+	return deltas
 }
 
 func writeJSONtoFile(output interface{}, file string) error {
