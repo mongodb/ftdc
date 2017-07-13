@@ -74,19 +74,21 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 func Chunks(r io.Reader, c chan<- Chunk) error {
 	errCh := make(chan error)
 	ch := make(chan bson.D)
+	abrt := make(chan bool)
 	go func() {
-		errCh <- readDiagnostic(r, ch)
+		errCh <- readDiagnostic(r, ch, abrt)
 	}()
 	go func() {
-		errCh <- readChunks(ch, c)
+		errCh <- readChunks(ch, c, abrt)
 	}()
-	for i := 0; i < 2; i++ {
-		err := <-errCh
-		if err != nil {
-			return err
-		}
+	err := <-errCh
+	if err != nil {
+		close(abrt)
+		<-errCh
+	} else {
+		err = <-errCh
 	}
-	return nil
+	return err
 }
 
 // Metric represents an item in a chunk.

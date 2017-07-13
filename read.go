@@ -10,23 +10,27 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func readDiagnostic(f io.Reader, ch chan<- bson.D) error {
+func readDiagnostic(f io.Reader, ch chan<- bson.D, abrt <-chan bool) error {
+	defer close(ch)
 	buf := bufio.NewReader(f)
 	for {
 		doc, err := readBufBSON(buf)
 		if err != nil {
 			if err == io.EOF {
-				break
+				err = nil
 			}
 			return err
 		}
-		ch <- doc
+		select {
+		case ch <- doc:
+		case <-abrt:
+			return nil
+		}
 	}
-	close(ch)
-	return nil
 }
 
-func readChunks(ch <-chan bson.D, o chan<- Chunk) error {
+func readChunks(ch <-chan bson.D, o chan<- Chunk, abrt <-chan bool) error {
+	defer close(o)
 	for doc := range ch {
 		m := doc.Map()
 		if m["type"] == 1 {
@@ -74,13 +78,16 @@ func readChunks(ch <-chan bson.D, o chan<- Chunk) error {
 					metrics[i].Deltas[j] = delta
 				}
 			}
-			o <- Chunk{
+			select {
+			case o <- Chunk{
 				Metrics: metrics,
 				NDeltas: ndeltas,
+			}:
+			case <-abrt:
+				return nil
 			}
 		}
 	}
-	close(o)
 	return nil
 }
 
