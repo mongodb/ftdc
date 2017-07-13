@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 	"io"
+	"strings"
 
 	"github.com/10gen/ftdc-utils"
 	"github.com/jessevdk/go-flags"
@@ -406,6 +407,12 @@ func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
 				include, ok = includeKeys[m.Key]
 				if !ok {
 					include = false
+					for prefix, inc := range includeKeys {
+						if inc && strings.HasPrefix(m.Key, prefix) {
+							include = true
+							break
+						}
+					}
 				}
 			}
 
