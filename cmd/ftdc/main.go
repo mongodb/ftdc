@@ -1,15 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"bufio"
+	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"sort"
-	"time"
-	"io"
 	"strings"
+	"time"
 
 	"github.com/10gen/ftdc-utils"
 	"github.com/jessevdk/go-flags"
@@ -54,12 +54,12 @@ func (decOpts *DecodeCommand) Execute(args []string) error {
 }
 
 type ExportCommand struct {
-	StartTime string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
-	EndTime   string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
-	Out       string `short:"o" long:"out" value-name:"<FILE>" description:"write output, in JSON, to given file instead of STDOUT"`
+	StartTime   string `long:"start" value-name:"<TIME>" description:"clip data preceding start time (layout UnixDate)"`
+	EndTime     string `long:"end" value-name:"<TIME>" description:"clip data after end time (layout UnixDate)"`
+	Out         string `short:"o" long:"out" value-name:"<FILE>" description:"write output, in JSON, to given file instead of STDOUT"`
 	IncludeKeys string `short:"i" long:"include" value-name:"<FILE>" description:"include only keys from the given file, one line per key."`
-	Silent    bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
-	Args      struct {
+	Silent      bool   `short:"s" long:"silent" description:"suppress chunk overview output"`
+	Args        struct {
 		Files []string `positional-arg-name:"FILE" description:"diagnostic file(s)"`
 	} `positional-args:"yes" required:"yes"`
 }
@@ -78,7 +78,7 @@ func (expOpts *ExportCommand) Execute(args []string) error {
 			return fmt.Errorf("failed to open output file '%s': %s", expOpts.Out, err)
 		}
 		defer out.Close()
-		fmt.Fprintf(os.Stderr, "Writing output to %s\n", expOpts.Out)		
+		fmt.Fprintf(os.Stderr, "Writing output to %s\n", expOpts.Out)
 	}
 
 	includeKeys := make(map[string]bool)
@@ -319,7 +319,6 @@ func decode(files []string, tStart, tEnd string, silent, shouldMerge bool) (inte
 
 }
 
-
 func export(files []string, tStart string, tEnd string, silent bool, out io.Writer, includeKeys map[string]bool) error {
 	if len(files) == 0 {
 		return fmt.Errorf("error: must provide FILE")
@@ -360,11 +359,11 @@ func export(files []string, tStart string, tEnd string, silent bool, out io.Writ
 			}
 
 			chunkCount += 1
-			
+
 			if !silent {
 				logChunk(c)
 			}
-			
+
 			for i, d := range expandDeltas(c, includeKeys) {
 				err := enc.Encode(d)
 				if err != nil {
@@ -386,7 +385,7 @@ func export(files []string, tStart string, tEnd string, silent bool, out io.Writ
 
 func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
 	// Initialize data structures
-	deltas := make([]map[string]int, 0, c.NDeltas + 1)
+	deltas := make([]map[string]int, 0, c.NDeltas+1)
 	last := make(map[string]int)
 
 	// Expand deltas
@@ -400,7 +399,7 @@ func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
 			if i > -1 && len(m.Deltas) > 0 {
 				v += m.Deltas[i]
 			}
-			
+
 			include := true
 			if includeKeys != nil && len(includeKeys) > 0 {
 				var ok bool
@@ -419,7 +418,7 @@ func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
 			if include {
 				d[m.Key] = v
 			}
-			
+
 			last[m.Key] = v
 		}
 		deltas = append(deltas, d)
@@ -430,21 +429,21 @@ func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
 
 func readIncludeKeysFile(file string) (map[string]bool, error) {
 	m := make(map[string]bool)
-	
+
 	in, err := os.Open(file)
-    if err != nil {
-        return nil, err
-    }
-    defer in.Close()
+	if err != nil {
+		return nil, err
+	}
+	defer in.Close()
 
-    scanner := bufio.NewScanner(in)
-    for scanner.Scan() {
-        m[scanner.Text()] = true
-    }
+	scanner := bufio.NewScanner(in)
+	for scanner.Scan() {
+		m[scanner.Text()] = true
+	}
 
-    if err := scanner.Err(); err != nil {
-        return nil, err
-    }
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }
