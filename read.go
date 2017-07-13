@@ -6,6 +6,7 @@ import (
 	"compress/zlib"
 	"fmt"
 	"io"
+	"os"
 
 	"gopkg.in/mgo.v2/bson"
 )
@@ -53,7 +54,7 @@ func readChunks(ch <-chan bson.D, o chan<- Chunk, abrt <-chan bool) error {
 			ndeltas := unpackInt(bl[4:])
 			if nmetrics != len(metrics) {
 				//return fmt.Errorf("metrics mismatch. Expected %d, got %d", nmetrics, len(metrics))
-				fmt.Printf("Warning: metrics mismatch. Expected %d, got %d\n", nmetrics, len(metrics))
+				fmt.Fprintf(os.Stderr, "Warning: metrics mismatch. Expected %d, got %d\n", nmetrics, len(metrics))
 			}
 			nzeroes := 0
 			for i, v := range metrics {
