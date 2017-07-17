@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"io"
+	"strings"
 	"time"
 
 	"gopkg.in/mgo.v2/bson"
@@ -66,6 +67,55 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 		m.Deltas = m.Deltas[si : ei+1]
 	}
 	return true
+}
+
+// Expand accumulates all deltas to give values of diagnostic data for each
+// sample represented by the Chunk. includeKeys specifies which items should be
+// included in the output. If a value of includeKeys is false, it won't be
+// shown even if the value for a parent document is set to true. If includeKeys
+// is nil, data for every key is returned.
+func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
+	// Initialize data structures
+	deltas := make([]map[string]int, 0, c.NDeltas+1)
+	last := make(map[string]int)
+
+	// Expand deltas
+	for i := -1; i < c.NDeltas; i++ {
+		d := make(map[string]int)
+		for _, m := range c.Metrics {
+			v, ok := last[m.Key]
+			if !ok {
+				v = m.Value
+			}
+			if i > -1 && len(m.Deltas) > 0 {
+				v += m.Deltas[i]
+			}
+
+			include := true
+			if includeKeys != nil {
+				var ok bool
+				include, ok = includeKeys[m.Key]
+				if !ok {
+					include = false
+					for prefix, inc := range includeKeys {
+						if inc && strings.HasPrefix(m.Key, prefix + ".") {
+							include = true
+							break
+						}
+					}
+				}
+			}
+
+			if include {
+				d[m.Key] = v
+			}
+
+			last[m.Key] = v
+		}
+		deltas = append(deltas, d)
+	}
+
+	return deltas
 }
 
 // Chunks takes an FTDC diagnostic file in the form of an io.Reader, and
