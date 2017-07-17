@@ -392,10 +392,6 @@ func readIncludeKeysFile(file string) (map[string]bool, error) {
 		m[scanner.Text()] = true
 	}
 
-	if len(m) == 0 {
-		m = nil
-	}
-
 	return m, scanner.Err()
 }
 
