@@ -98,7 +98,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 				if !ok {
 					include = false
 					for prefix, inc := range includeKeys {
-						if inc && strings.HasPrefix(m.Key, prefix) {
+						if inc && strings.HasPrefix(m.Key, prefix + ".") {
 							include = true
 							break
 						}
