@@ -8,7 +8,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/10gen/ftdc-utils"
@@ -19,9 +18,9 @@ func main() {
 	opts := struct{}{}
 	parser := flags.NewParser(&opts, flags.Default)
 	parser.AddCommand("decode", "decode diagnostic files into raw JSON output", "", &DecodeCommand{})
+	parser.AddCommand("export", "export each sample as a JSON document in a format suitable for importing into MongoDB", "", &ExportCommand{})
 	parser.AddCommand("stats", "read diagnostic file(s) into aggregated statistical output", "", &StatsCommand{})
 	parser.AddCommand("compare", "compare statistical output", "", &CompareCommand{})
-	parser.AddCommand("export", "export JSON rows in a format suitable for importing into MongoDB", "", &ExportCommand{})
 
 	_, err := parser.Parse()
 	if err != nil {
@@ -81,7 +80,7 @@ func (expOpts *ExportCommand) Execute(args []string) error {
 		fmt.Fprintf(os.Stderr, "Writing output to %s\n", expOpts.Out)
 	}
 
-	includeKeys := make(map[string]bool)
+	var includeKeys map[string]bool
 	if expOpts.IncludeKeys != "" {
 		var err error
 		includeKeys, err = readIncludeKeysFile(expOpts.IncludeKeys)
@@ -92,11 +91,7 @@ func (expOpts *ExportCommand) Execute(args []string) error {
 	}
 
 	err := export(expOpts.Args.Files, expOpts.StartTime, expOpts.EndTime, expOpts.Silent, out, includeKeys)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 type StatsCommand struct {
@@ -364,7 +359,7 @@ func export(files []string, tStart string, tEnd string, silent bool, out io.Writ
 				logChunk(c)
 			}
 
-			for i, d := range expandDeltas(c, includeKeys) {
+			for i, d := range c.Expand(includeKeys) {
 				err := enc.Encode(d)
 				if err != nil {
 					return fmt.Errorf("failed to write output (chunk: %d, delta: %d): %s", chunkCount, i, err)
@@ -383,50 +378,6 @@ func export(files []string, tStart string, tEnd string, silent bool, out io.Writ
 
 }
 
-func expandDeltas(c ftdc.Chunk, includeKeys map[string]bool) []map[string]int {
-	// Initialize data structures
-	deltas := make([]map[string]int, 0, c.NDeltas+1)
-	last := make(map[string]int)
-
-	// Expand deltas
-	for i := -1; i < c.NDeltas; i++ {
-		d := make(map[string]int)
-		for _, m := range c.Metrics {
-			v, ok := last[m.Key]
-			if !ok {
-				v = m.Value
-			}
-			if i > -1 && len(m.Deltas) > 0 {
-				v += m.Deltas[i]
-			}
-
-			include := true
-			if includeKeys != nil && len(includeKeys) > 0 {
-				var ok bool
-				include, ok = includeKeys[m.Key]
-				if !ok {
-					include = false
-					for prefix, inc := range includeKeys {
-						if inc && strings.HasPrefix(m.Key, prefix) {
-							include = true
-							break
-						}
-					}
-				}
-			}
-
-			if include {
-				d[m.Key] = v
-			}
-
-			last[m.Key] = v
-		}
-		deltas = append(deltas, d)
-	}
-
-	return deltas
-}
-
 func readIncludeKeysFile(file string) (map[string]bool, error) {
 	m := make(map[string]bool)
 
@@ -441,11 +392,7 @@ func readIncludeKeysFile(file string) (map[string]bool, error) {
 		m[scanner.Text()] = true
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return m, nil
+	return m, scanner.Err()
 }
 
 func writeJSONtoFile(output interface{}, file string) error {
