@@ -92,7 +92,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 			}
 
 			include := true
-			if includeKeys != nil && len(includeKeys) > 0 {
+			if includeKeys != nil {
 				var ok bool
 				include, ok = includeKeys[m.Key]
 				if !ok {
