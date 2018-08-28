@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/sometimes"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
@@ -79,9 +80,9 @@ func readChunks(ch <-chan *bson.Document, o chan<- Chunk, abrt <-chan bool) erro
 		}
 		nmetrics := unpackInt(bl[:4])
 		ndeltas := unpackInt(bl[4:])
-		if nmetrics != len(metrics) {
-			grip.Debugf("metrics mismatch. Expected %d, got %d", nmetrics, len(metrics))
-		}
+
+		grip.DebugWhenf(nmetrics != len(metrics) && sometimes.Percent(1), "metrics mismatch. Expected %d, got %d", nmetrics, len(metrics))
+
 		nzeroes := 0
 		for i, v := range metrics {
 			metrics[i].Value = v.Value

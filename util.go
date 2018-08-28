@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 )
@@ -69,8 +68,6 @@ func flattenBSON(d *bson.Document) (o []Metric) {
 				Key:   key,
 				Value: int(t) * 1000,
 			})
-		default:
-			fmt.Println("skipping:", key, val.Type())
 		}
 	}
 
@@ -113,8 +110,4 @@ func sum(l ...int) (s int) {
 		s += v
 	}
 	return
-}
-
-func square(n int) int {
-	return n * n
 }
