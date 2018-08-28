@@ -4,14 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"compress/zlib"
-	"fmt"
 	"io"
-	"os"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/mongodb/grip"
+	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/pkg/errors"
 )
 
-func readDiagnostic(f io.Reader, ch chan<- bson.D, abrt <-chan bool) error {
+func readDiagnostic(f io.Reader, ch chan<- *bson.Document, abrt <-chan bool) error {
 	defer close(ch)
 	buf := bufio.NewReader(f)
 	for {
@@ -30,63 +30,89 @@ func readDiagnostic(f io.Reader, ch chan<- bson.D, abrt <-chan bool) error {
 	}
 }
 
-func readChunks(ch <-chan bson.D, o chan<- Chunk, abrt <-chan bool) error {
+func isOne(val *bson.Value) bool {
+	if val == nil {
+		return false
+	}
+
+	switch val.Type() {
+	case bson.TypeInt32:
+		return val.Int32() == 1
+	case bson.TypeInt64:
+		return val.Int64() == 1
+	case bson.TypeDouble:
+		return val.Double() == 1.0
+	case bson.TypeString:
+		str := val.StringValue()
+		return str == "1" || str == "1.0"
+	default:
+		return false
+	}
+}
+
+func readChunks(ch <-chan *bson.Document, o chan<- Chunk, abrt <-chan bool) error {
 	defer close(o)
 	for doc := range ch {
-		m := doc.Map()
-		if m["type"] == 1 {
-			zBytes := m["data"].([]byte)[4:]
-			z, err := zlib.NewReader(bytes.NewBuffer(zBytes))
-			if err != nil {
-				return err
-			}
-			buf := bufio.NewReader(z)
-			metrics, err := readBufMetrics(buf)
-			if err != nil {
-				return err
-			}
-			bl := make([]byte, 8)
-			_, err = io.ReadAtLeast(buf, bl, 8)
-			if err != nil {
-				return err
-			}
-			nmetrics := unpackInt(bl[:4])
-			ndeltas := unpackInt(bl[4:])
-			if nmetrics != len(metrics) {
-				fmt.Fprintf(os.Stderr, "Warning: metrics mismatch. Expected %d, got %d\n", nmetrics, len(metrics))
-			}
-			nzeroes := 0
-			for i, v := range metrics {
-				metrics[i].Value = v.Value
-				metrics[i].Deltas = make([]int, ndeltas)
-				for j := 0; j < ndeltas; j++ {
-					var delta int
-					if nzeroes != 0 {
-						delta = 0
-						nzeroes--
-					} else {
-						delta, err = unpackDelta(buf)
+		if !isOne(doc.Lookup("type")) {
+			continue
+		}
+
+		zelem := doc.LookupElement("data")
+		if zelem == nil {
+			return errors.New("data is not populated")
+		}
+		_, zBytes := zelem.Value().Binary()
+
+		z, err := zlib.NewReader(bytes.NewBuffer(zBytes[4:]))
+		if err != nil {
+			return errors.Wrap(err, "problem building zlib reader")
+		}
+		buf := bufio.NewReader(z)
+		metrics, err := readBufMetrics(buf)
+		if err != nil {
+			return errors.Wrap(err, "problem reading metrics")
+		}
+		bl := make([]byte, 8)
+		_, err = io.ReadAtLeast(buf, bl, 8)
+		if err != nil {
+			return err
+		}
+		nmetrics := unpackInt(bl[:4])
+		ndeltas := unpackInt(bl[4:])
+		if nmetrics != len(metrics) {
+			grip.Debugf("metrics mismatch. Expected %d, got %d", nmetrics, len(metrics))
+		}
+		nzeroes := 0
+		for i, v := range metrics {
+			metrics[i].Value = v.Value
+			metrics[i].Deltas = make([]int, ndeltas)
+			for j := 0; j < ndeltas; j++ {
+				var delta int
+				if nzeroes != 0 {
+					delta = 0
+					nzeroes--
+				} else {
+					delta, err = unpackDelta(buf)
+					if err != nil {
+						return err
+					}
+					if delta == 0 {
+						nzeroes, err = unpackDelta(buf)
 						if err != nil {
 							return err
 						}
-						if delta == 0 {
-							nzeroes, err = unpackDelta(buf)
-							if err != nil {
-								return err
-							}
-						}
 					}
-					metrics[i].Deltas[j] = delta
 				}
+				metrics[i].Deltas[j] = delta
 			}
-			select {
-			case o <- Chunk{
-				Metrics: metrics,
-				NDeltas: ndeltas,
-			}:
-			case <-abrt:
-				return nil
-			}
+		}
+		select {
+		case o <- Chunk{
+			Metrics: metrics,
+			NDeltas: ndeltas,
+		}:
+		case <-abrt:
+			return nil
 		}
 	}
 	return nil
@@ -109,14 +135,19 @@ func readBufDoc(buf *bufio.Reader, d interface{}) (err error) {
 	return
 }
 
-func readBufBSON(buf *bufio.Reader) (doc bson.D, err error) {
-	err = readBufDoc(buf, &doc)
-	return
+func readBufBSON(buf *bufio.Reader) (*bson.Document, error) {
+	doc := &bson.Document{}
+
+	if err := readBufDoc(buf, doc); err != nil {
+		return nil, err
+	}
+
+	return doc, nil
 }
 
 func readBufMetrics(buf *bufio.Reader) (metrics []Metric, err error) {
-	doc := bson.D{}
-	err = readBufDoc(buf, &doc)
+	doc := &bson.Document{}
+	err = readBufDoc(buf, doc)
 	if err != nil {
 		return
 	}

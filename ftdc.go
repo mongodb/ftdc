@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // Chunk represents a 'metric chunk' of data in the FTDC
@@ -98,7 +98,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 				if !ok {
 					include = false
 					for prefix, inc := range includeKeys {
-						if inc && strings.HasPrefix(m.Key, prefix + ".") {
+						if inc && strings.HasPrefix(m.Key, prefix+".") {
 							include = true
 							break
 						}
@@ -112,6 +112,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 
 			last[m.Key] = v
 		}
+
 		deltas = append(deltas, d)
 	}
 
@@ -123,7 +124,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 // no more chunks.
 func Chunks(r io.Reader, c chan<- Chunk) error {
 	errCh := make(chan error)
-	ch := make(chan bson.D)
+	ch := make(chan *bson.Document)
 	abrt := make(chan bool)
 	go func() {
 		errCh <- readDiagnostic(r, ch, abrt)

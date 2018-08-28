@@ -4,64 +4,77 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"time"
+	"fmt"
 
-	"gopkg.in/mgo.v2/bson"
+	"github.com/mongodb/mongo-go-driver/bson"
 )
 
-func flattenBSON(d bson.D) (o []Metric) {
-	for _, e := range d {
-		switch child := e.Value.(type) {
-		case bson.D:
-			n := flattenBSON(child)
+func flattenBSON(d *bson.Document) (o []Metric) {
+	iter := d.Iterator()
+	for iter.Next() {
+		e := iter.Element()
+		val := e.Value()
+		key := e.Key()
+
+		switch val.Type() {
+		case bson.TypeObjectID:
+			// pass
+		case bson.TypeString:
+			// pass
+		case bson.TypeArray:
+			// pass
+		case bson.TypeEmbeddedDocument:
+			n := flattenBSON(val.MutableDocument())
 			for _, ne := range n {
 				o = append(o, Metric{
-					Key:   e.Name + "." + ne.Key,
+					Key:   key + "." + ne.Key,
 					Value: ne.Value,
 				})
 			}
-		case []interface{}: // skip
-		case string: // skip
-		case bool:
-			if child {
+		case bson.TypeBoolean:
+			if val.Boolean() {
 				o = append(o, Metric{
-					Key:   e.Name,
+					Key:   key,
 					Value: 1,
 				})
 			} else {
 				o = append(o, Metric{
-					Key:   e.Name,
+					Key:   key,
 					Value: 0,
 				})
 			}
-		case float64:
+		case bson.TypeDouble:
 			o = append(o, Metric{
-				Key:   e.Name,
-				Value: int(child),
+				Key:   key,
+				Value: int(val.Double()),
 			})
-		case int:
+		case bson.TypeInt32:
 			o = append(o, Metric{
-				Key:   e.Name,
-				Value: child,
+				Key:   key,
+				Value: int(val.Int32()),
 			})
-		case int32:
+		case bson.TypeInt64:
 			o = append(o, Metric{
-				Key:   e.Name,
-				Value: int(child),
+				Key:   key,
+				Value: int(val.Int64()),
 			})
-		case int64:
+		case bson.TypeDateTime:
 			o = append(o, Metric{
-				Key:   e.Name,
-				Value: int(child),
+				Key:   key,
+				Value: int(val.DateTime().Unix()) * 1000,
 			})
-		case time.Time:
+		case bson.TypeTimestamp:
+			t, _ := val.Timestamp()
 			o = append(o, Metric{
-				Key:   e.Name,
-				Value: int(child.Unix()) * 1000,
+				Key:   key,
+				Value: int(t) * 1000,
 			})
+		default:
+			fmt.Println("skipping:", key, val.Type())
 		}
 	}
-	return o
+
+	return
 }
 
 func unpackDelta(buf *bufio.Reader) (delta int, err error) {
