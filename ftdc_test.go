@@ -1,7 +1,6 @@
 package ftdc
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -28,22 +27,19 @@ func TestOne(t *testing.T) {
 	counter := 0
 	num := 0
 	blips := 0
-	chunkM := []int{}
 	for c := range ch {
 		counter++
 		if num == 0 {
 			num = len(c.Metrics)
-		} else if len(c.Metrics) != num {
+		} else {
+			require.Equal(t, len(c.Metrics), num)
 			blips++
-			fmt.Println("deltanum:", len(c.Metrics)-num)
 		}
-		chunkM = append(chunkM, len(c.Metrics[0].Deltas))
 	}
 	grip.Notice(message.Fields{
-		"series":    num,
-		"iters":     counter,
-		"shifts":    blips,
-		"chunkSize": chunkM,
+		"series": num,
+		"iters":  counter,
+		"shifts": blips,
 	})
 
 }
