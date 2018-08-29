@@ -3,47 +3,65 @@ package ftdc
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPacking(t *testing.T) {
-	dataset := []int{32, 1, 25, 42, 6, 3, -1}
+func TestEncodingSeries(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		dataset []int
+	}{
+		{
+			name:    "SingleElement",
+			dataset: []int{1},
+		},
+		{
+			name:    "CommonWithZeros",
+			dataset: []int{32, 1, 0, 0, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "CommonEndsWithZero",
+			dataset: []int{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
+		},
+		{
+			name:    "CommonWithOutZeros",
+			dataset: []int{32, 1, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "SingleZero",
+			dataset: []int{0},
+		},
+		{
+			name:    "OnlyZeros",
+			dataset: []int{0, 0, 0, 0},
+		},
+		{
+			name:    "AllOnes",
+			dataset: []int{1, 1, 1, 1, 1, 1},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			out, zeroCount, err := encodeSeries(0, test.dataset)
+			assert.NoError(t, err)
+			assert.Equal(t, int64(0), zeroCount)
 
-	out, err := packDelta(dataset)
-	assert.NoError(t, err)
+			buf := bufio.NewReader(bytes.NewBuffer(out))
 
-	buf := bufio.NewReader(bytes.NewBuffer(out))
+			var res []int
+			var nzeros int64
+			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
 
-	res := []int{}
-	nzeros := 0
-	for range dataset {
-		var delta int
-		var err error
-		if nzeros != 0 {
-			delta = 0
-			nzeros--
-		} else {
-			delta, err = unpackDelta(buf)
-			if !assert.NoError(t, err) {
-				break
-			}
-			if delta == 0 {
-				nzeros, err = unpackDelta(buf)
-				if !assert.NoError(t, err) {
-					break
+			assert.NoError(t, err)
+			assert.Equal(t, int64(0), nzeros)
+
+			if assert.Equal(t, len(test.dataset), len(res)) {
+				for idx := range test.dataset {
+					assert.Equal(t, test.dataset[idx], res[idx])
 				}
 			}
-		}
-		res = append(res, delta)
-	}
-	assert.Equal(t, len(dataset), len(res))
-	for idx := range dataset {
-		assert.Equal(t, dataset[idx], res[idx])
-	}
 
-	fmt.Println("in:", dataset)
-	fmt.Println("out:", res)
+		})
+	}
 }

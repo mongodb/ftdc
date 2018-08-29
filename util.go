@@ -135,26 +135,47 @@ func decodeSeries(numPoints int, numZeroes int64, buf *bufio.Reader) ([]int, int
 	return out, numZeroes, nil
 }
 
-func encodeSeries(in []int) ([]byte, error) {
-	if len(in) == 0 {
-		return nil, errors.New("must specify elements to pack")
-	}
-
+func encodeSeries(zeroCount int64, in []int) ([]byte, int64, error) {
 	out := bytes.NewBuffer([]byte{})
 
-	for idx := range in {
-		fmt.Println(in[idx])
-		tmp := make([]byte, binary.MaxVarintLen64)
-		num := binary.PutVarint(tmp, int64(in[idx]))
-		numt, err := out.Write(tmp)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println(num, ",", numt, tmp)
-	}
-	fmt.Println("---")
+	var tmp []byte
+	var num int
 
-	return out.Bytes(), nil
+	for _, delta := range in {
+		if delta == 0 {
+			zeroCount++
+			continue
+		}
+
+		if zeroCount > 0 {
+			tmp = make([]byte, binary.MaxVarintLen64)
+			num = binary.PutVarint(tmp, 0)
+			out.Write(tmp[:num])
+
+			tmp = make([]byte, binary.MaxVarintLen64)
+			num = binary.PutVarint(tmp, zeroCount-1)
+			out.Write(tmp[:num])
+
+			zeroCount = 0
+		}
+
+		tmp = make([]byte, binary.MaxVarintLen64)
+		num = binary.PutVarint(tmp, int64(delta))
+		out.Write(tmp[:num])
+	}
+
+	if zeroCount > 0 {
+		tmp = make([]byte, binary.MaxVarintLen64)
+		num = binary.PutVarint(tmp, 0)
+		out.Write(tmp[:num])
+
+		tmp = make([]byte, binary.MaxVarintLen64)
+		num = binary.PutVarint(tmp, zeroCount-1)
+		out.Write(tmp[:num])
+		zeroCount = 0
+	}
+
+	return out.Bytes(), zeroCount, nil
 }
 
 func unpackInt(bl []byte) int {
