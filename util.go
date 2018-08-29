@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"errors"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 )
@@ -74,6 +75,7 @@ func flattenBSON(d *bson.Document) (o []Metric) {
 	return
 }
 
+// this is ~decodeVByte
 func unpackDelta(buf *bufio.Reader) (delta int, err error) {
 	var res uint64
 	var shift uint
@@ -96,6 +98,35 @@ func unpackDelta(buf *bufio.Reader) (delta int, err error) {
 		}
 		shift += 7
 	}
+}
+
+// this is ~encodeVByte
+func packDelta(in []int) ([]byte, error) {
+	if len(in) == 0 {
+		return nil, errors.New("must specify elements to pack")
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+
+	var previous int
+	for idx := range in {
+		delta := in[idx] - previous
+		for delta >= 128 {
+			tmp := make([]byte, 8)
+			binary.LittleEndian.PutUint64(tmp, uint64(128+(delta&0x7F)))
+			buf.Write(tmp)
+			delta >>= 7
+
+		}
+
+		tmp := make([]byte, 8)
+		binary.LittleEndian.PutUint64(tmp, uint64(delta))
+		buf.Write(tmp)
+
+		previous = in[idx]
+	}
+
+	return buf.Bytes(), nil
 }
 
 func unpackInt(bl []byte) int {

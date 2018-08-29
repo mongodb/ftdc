@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"context"
 	"io"
 	"strings"
 	"time"
@@ -123,18 +124,20 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 // yields chunks on the given channel. The channel is closed when there are
 // no more chunks.
 func Chunks(r io.Reader, c chan<- Chunk) error {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 	errCh := make(chan error)
 	ch := make(chan *bson.Document)
-	abrt := make(chan bool)
+
 	go func() {
-		errCh <- readDiagnostic(r, ch, abrt)
+		errCh <- readDiagnostic(ctx, r, ch)
 	}()
 	go func() {
-		errCh <- readChunks(ch, c, abrt)
+		errCh <- readChunks(ctx, ch, c)
 	}()
 	err := <-errCh
 	if err != nil {
-		close(abrt)
+		cancel()
 		<-errCh
 	} else {
 		err = <-errCh

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/zlib"
+	"context"
 	"io"
 
 	"github.com/mongodb/grip"
@@ -12,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func readDiagnostic(f io.Reader, ch chan<- *bson.Document, abrt <-chan bool) error {
+func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bson.Document) error {
 	defer close(ch)
 	buf := bufio.NewReader(f)
 	for {
@@ -25,7 +26,7 @@ func readDiagnostic(f io.Reader, ch chan<- *bson.Document, abrt <-chan bool) err
 		}
 		select {
 		case ch <- doc:
-		case <-abrt:
+		case <-ctx.Done():
 			return nil
 		}
 	}
@@ -51,7 +52,7 @@ func isOne(val *bson.Value) bool {
 	}
 }
 
-func readChunks(ch <-chan *bson.Document, o chan<- Chunk, abrt <-chan bool) error {
+func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) error {
 	defer close(o)
 	for doc := range ch {
 		if !isOne(doc.Lookup("type")) {
@@ -112,7 +113,7 @@ func readChunks(ch <-chan *bson.Document, o chan<- Chunk, abrt <-chan bool) erro
 			Metrics: metrics,
 			NDeltas: ndeltas,
 		}:
-		case <-abrt:
+		case <-ctx.Done():
 			return nil
 		}
 	}
