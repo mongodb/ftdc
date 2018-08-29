@@ -84,28 +84,12 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 
 		grip.DebugWhenf(nmetrics != len(metrics) && sometimes.Percent(1), "metrics mismatch. Expected %d, got %d", nmetrics, len(metrics))
 
-		nzeroes := 0
+		var nzeroes int64
 		for i, v := range metrics {
 			metrics[i].Value = v.Value
-			metrics[i].Deltas = make([]int, ndeltas)
-			for j := 0; j < ndeltas; j++ {
-				var delta int
-				if nzeroes != 0 {
-					delta = 0
-					nzeroes--
-				} else {
-					delta, err = unpackDelta(buf)
-					if err != nil {
-						return err
-					}
-					if delta == 0 {
-						nzeroes, err = unpackDelta(buf)
-						if err != nil {
-							return err
-						}
-					}
-				}
-				metrics[i].Deltas[j] = delta
+			metrics[i].Deltas, nzeroes, err = decodeSeries(ndeltas, nzeroes, buf)
+			if err != nil {
+				return err
 			}
 		}
 		select {
@@ -153,6 +137,6 @@ func readBufMetrics(buf *bufio.Reader) (metrics []Metric, err error) {
 	if err != nil {
 		return
 	}
-	metrics = flattenBSON(doc)
+	metrics = flattenDocument(doc)
 	return
 }
