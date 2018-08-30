@@ -3,8 +3,10 @@ package ftdc
 import (
 	"bufio"
 	"bytes"
+	"math/rand"
 	"testing"
 
+	"github.com/mongodb/grip"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,24 +43,48 @@ func TestEncodingSeries(t *testing.T) {
 			name:    "AllOnes",
 			dataset: []int{1, 1, 1, 1, 1, 1},
 		},
+		{
+			name:    "AllNegativeOnes",
+			dataset: []int{-1, -1, -1, -1, -1, -1},
+		},
+		{
+			name:    "AllFortyTwo",
+			dataset: []int{42, 42, 42, 42, 42},
+		},
+		{
+			name:    "Randoms",
+			dataset: []int{rand.Int(), rand.Int(), rand.Int(), rand.Int()},
+		},
+		{
+			name:    "SmallRandoms",
+			dataset: []int{rand.Intn(100), rand.Intn(100), rand.Intn(100), rand.Intn(100)},
+		},
+		{
+			name:    "SmallRandSomeNegatives",
+			dataset: []int{rand.Intn(100), -1 * rand.Intn(100), rand.Intn(100), -1 * rand.Intn(100)},
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			out, zeroCount, err := encodeSeries(0, test.dataset)
+			out, err := encodeSeries(test.dataset)
 			assert.NoError(t, err)
-			assert.Equal(t, int64(0), zeroCount)
 
 			buf := bufio.NewReader(bytes.NewBuffer(out))
 
 			var res []int
 			var nzeros int64
 			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
+			grip.Infoln("in:", test.dataset)
+
+			grip.Infoln("while:", res)
+			res = undelta(0, res)
+			grip.Infoln("out:", res)
 
 			assert.NoError(t, err)
 			assert.Equal(t, int64(0), nzeros)
 
 			if assert.Equal(t, len(test.dataset), len(res)) {
 				for idx := range test.dataset {
-					assert.Equal(t, test.dataset[idx], res[idx])
+					assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
 				}
 			}
 

@@ -120,6 +120,20 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 	return deltas
 }
 
+func (m *Metric) expand() {
+	last := m.Value
+	m.values = make([]int, len(m.Deltas))
+	for idx, delta := range m.Deltas {
+		v := last
+		if idx == 0 && len(m.Deltas) > 0 {
+			v += delta
+		}
+
+		m.values[idx] = v
+		last = v
+	}
+}
+
 // Chunks takes an FTDC diagnostic file in the form of an io.Reader, and
 // yields chunks on the given channel. The channel is closed when there are
 // no more chunks.
@@ -157,4 +171,6 @@ type Metric struct {
 	// Deltas is the slice of deltas, which accumulate on Value to yield the
 	// specific sample's value.
 	Deltas []int
+
+	values []int
 }

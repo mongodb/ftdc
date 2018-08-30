@@ -2,7 +2,6 @@ package ftdc
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"fmt"
 
@@ -135,47 +134,32 @@ func decodeSeries(numPoints int, numZeroes int64, buf *bufio.Reader) ([]int, int
 	return out, numZeroes, nil
 }
 
-func encodeSeries(zeroCount int64, in []int) ([]byte, int64, error) {
-	out := bytes.NewBuffer([]byte{})
+func undelta(value int, deltas []int) []int {
+	out := make([]int, len(deltas))
+	for idx, delta := range deltas {
+		value += delta
+		out[idx] = value
 
-	var tmp []byte
-	var num int
-
-	for _, delta := range in {
 		if delta == 0 {
-			zeroCount++
 			continue
 		}
 
-		if zeroCount > 0 {
-			tmp = make([]byte, binary.MaxVarintLen64)
-			num = binary.PutVarint(tmp, 0)
-			out.Write(tmp[:num])
+		value = delta
+	}
+	return out
+}
 
-			tmp = make([]byte, binary.MaxVarintLen64)
-			num = binary.PutVarint(tmp, zeroCount-1)
-			out.Write(tmp[:num])
+func encodeSeries(in []int) ([]byte, error) {
+	encoder := newEncoder()
 
-			zeroCount = 0
+	for _, val := range in {
+		err := encoder.Add(val)
+		if err != nil {
+			return nil, err
 		}
-
-		tmp = make([]byte, binary.MaxVarintLen64)
-		num = binary.PutVarint(tmp, int64(delta))
-		out.Write(tmp[:num])
 	}
 
-	if zeroCount > 0 {
-		tmp = make([]byte, binary.MaxVarintLen64)
-		num = binary.PutVarint(tmp, 0)
-		out.Write(tmp[:num])
-
-		tmp = make([]byte, binary.MaxVarintLen64)
-		num = binary.PutVarint(tmp, zeroCount-1)
-		out.Write(tmp[:num])
-		zeroCount = 0
-	}
-
-	return out.Bytes(), zeroCount, nil
+	return encoder.Resolve(), nil
 }
 
 func unpackInt(bl []byte) int {
