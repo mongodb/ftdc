@@ -53,7 +53,7 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 			o = append(o, Metric{
 				ParentPath:    path,
 				KeyName:       ne.KeyName,
-				StartingValue: ne.StartingValue,
+				startingValue: ne.startingValue,
 			})
 		}
 	case bson.TypeBoolean:
@@ -61,49 +61,49 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 			o = append(o, Metric{
 				ParentPath:    path,
 				KeyName:       key,
-				StartingValue: 1,
+				startingValue: 1,
 			})
 		} else {
 			o = append(o, Metric{
 				ParentPath:    path,
 				KeyName:       key,
-				StartingValue: 0,
+				startingValue: 0,
 			})
 		}
 	case bson.TypeDouble:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			StartingValue: int(val.Double()),
+			startingValue: int(val.Double()),
 		})
 	case bson.TypeInt32:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			StartingValue: int(val.Int32()),
+			startingValue: int(val.Int32()),
 		})
 	case bson.TypeInt64:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			StartingValue: int(val.Int64()),
+			startingValue: int(val.Int64()),
 		})
 	case bson.TypeDateTime:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			StartingValue: int(val.DateTime().Unix()) * 1000,
+			startingValue: int(val.DateTime().Unix()) * 1000,
 		})
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			StartingValue: int(t) * 1000,
+			startingValue: int(t) * 1000,
 		}, Metric{
 			ParentPath:    path,
 			KeyName:       key + ".inc",
-			StartingValue: int(i),
+			startingValue: int(i),
 		})
 	}
 

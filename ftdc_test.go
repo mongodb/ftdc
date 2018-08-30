@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"testing"
@@ -22,44 +23,41 @@ func TestReadPathIntegration(t *testing.T) {
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
 	defer file.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	grip.Info("parsing data")
-	ch := make(chan Chunk)
-	go func() {
-		err = Chunks(file, ch)
-		require.NoError(t, err)
-	}()
-	grip.Info("checking data")
+	iter := ReadChunks(ctx, file)
 
 	counter := 0
 	num := 0
 	hasSeries := 0
-	for c := range ch {
+
+	for iter.Next(ctx) {
+		c := iter.Chunk()
 		counter++
 		if num == 0 {
 			num = len(c.metrics)
-		} else {
-			require.Equal(t, len(c.metrics), num)
-			metric := c.metrics[rand.Intn(num)]
-			if metric.KeyName == "start" || metric.KeyName == "end" {
-				continue
-			}
-			if len(metric.Values) > 0 {
-				hasSeries++
-				passed := assert.Equal(t, metric.StartingValue, metric.Values[0], "key=%s", metric.Key())
+		}
 
-				grip.DebugWhen(!passed || sometimes.Percent(5), message.Fields{
-					"checkPassed": passed,
-					"key":         metric.Key(),
-					"id":          metric.KeyName,
-					"parents":     metric.ParentPath,
-					"starting":    metric.StartingValue,
-					"first":       metric.Values[0],
-					"last":        metric.Values[len(metric.Values)-1],
-				})
-			}
+		require.Equal(t, len(c.metrics), num)
+		metric := c.metrics[rand.Intn(num)]
+		if len(metric.Values) > 0 {
+			hasSeries++
+			passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
+
+			grip.DebugWhen(!passed || sometimes.Percent(1), message.Fields{
+				"checkPassed": passed,
+				"key":         metric.Key(),
+				"id":          metric.KeyName,
+				"parents":     metric.ParentPath,
+				"starting":    metric.startingValue,
+				"first":       metric.Values[0],
+				"last":        metric.Values[len(metric.Values)-1],
+			})
 		}
 	}
+
+	assert.NoError(t, iter.Err())
 
 	// this might change if we change the data file that we read
 	assert.Equal(t, 1064, num)

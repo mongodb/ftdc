@@ -1,21 +1,19 @@
 package ftdc
 
 import (
-	"context"
-	"io"
 	"strings"
-	"time"
-
-	"github.com/mongodb/mongo-go-driver/bson"
 )
 
-// Chunk represents a 'metric chunk' of data in the FTDC
+// Chunk represents a 'metric chunk' of data in the FTDC.
 type Chunk struct {
 	metrics []Metric
 	nPoints int
 }
 
-// Map converts the chunk to a map representation.
+// Map converts the chunk to a map representation. Each key in the map
+// is a "composite" key with a dot-separated fully qualified document
+// path. The values in this map include all of the values collected
+// for this chunk.
 func (c *Chunk) Map() map[string]Metric {
 	m := make(map[string]Metric)
 	for _, metric := range c.metrics {
@@ -24,58 +22,10 @@ func (c *Chunk) Map() map[string]Metric {
 	return m
 }
 
-// Clip trims the chunk to contain as little data as possible while keeping
-// data within the given interval. If the chunk is entirely outside of the
-// range, it is not modified and the return value is false.
-func (c *Chunk) Clip(start, end time.Time) bool {
-	st := start.Unix()
-	et := end.Unix()
-	var si, ei int
-	for _, m := range c.metrics {
-		if m.KeyName != "start" {
-			continue
-		}
-		mst := int64(m.StartingValue) / 1000
-		met := (int64(m.StartingValue) + int64(sum(m.Values...))) / 1000
-		if met < st || mst > et {
-			return false // entire chunk outside range
-		}
-		if mst > st && met < et {
-			return true // entire chunk inside range
-		}
-		t := mst
-		for i := 0; i < c.nPoints; i++ {
-			t += int64(m.Values[i]) / 1000
-			if t < st {
-				si++
-			}
-			if t < et {
-				ei++
-			} else {
-				break
-			}
-		}
-		if ei+1 < c.nPoints {
-			ei++ // inclusive of end time
-		} else {
-			ei = c.nPoints - 1
-		}
-		break
-	}
-	c.nPoints = ei - si
-	for _, m := range c.metrics {
-		m.StartingValue = m.Values[si]
-		m.Values = m.Values[si : ei+1]
-	}
-	return true
-}
-
-// Expand accumulates all deltas to give values of diagnostic data for each
-// sample represented by the Chunk. includeKeys specifies which items should be
-// included in the output. If a value of includeKeys is false, it won't be
-// shown even if the value for a parent document is set to true. If includeKeys
-// is nil, data for every key is returned.
-func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
+// Expand provides a more natural map-based interface to metrics
+// data. Each map in the return slice represents a data collection
+// point.
+func (c *Chunk) Expand() []map[string]int {
 	// Initialize data structures
 	deltas := make([]map[string]int, 0, c.nPoints+1)
 
@@ -84,7 +34,7 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 		d := make(map[string]int)
 
 		for _, m := range c.metrics {
-			d[m.Key()] = m.Values[0]
+			d[m.Key()] = m.Values[i]
 		}
 
 		deltas = append(deltas, d)
@@ -93,44 +43,31 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 	return deltas
 }
 
-// Chunks takes an FTDC diagnostic file in the form of an io.Reader, and
-// yields chunks on the given channel. The channel is closed when there are
-// no more chunks.
-func Chunks(r io.Reader, c chan<- Chunk) error {
-	ctx, cancel := context.WithCancel(context.TODO())
-	defer cancel()
-	errCh := make(chan error)
-	ch := make(chan *bson.Document)
-
-	go func() {
-		errCh <- readDiagnostic(ctx, r, ch)
-	}()
-	go func() {
-		errCh <- readChunks(ctx, ch, c)
-	}()
-	err := <-errCh
-	if err != nil {
-		cancel()
-		<-errCh
-	} else {
-		err = <-errCh
-	}
-	return err
-}
-
 // Metric represents an item in a chunk.
 type Metric struct {
+	// For metrics that were derived from nested BSON documents,
+	// this preserves the path to the field, in support of being
+	// able to reconstitute metrics/chunks as a stream of BSON
+	// documents.
 	ParentPath []string
 
-	// Key is the dot-delimited key of the metric. The key is either
-	// 'start', 'end', or starts with 'serverStatus.'.
+	// KeyName is the specific field name of a metric in. It is
+	// *not* fully qualified with its parent document path, use
+	// the Key() method to access a value with more appropriate
+	// user facing context.
 	KeyName string
 
-	StartingValue int
-
+	// Values is an array of each value collected for this metric.
+	// During decoding, this attribute stores delta-encoded
+	// values, but those are expanded during decoding and should
+	// never be visible to user.
 	Values []int
+
+	// Used during decoding to expand the delta encoded values. In
+	// a properly decoded value, it should always report
+	startingValue int
 }
 
 func (m *Metric) Key() string {
-	return strings.Join(m.ParentPath, ".") + "." + m.KeyName
+	return strings.Join(append(m.ParentPath, m.KeyName), ".")
 }
