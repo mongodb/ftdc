@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func flattenDocument(d *bson.Document) (o []Metric) {
+func flattenDocument(path []string, d *bson.Document) (o []Metric) {
 	iter := d.Iterator()
 
 	for iter.Next() {
@@ -17,13 +17,13 @@ func flattenDocument(d *bson.Document) (o []Metric) {
 		val := e.Value()
 		key := e.Key()
 
-		o = append(o, metricForType(key, val)...)
+		o = append(o, metricForType(key, path, val)...)
 	}
 
 	return
 }
 
-func flattenArray(key string, a *bson.Array) (o []Metric) {
+func flattenArray(key string, path []string, a *bson.Array) (o []Metric) {
 	iter, err := bson.NewArrayIterator(a)
 	if err != nil {
 		return nil
@@ -32,14 +32,14 @@ func flattenArray(key string, a *bson.Array) (o []Metric) {
 	idx := 0
 	for iter.Next() {
 		val := iter.Value()
-		o = append(o, metricForType(fmt.Sprintf("%s.%d", key, idx), val)...)
+		o = append(o, metricForType(fmt.Sprintf("%s.%d", key, idx), path, val)...)
 		idx++
 	}
 
 	return o
 }
 
-func metricForType(key string, val *bson.Value) (o []Metric) {
+func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 	switch val.Type() {
 	case bson.TypeObjectID:
 		// pass
@@ -48,54 +48,65 @@ func metricForType(key string, val *bson.Value) (o []Metric) {
 	case bson.TypeDecimal128:
 		// pass
 	case bson.TypeArray:
-		o = append(o, flattenArray(key, val.MutableArray())...)
+		o = append(o, flattenArray(key, path, val.MutableArray())...)
 	case bson.TypeEmbeddedDocument:
-		for _, ne := range flattenDocument(val.MutableDocument()) {
+		path = append(path, key)
+
+		for _, ne := range flattenDocument(path, val.MutableDocument()) {
 			o = append(o, Metric{
-				Key:   key + "." + ne.Key,
-				Value: ne.Value,
+				ParentPath: path,
+				KeyName:    ne.KeyName,
+				Value:      ne.Value,
 			})
 		}
 	case bson.TypeBoolean:
 		if val.Boolean() {
 			o = append(o, Metric{
-				Key:   key,
-				Value: 1,
+				ParentPath: path,
+				KeyName:    key,
+				Value:      1,
 			})
 		} else {
 			o = append(o, Metric{
-				Key:   key,
-				Value: 0,
+				ParentPath: path,
+				KeyName:    key,
+				Value:      0,
 			})
 		}
 	case bson.TypeDouble:
 		o = append(o, Metric{
-			Key:   key,
-			Value: int(val.Double()),
+			ParentPath: path,
+			KeyName:    key,
+			Value:      int(val.Double()),
 		})
 	case bson.TypeInt32:
 		o = append(o, Metric{
-			Key:   key,
-			Value: int(val.Int32()),
+			ParentPath: path,
+			KeyName:    key,
+			Value:      int(val.Int32()),
 		})
 	case bson.TypeInt64:
 		o = append(o, Metric{
-			Key:   key,
-			Value: int(val.Int64()),
+			ParentPath: path,
+			KeyName:    key,
+			Value:      int(val.Int64()),
 		})
 	case bson.TypeDateTime:
 		o = append(o, Metric{
-			Key:   key,
-			Value: int(val.DateTime().Unix()) * 1000,
+			ParentPath: path,
+			KeyName:    key,
+			Value:      int(val.DateTime().Unix()) * 1000,
 		})
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 		o = append(o, Metric{
-			Key:   key,
-			Value: int(t) * 1000,
+			ParentPath: path,
+			KeyName:    key,
+			Value:      int(t) * 1000,
 		}, Metric{
-			Key:   key + ".inc",
-			Value: int(i),
+			ParentPath: path,
+			KeyName:    key + ".inc",
+			Value:      int(i),
 		})
 	}
 

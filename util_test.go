@@ -36,6 +36,22 @@ func TestEncodingSeries(t *testing.T) {
 			dataset: []int{0},
 		},
 		{
+			name:    "SeriesStartsWithNegatives",
+			dataset: []int{0},
+		},
+		{
+			name:    "SingleNegativeOne",
+			dataset: []int{-1},
+		},
+		{
+			name:    "SingleNegativeRandSmall",
+			dataset: []int{-rand.Intn(10)},
+		},
+		{
+			name:    "SingleNegativeRandLarge",
+			dataset: []int{-rand.Int()},
+		},
+		{
 			name:    "OnlyZeros",
 			dataset: []int{0, 0, 0, 0},
 		},

@@ -159,6 +159,6 @@ func readBufMetrics(buf *bufio.Reader) (metrics []Metric, err error) {
 	if err != nil {
 		return
 	}
-	metrics = flattenDocument(doc)
+	metrics = flattenDocument([]string{}, doc)
 	return
 }

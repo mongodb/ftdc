@@ -19,7 +19,7 @@ type Chunk struct {
 func (c *Chunk) Map() map[string]Metric {
 	m := make(map[string]Metric)
 	for _, metric := range c.Metrics {
-		m[metric.Key] = metric
+		m[metric.Key()] = metric
 	}
 	return m
 }
@@ -32,7 +32,7 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 	et := end.Unix()
 	var si, ei int
 	for _, m := range c.Metrics {
-		if m.Key != "start" {
+		if m.KeyName != "start" {
 			continue
 		}
 		mst := int64(m.Value) / 1000
@@ -84,7 +84,8 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 	for i := -1; i < c.NDeltas; i++ {
 		d := make(map[string]int)
 		for _, m := range c.Metrics {
-			v, ok := last[m.Key]
+			key := m.Key()
+			v, ok := last[key]
 			if !ok {
 				v = m.Value
 			}
@@ -95,11 +96,11 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 			include := true
 			if includeKeys != nil {
 				var ok bool
-				include, ok = includeKeys[m.Key]
+				include, ok = includeKeys[key]
 				if !ok {
 					include = false
 					for prefix, inc := range includeKeys {
-						if inc && strings.HasPrefix(m.Key, prefix+".") {
+						if inc && strings.HasPrefix(key, prefix+".") {
 							include = true
 							break
 						}
@@ -108,10 +109,10 @@ func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 			}
 
 			if include {
-				d[m.Key] = v
+				d[key] = v
 			}
 
-			last[m.Key] = v
+			last[key] = v
 		}
 
 		deltas = append(deltas, d)
@@ -161,9 +162,11 @@ func Chunks(r io.Reader, c chan<- Chunk) error {
 
 // Metric represents an item in a chunk.
 type Metric struct {
+	ParentPath []string
+
 	// Key is the dot-delimited key of the metric. The key is either
 	// 'start', 'end', or starts with 'serverStatus.'.
-	Key string
+	KeyName string
 
 	// Value is the value of the metric at the beginning of the sample
 	Value int
@@ -173,4 +176,8 @@ type Metric struct {
 	Deltas []int
 
 	values []int
+}
+
+func (m *Metric) Key() string {
+	return strings.Join(m.ParentPath, ".") + "." + m.KeyName
 }
