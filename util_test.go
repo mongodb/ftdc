@@ -107,3 +107,16 @@ func TestEncodingSeries(t *testing.T) {
 		})
 	}
 }
+
+func encodeSeries(in []int) ([]byte, error) {
+	encoder := NewEncoder()
+
+	for _, val := range in {
+		err := encoder.Add(val)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return encoder.Resolve()
+}

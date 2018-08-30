@@ -3,6 +3,8 @@ package ftdc
 import (
 	"bytes"
 	"encoding/binary"
+
+	"github.com/pkg/errors"
 )
 
 type payloadEncoder struct {
@@ -13,7 +15,7 @@ type payloadEncoder struct {
 
 type Encoder interface {
 	Add(int) error
-	Resolve() []byte
+	Resolve() ([]byte, error)
 	Reset()
 }
 
@@ -23,8 +25,14 @@ func NewEncoder() Encoder {
 	}
 }
 
-func (e *payloadEncoder) Reset()          { e.buf = bytes.NewBuffer([]byte{}) }
-func (e *payloadEncoder) Resolve() []byte { e.flushZeros(); return e.buf.Bytes() }
+func (e *payloadEncoder) Reset() { e.buf = bytes.NewBuffer([]byte{}) }
+func (e *payloadEncoder) Resolve() ([]byte, error) {
+	if err := e.flushZeros(); err != nil {
+		return nil, errors.WithStack(err)
+
+	}
+	return e.buf.Bytes(), nil
+}
 
 func (e *payloadEncoder) Add(in int) error {
 	delta := in - e.previous
@@ -33,29 +41,38 @@ func (e *payloadEncoder) Add(in int) error {
 		return nil
 	}
 
-	e.flushZeros()
+	if err := e.flushZeros(); err != nil {
+		return errors.WithStack(err)
+	}
 
 	tmp := make([]byte, binary.MaxVarintLen64)
 	num := binary.PutVarint(tmp, int64(delta))
-	e.buf.Write(tmp[:num])
+	if _, err := e.buf.Write(tmp[:num]); err != nil {
+		return errors.WithStack(err)
+	}
 
 	e.previous = delta
 
 	return nil
 }
 
-func (e *payloadEncoder) flushZeros() {
+func (e *payloadEncoder) flushZeros() error {
 	if e.zeroCount <= 0 {
-		return
+		return nil
 	}
 
 	tmp := make([]byte, binary.MaxVarintLen64)
 	num := binary.PutVarint(tmp, 0)
-	e.buf.Write(tmp[:num])
+	if _, err := e.buf.Write(tmp[:num]); err != nil {
+		return errors.WithStack(err)
+	}
 
 	tmp = make([]byte, binary.MaxVarintLen64)
 	num = binary.PutVarint(tmp, e.zeroCount-1)
-	e.buf.Write(tmp[:num])
+	if _, err := e.buf.Write(tmp[:num]); err != nil {
+		return errors.WithStack(err)
+	}
 
 	e.zeroCount = 0
+	return nil
 }

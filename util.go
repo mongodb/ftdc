@@ -110,29 +110,9 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 	return o
 }
 
-func encodeSeries(in []int) ([]byte, error) {
-	encoder := NewEncoder()
-
-	for _, val := range in {
-		err := encoder.Add(val)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return encoder.Resolve(), nil
-}
-
 func unpackInt(bl []byte) int {
 	return int(int32((uint32(bl[0]) << 0) |
 		(uint32(bl[1]) << 8) |
 		(uint32(bl[2]) << 16) |
 		(uint32(bl[3]) << 24)))
-}
-
-func sum(l ...int) (s int) {
-	for _, v := range l {
-		s += v
-	}
-	return
 }
