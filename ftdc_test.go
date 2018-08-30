@@ -33,6 +33,7 @@ func TestReadPathIntegration(t *testing.T) {
 
 	counter := 0
 	num := 0
+	hasSeries := 0
 	for c := range ch {
 		counter++
 		if num == 0 {
@@ -40,11 +41,23 @@ func TestReadPathIntegration(t *testing.T) {
 		} else {
 			require.Equal(t, len(c.Metrics), num)
 			metric := c.Metrics[rand.Intn(num)]
-			grip.DebugWhen(sometimes.Percent(5), message.Fields{
-				"key":     metric.Key(),
-				"id":      metric.KeyName,
-				"parents": metric.ParentPath,
-			})
+			if metric.KeyName == "start" || metric.KeyName == "end" {
+				continue
+			}
+			if len(metric.Values) > 0 {
+				hasSeries++
+				passed := assert.Equal(t, metric.StartingValue, metric.Values[0], "key=%s", metric.Key())
+
+				grip.DebugWhen(!passed || sometimes.Percent(5), message.Fields{
+					"checkPassed": passed,
+					"key":         metric.Key(),
+					"id":          metric.KeyName,
+					"parents":     metric.ParentPath,
+					"starting":    metric.StartingValue,
+					"first":       metric.Values[0],
+					"last":        metric.Values[len(metric.Values)-1],
+				})
+			}
 		}
 	}
 
@@ -52,6 +65,7 @@ func TestReadPathIntegration(t *testing.T) {
 	assert.Equal(t, 1064, num)
 	assert.Equal(t, 544, counter)
 
+	assert.True(t, hasSeries > 0)
 	grip.Notice(message.Fields{
 		"series": num,
 		"iters":  counter,

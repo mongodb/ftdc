@@ -35,8 +35,8 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 		if m.KeyName != "start" {
 			continue
 		}
-		mst := int64(m.Value) / 1000
-		met := (int64(m.Value) + int64(sum(m.Deltas...))) / 1000
+		mst := int64(m.StartingValue) / 1000
+		met := (int64(m.StartingValue) + int64(sum(m.Values...))) / 1000
 		if met < st || mst > et {
 			return false // entire chunk outside range
 		}
@@ -45,7 +45,7 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 		}
 		t := mst
 		for i := 0; i < c.NDeltas; i++ {
-			t += int64(m.Deltas[i]) / 1000
+			t += int64(m.Values[i]) / 1000
 			if t < st {
 				si++
 			}
@@ -64,8 +64,8 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 	}
 	c.NDeltas = ei - si
 	for _, m := range c.Metrics {
-		m.Value += sum(m.Deltas[:si]...)
-		m.Deltas = m.Deltas[si : ei+1]
+		m.StartingValue = m.Values[si]
+		m.Values = m.Values[si : ei+1]
 	}
 	return true
 }
@@ -78,61 +78,19 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 	// Initialize data structures
 	deltas := make([]map[string]int, 0, c.NDeltas+1)
-	last := make(map[string]int)
 
 	// Expand deltas
-	for i := -1; i < c.NDeltas; i++ {
+	for i := 0; i < c.NDeltas; i++ {
 		d := make(map[string]int)
+
 		for _, m := range c.Metrics {
-			key := m.Key()
-			v, ok := last[key]
-			if !ok {
-				v = m.Value
-			}
-			if i > -1 && len(m.Deltas) > 0 {
-				v += m.Deltas[i]
-			}
-
-			include := true
-			if includeKeys != nil {
-				var ok bool
-				include, ok = includeKeys[key]
-				if !ok {
-					include = false
-					for prefix, inc := range includeKeys {
-						if inc && strings.HasPrefix(key, prefix+".") {
-							include = true
-							break
-						}
-					}
-				}
-			}
-
-			if include {
-				d[key] = v
-			}
-
-			last[key] = v
+			d[m.Key()] = m.Values[0]
 		}
 
 		deltas = append(deltas, d)
 	}
 
 	return deltas
-}
-
-func (m *Metric) expand() {
-	last := m.Value
-	m.values = make([]int, len(m.Deltas))
-	for idx, delta := range m.Deltas {
-		v := last
-		if idx == 0 && len(m.Deltas) > 0 {
-			v += delta
-		}
-
-		m.values[idx] = v
-		last = v
-	}
 }
 
 // Chunks takes an FTDC diagnostic file in the form of an io.Reader, and
@@ -168,14 +126,9 @@ type Metric struct {
 	// 'start', 'end', or starts with 'serverStatus.'.
 	KeyName string
 
-	// Value is the value of the metric at the beginning of the sample
-	Value int
+	StartingValue int
 
-	// Deltas is the slice of deltas, which accumulate on Value to yield the
-	// specific sample's value.
-	Deltas []int
-
-	values []int
+	Values []int
 }
 
 func (m *Metric) Key() string {

@@ -17,7 +17,7 @@ type Encoder interface {
 	Reset()
 }
 
-func newEncoder() Encoder {
+func NewEncoder() Encoder {
 	return &payloadEncoder{
 		buf: bytes.NewBuffer([]byte{}),
 	}

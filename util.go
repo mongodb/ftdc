@@ -1,12 +1,9 @@
 package ftdc
 
 import (
-	"bufio"
-	"encoding/binary"
 	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/pkg/errors"
 )
 
 func flattenDocument(path []string, d *bson.Document) (o []Metric) {
@@ -54,114 +51,67 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 
 		for _, ne := range flattenDocument(path, val.MutableDocument()) {
 			o = append(o, Metric{
-				ParentPath: path,
-				KeyName:    ne.KeyName,
-				Value:      ne.Value,
+				ParentPath:    path,
+				KeyName:       ne.KeyName,
+				StartingValue: ne.StartingValue,
 			})
 		}
 	case bson.TypeBoolean:
 		if val.Boolean() {
 			o = append(o, Metric{
-				ParentPath: path,
-				KeyName:    key,
-				Value:      1,
+				ParentPath:    path,
+				KeyName:       key,
+				StartingValue: 1,
 			})
 		} else {
 			o = append(o, Metric{
-				ParentPath: path,
-				KeyName:    key,
-				Value:      0,
+				ParentPath:    path,
+				KeyName:       key,
+				StartingValue: 0,
 			})
 		}
 	case bson.TypeDouble:
 		o = append(o, Metric{
-			ParentPath: path,
-			KeyName:    key,
-			Value:      int(val.Double()),
+			ParentPath:    path,
+			KeyName:       key,
+			StartingValue: int(val.Double()),
 		})
 	case bson.TypeInt32:
 		o = append(o, Metric{
-			ParentPath: path,
-			KeyName:    key,
-			Value:      int(val.Int32()),
+			ParentPath:    path,
+			KeyName:       key,
+			StartingValue: int(val.Int32()),
 		})
 	case bson.TypeInt64:
 		o = append(o, Metric{
-			ParentPath: path,
-			KeyName:    key,
-			Value:      int(val.Int64()),
+			ParentPath:    path,
+			KeyName:       key,
+			StartingValue: int(val.Int64()),
 		})
 	case bson.TypeDateTime:
 		o = append(o, Metric{
-			ParentPath: path,
-			KeyName:    key,
-			Value:      int(val.DateTime().Unix()) * 1000,
+			ParentPath:    path,
+			KeyName:       key,
+			StartingValue: int(val.DateTime().Unix()) * 1000,
 		})
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 		o = append(o, Metric{
-			ParentPath: path,
-			KeyName:    key,
-			Value:      int(t) * 1000,
+			ParentPath:    path,
+			KeyName:       key,
+			StartingValue: int(t) * 1000,
 		}, Metric{
-			ParentPath: path,
-			KeyName:    key + ".inc",
-			Value:      int(i),
+			ParentPath:    path,
+			KeyName:       key + ".inc",
+			StartingValue: int(i),
 		})
 	}
 
 	return o
 }
 
-func decodeSeries(numPoints int, numZeroes int64, buf *bufio.Reader) ([]int, int64, error) {
-	var err error
-
-	out := make([]int, numPoints)
-
-	for i := 0; i < numPoints; i++ {
-
-		var delta int64
-
-		if numZeroes != 0 {
-			delta = 0
-			numZeroes--
-		} else {
-			delta, err = binary.ReadVarint(buf)
-			if err != nil {
-				return nil, 0, errors.WithStack(err)
-			}
-			if delta == 0 {
-				numZeroes, err = binary.ReadVarint(buf)
-				if err != nil {
-					return nil, 0, errors.WithStack(err)
-				}
-				continue
-			}
-		}
-
-		out[i] = int(delta)
-	}
-
-	return out, numZeroes, nil
-}
-
-func undelta(value int, deltas []int) []int {
-	out := make([]int, len(deltas))
-	for idx, delta := range deltas {
-		value += delta
-		out[idx] = value
-
-		if delta == 0 {
-			continue
-		}
-
-		value = delta
-	}
-	return out
-}
-
 func encodeSeries(in []int) ([]byte, error) {
-	encoder := newEncoder()
+	encoder := NewEncoder()
 
 	for _, val := range in {
 		err := encoder.Add(val)

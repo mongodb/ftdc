@@ -105,13 +105,18 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 			return errors.Errorf("metrics mismatch, file likely corrupt Expected %d, got %d", nmetrics, len(metrics))
 		}
 
+		decoder := NewDecoder(ndeltas, buf)
 		// now go back and populate the delta numbers
-		var nzeroes int64
 		for i, v := range metrics {
-			metrics[i].Value = v.Value
-			metrics[i].Deltas, nzeroes, err = decodeSeries(ndeltas, nzeroes, buf)
+			metrics[i].StartingValue = v.StartingValue
+			metrics[i].Values, err = decoder.Decode()
 			if err != nil {
 				return err
+			}
+
+			metrics[i].Values = append([]int{v.StartingValue}, undelta(v.StartingValue, metrics[i].Values)...)
+			if len(metrics[i].Values)-1 != ndeltas {
+				return errors.New("decoding error or data corruption")
 			}
 		}
 		select {
