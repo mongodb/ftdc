@@ -11,14 +11,14 @@ import (
 
 // Chunk represents a 'metric chunk' of data in the FTDC
 type Chunk struct {
-	Metrics []Metric
-	NDeltas int
+	metrics []Metric
+	nPoints int
 }
 
 // Map converts the chunk to a map representation.
 func (c *Chunk) Map() map[string]Metric {
 	m := make(map[string]Metric)
-	for _, metric := range c.Metrics {
+	for _, metric := range c.metrics {
 		m[metric.Key()] = metric
 	}
 	return m
@@ -31,7 +31,7 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 	st := start.Unix()
 	et := end.Unix()
 	var si, ei int
-	for _, m := range c.Metrics {
+	for _, m := range c.metrics {
 		if m.KeyName != "start" {
 			continue
 		}
@@ -44,7 +44,7 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 			return true // entire chunk inside range
 		}
 		t := mst
-		for i := 0; i < c.NDeltas; i++ {
+		for i := 0; i < c.nPoints; i++ {
 			t += int64(m.Values[i]) / 1000
 			if t < st {
 				si++
@@ -55,15 +55,15 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 				break
 			}
 		}
-		if ei+1 < c.NDeltas {
+		if ei+1 < c.nPoints {
 			ei++ // inclusive of end time
 		} else {
-			ei = c.NDeltas - 1
+			ei = c.nPoints - 1
 		}
 		break
 	}
-	c.NDeltas = ei - si
-	for _, m := range c.Metrics {
+	c.nPoints = ei - si
+	for _, m := range c.metrics {
 		m.StartingValue = m.Values[si]
 		m.Values = m.Values[si : ei+1]
 	}
@@ -77,13 +77,13 @@ func (c *Chunk) Clip(start, end time.Time) bool {
 // is nil, data for every key is returned.
 func (c *Chunk) Expand(includeKeys map[string]bool) []map[string]int {
 	// Initialize data structures
-	deltas := make([]map[string]int, 0, c.NDeltas+1)
+	deltas := make([]map[string]int, 0, c.nPoints+1)
 
 	// Expand deltas
-	for i := 0; i < c.NDeltas; i++ {
+	for i := 0; i < c.nPoints; i++ {
 		d := make(map[string]int)
 
-		for _, m := range c.Metrics {
+		for _, m := range c.metrics {
 			d[m.Key()] = m.Values[0]
 		}
 

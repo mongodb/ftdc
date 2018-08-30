@@ -121,8 +121,8 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		}
 		select {
 		case o <- Chunk{
-			Metrics: metrics,
-			NDeltas: ndeltas,
+			metrics: metrics,
+			nPoints: ndeltas,
 		}:
 		case <-ctx.Done():
 			return nil

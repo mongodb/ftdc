@@ -37,10 +37,10 @@ func TestReadPathIntegration(t *testing.T) {
 	for c := range ch {
 		counter++
 		if num == 0 {
-			num = len(c.Metrics)
+			num = len(c.metrics)
 		} else {
-			require.Equal(t, len(c.Metrics), num)
-			metric := c.Metrics[rand.Intn(num)]
+			require.Equal(t, len(c.metrics), num)
+			metric := c.metrics[rand.Intn(num)]
 			if metric.KeyName == "start" || metric.KeyName == "end" {
 				continue
 			}
