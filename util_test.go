@@ -86,7 +86,7 @@ func TestEncodingSeries(t *testing.T) {
 
 			buf := bufio.NewReader(bytes.NewBuffer(out))
 
-			var res []int
+			var res []int64
 			var nzeros int64
 			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
 			grip.Infoln("in:", test.dataset)

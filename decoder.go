@@ -8,7 +8,7 @@ import (
 )
 
 type Decoder interface {
-	Decode() ([]int, error)
+	Decode() ([]int64, error)
 }
 
 type payloadDecoder struct {
@@ -24,9 +24,9 @@ func NewDecoder(num int, buf io.ByteReader) Decoder {
 	}
 }
 
-func (d *payloadDecoder) Decode() ([]int, error) {
+func (d *payloadDecoder) Decode() ([]int64, error) {
 	var (
-		out []int
+		out []int64
 		err error
 	)
 
@@ -39,10 +39,10 @@ func (d *payloadDecoder) Decode() ([]int, error) {
 	return out, nil
 }
 
-func decodeSeries(numPoints int, numZeroes int64, buf io.ByteReader) ([]int, int64, error) {
+func decodeSeries(numPoints int, numZeroes int64, buf io.ByteReader) ([]int64, int64, error) {
 	var err error
 
-	out := make([]int, numPoints)
+	out := make([]int64, numPoints)
 
 	for i := 0; i < numPoints; i++ {
 		var delta int64
@@ -64,14 +64,14 @@ func decodeSeries(numPoints int, numZeroes int64, buf io.ByteReader) ([]int, int
 			}
 		}
 
-		out[i] = int(delta)
+		out[i] = delta
 	}
 
 	return out, numZeroes, nil
 }
 
-func undelta(value int, deltas []int) []int {
-	out := make([]int, len(deltas))
+func undelta(value int64, deltas []int64) []int64 {
+	out := make([]int64, len(deltas))
 	for idx, delta := range deltas {
 		value += delta
 		out[idx] = value

@@ -114,7 +114,7 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 				return err
 			}
 
-			metrics[i].Values = append([]int{v.startingValue}, undelta(v.startingValue, metrics[i].Values)...)
+			metrics[i].Values = append([]int64{v.startingValue}, undelta(v.startingValue, metrics[i].Values)...)
 			if len(metrics[i].Values)-1 != ndeltas {
 				return errors.New("decoding error or data corruption")
 			}

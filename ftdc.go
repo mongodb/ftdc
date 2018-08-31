@@ -25,13 +25,13 @@ func (c *Chunk) Map() map[string]Metric {
 // Expand provides a more natural map-based interface to metrics
 // data. Each map in the return slice represents a data collection
 // point.
-func (c *Chunk) Expand() []map[string]int {
+func (c *Chunk) Expand() []map[string]int64 {
 	// Initialize data structures
-	deltas := make([]map[string]int, 0, c.nPoints+1)
+	deltas := make([]map[string]int64, 0, c.nPoints+1)
 
 	// Expand deltas
 	for i := 0; i < c.nPoints; i++ {
-		d := make(map[string]int)
+		d := make(map[string]int64)
 
 		for _, m := range c.metrics {
 			d[m.Key()] = m.Values[i]
@@ -61,11 +61,11 @@ type Metric struct {
 	// During decoding, this attribute stores delta-encoded
 	// values, but those are expanded during decoding and should
 	// never be visible to user.
-	Values []int
+	Values []int64
 
 	// Used during decoding to expand the delta encoded values. In
 	// a properly decoded value, it should always report
-	startingValue int
+	startingValue int64
 }
 
 func (m *Metric) Key() string {

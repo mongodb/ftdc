@@ -74,36 +74,36 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			startingValue: int(val.Double()),
+			startingValue: int64(val.Double()),
 		})
 	case bson.TypeInt32:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			startingValue: int(val.Int32()),
+			startingValue: int64(val.Int32()),
 		})
 	case bson.TypeInt64:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			startingValue: int(val.Int64()),
+			startingValue: val.Int64(),
 		})
 	case bson.TypeDateTime:
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			startingValue: int(val.DateTime().Unix()) * 1000,
+			startingValue: val.DateTime().Unix() * 1000,
 		})
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 		o = append(o, Metric{
 			ParentPath:    path,
 			KeyName:       key,
-			startingValue: int(t) * 1000,
+			startingValue: int64(t) * 1000,
 		}, Metric{
 			ParentPath:    path,
 			KeyName:       key + ".inc",
-			startingValue: int(i),
+			startingValue: int64(i),
 		})
 	}
 
