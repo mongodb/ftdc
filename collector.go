@@ -10,14 +10,59 @@ import (
 	"github.com/pkg/errors"
 )
 
-type collector struct {
+// Collector describes the interface for collecting and constructing
+// FTDC data series. Implementations may have different efficiencies
+// and handling of schema changes.
+type Collector interface {
+	// SetMetadata sets the metadata document for the collector or
+	// chunk. This document is optional. Pass a nil to unset it,
+	// or a different document to override a previous operation.
+	SetMetadata(*bson.Document)
+
+	// Add extracts metrics from a document and appends it to the
+	// current collector. These documents MUST all be
+	// identical. Returns an error if there is a problem parsing
+	// the document or if the number of statistics collected changes.
+	Add(*bson.Document) error
+
+	// Resolve renders the existing documents and outputs the full
+	// FTDC chunk as a byte slice to be written out to storage.
+	Resolve() ([]byte, error)
+
+	// Reset clears the collector for future use.
+	Reset()
+}
+
+// NewSimpleCollector constructs a collector implementation that you
+// can populate by adding BSON documents. The collector assumes that
+// the first document contains the schema of the collection and does
+// NOT detect or handle schema changes.
+func NewSimpleCollector() Collector {
+	return &simpleCollector{
+		encoder: NewEncoder(),
+	}
+}
+
+type simpleCollector struct {
+	metadata       *bson.Document
 	startTime      time.Time
 	refrenceDoc    *bson.Document
 	referenceCount int
 	encoder        Encoder
 }
 
-func (c *collector) Add(doc *bson.Document) error {
+func (c *simpleCollector) SetMetadata(doc *bson.Document) {
+	c.metadata = doc
+}
+
+func (c *simpleCollector) Reset() {
+	c.metadata = nil
+	c.startTime = time.Time{}
+	c.refrenceDoc = nil
+	c.referenceCount = 0
+	c.encoder.Reset()
+}
+func (c *simpleCollector) Add(doc *bson.Document) error {
 	if doc == nil {
 		return errors.New("cannot add nil documents")
 	}
@@ -45,19 +90,29 @@ func (c *collector) Add(doc *bson.Document) error {
 	return nil
 }
 
-func (c *collector) Resolve() ([]byte, error) {
+func (c *simpleCollector) Resolve() ([]byte, error) {
+	if c.refrenceDoc == nil {
+		return nil, errors.New("reference document must not be nil")
+	}
+
 	buf := bytes.NewBuffer([]byte{})
 
-	// Start by encoding the metrics document
-	_, err := bson.NewDocument(
-		bson.EC.Time("_id", c.startTime),
-		bson.EC.Int32("type", 0),
-		bson.EC.SubDocument("doc", c.refrenceDoc)).WriteTo(buf)
-	if err != nil {
-		return nil, errors.Wrap(err, "problem writing reference document")
+	if c.metadata != nil {
+		// Start by encoding the reference document
+		_, err := bson.NewDocument(
+			bson.EC.Time("_id", c.startTime),
+			bson.EC.Int32("type", 0),
+			bson.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
+		if err != nil {
+			return nil, errors.Wrap(err, "problem writing metadata document")
+		}
 	}
 
 	payloadBuffer := bytes.NewBuffer([]byte{})
+
+	if _, err := c.refrenceDoc.WriteTo(buf); err != nil {
+		return nil, errors.Wrap(err, "problem writing reference document")
+	}
 
 	// get the metrics payload
 	payload, err := c.encoder.Resolve()
@@ -107,7 +162,7 @@ func (c *collector) Resolve() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (c *collector) extractMetricsFromDocument(doc *bson.Document) (int, error) {
+func (c *simpleCollector) extractMetricsFromDocument(doc *bson.Document) (int, error) {
 	iter := doc.Iterator()
 
 	var (
@@ -131,7 +186,7 @@ func (c *collector) extractMetricsFromDocument(doc *bson.Document) (int, error) 
 	return total, nil
 }
 
-func (c *collector) extractMetricsFromArray(array *bson.Array) (int, error) {
+func (c *simpleCollector) extractMetricsFromArray(array *bson.Array) (int, error) {
 	iter, err := bson.NewArrayIterator(array)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -158,7 +213,7 @@ func (c *collector) extractMetricsFromArray(array *bson.Array) (int, error) {
 	return total, nil
 }
 
-func (c *collector) encodeMetricFromValue(val *bson.Value) (int, error) {
+func (c *simpleCollector) encodeMetricFromValue(val *bson.Value) (int, error) {
 	switch val.Type() {
 	case bson.TypeObjectID:
 		return 0, nil
