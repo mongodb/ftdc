@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"context"
+	"encoding/binary"
 	"io"
 
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -52,6 +53,7 @@ func isOne(val *bson.Value) bool {
 
 func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) error {
 	defer close(o)
+
 	for doc := range ch {
 		// the FTDC streams typically have onetime-per-file
 		// metadata that includes information that doesn't
@@ -95,8 +97,8 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		if err != nil {
 			return err
 		}
-		nmetrics := unpackInt(bl[:4])
-		ndeltas := unpackInt(bl[4:])
+		nmetrics := int(binary.LittleEndian.Uint32(bl[:4]))
+		ndeltas := int(binary.LittleEndian.Uint32(bl[4:]))
 
 		// if the number of metrics that we see from the
 		// source document (metrics) and the number the file
@@ -137,7 +139,7 @@ func readBufDoc(buf *bufio.Reader, d interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	l := unpackInt(bl)
+	l := int(binary.LittleEndian.Uint32(bl))
 
 	b := make([]byte, l)
 	_, err = io.ReadAtLeast(buf, b, l)
