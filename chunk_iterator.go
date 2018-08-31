@@ -78,24 +78,29 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 		return iter.hasChunk()
 	}
 
-	select {
-	case next := <-iter.pipe:
-		iter.next = &next
-		return true
-	case <-ctx.Done():
-		iter.err = errors.New("operation canceled")
-		return false
-	case err := <-iter.errs:
-		iter.err = err
-		next, ok := <-iter.pipe
-
-		if ok && err == nil {
+	for {
+		select {
+		case next, ok := <-iter.pipe:
+			if !ok {
+				continue
+			}
 			iter.next = &next
-			iter.Close()
 			return true
-		}
+		case <-ctx.Done():
+			iter.err = errors.New("operation canceled")
+			return false
+		case err := <-iter.errs:
+			iter.err = err
+			next, ok := <-iter.pipe
 
-		return false
+			if ok && err == nil {
+				iter.next = &next
+				iter.Close()
+				return true
+			}
+
+			return false
+		}
 	}
 }
 

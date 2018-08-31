@@ -2,7 +2,7 @@ package ftdc
 
 import (
 	"bytes"
-	"compress/gzip"
+	"compress/zlib"
 	"encoding/binary"
 	"time"
 
@@ -44,11 +44,12 @@ func NewSimpleCollector() Collector {
 }
 
 type simpleCollector struct {
-	metadata       *bson.Document
-	startTime      time.Time
-	refrenceDoc    *bson.Document
-	referenceCount int
-	encoder        Encoder
+	metadata     *bson.Document
+	startTime    time.Time
+	refrenceDoc  *bson.Document
+	metricsCount int
+	sampleCount  int
+	encoder      Encoder
 }
 
 func (c *simpleCollector) SetMetadata(doc *bson.Document) {
@@ -59,7 +60,8 @@ func (c *simpleCollector) Reset() {
 	c.metadata = nil
 	c.startTime = time.Time{}
 	c.refrenceDoc = nil
-	c.referenceCount = 0
+	c.metricsCount = 0
+	c.sampleCount = 0
 	c.encoder.Reset()
 }
 func (c *simpleCollector) Add(doc *bson.Document) error {
@@ -74,7 +76,8 @@ func (c *simpleCollector) Add(doc *bson.Document) error {
 		if err != nil {
 			return errors.Wrap(err, "problem parsing metrics from reference document")
 		}
-		c.referenceCount = num
+		c.metricsCount = num
+		c.sampleCount++
 		return nil
 	}
 
@@ -83,10 +86,11 @@ func (c *simpleCollector) Add(doc *bson.Document) error {
 		return errors.Wrap(err, "problem parsing metrics sample")
 	}
 
-	if num != c.referenceCount {
-		return errors.Errorf("problem writing metrics sample, reference has %d metrics, sample has %d", num, c.referenceCount)
+	if num != c.metricsCount {
+		return errors.Errorf("problem writing metrics sample, reference has %d metrics, sample has %d", num, c.metricsCount)
 	}
 
+	c.sampleCount++
 	return nil
 }
 
@@ -95,11 +99,20 @@ func (c *simpleCollector) Resolve() ([]byte, error) {
 		return nil, errors.New("reference document must not be nil")
 	}
 
+	payload, err := c.getPayload()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	///////////////////////////////////
+	//
+	// Write to the actual results buffer
+
 	buf := bytes.NewBuffer([]byte{})
 
 	if c.metadata != nil {
 		// Start by encoding the reference document
-		_, err := bson.NewDocument(
+		_, err = bson.NewDocument(
 			bson.EC.Time("_id", c.startTime),
 			bson.EC.Int32("type", 0),
 			bson.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
@@ -108,58 +121,47 @@ func (c *simpleCollector) Resolve() ([]byte, error) {
 		}
 	}
 
-	payloadBuffer := bytes.NewBuffer([]byte{})
-
-	if _, err := c.refrenceDoc.WriteTo(buf); err != nil {
-		return nil, errors.Wrap(err, "problem writing reference document")
-	}
-
-	// get the metrics payload
-	payload, err := c.encoder.Resolve()
-	if err != nil {
-		return nil, errors.Wrap(err, "problem reading encoded metrics data")
-	}
-
-	// write get the uncompressed length
-	tmp := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmp, uint32(len(payload)))
-	n, err := payloadBuffer.Write(tmp)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	} else if n != 4 {
-		return nil, errors.Errorf("attempt to write payload length failed [%d:4]", n)
-	}
-
-	tmp = make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmp, uint32(c.referenceCount))
-	n, err = payloadBuffer.Write(tmp)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	} else if n != 4 {
-		return nil, errors.Errorf("attempt to write payload length failed [%d:4]", n)
-	}
-
-	// gzip the actual payload now
-	zwriter := gzip.NewWriter(payloadBuffer)
-	n, err = zwriter.Write(payload)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	} else if n != len(payload) {
-		return nil, errors.Errorf("attempt to write payload buffer failed [%d:%d]", n, len(payload))
-	}
-	if err = zwriter.Close(); err != nil {
-		return nil, errors.Wrap(err, "problem flushing gzip writer")
-	}
-
 	_, err = bson.NewDocument(
 		bson.EC.Time("_id", c.startTime),
 		bson.EC.Int32("type", 1),
-		bson.EC.Binary("data", payloadBuffer.Bytes())).WriteTo(buf)
+		bson.EC.Binary("data", payload)).WriteTo(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "problem writing metric chunk document")
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (c *simpleCollector) getPayload() ([]byte, error) {
+	payload := bytes.NewBuffer([]byte{})
+	if _, err := c.refrenceDoc.WriteTo(payload); err != nil {
+		return nil, errors.Wrap(err, "problem writing reference document")
+	}
+
+	payload.Write(encodeSizeValue(uint32(c.metricsCount)))
+	payload.Write(encodeSizeValue(uint32(c.sampleCount)))
+
+	// get the metrics payload
+	metrics, err := c.encoder.Resolve()
+	if err != nil {
+		return nil, errors.Wrap(err, "problem reading encoded metrics data")
+	}
+	payload.Write(metrics)
+
+	data, err := compressBuffer(payload.Bytes())
+	if err != nil {
+		return nil, errors.Wrap(err, "problem compressing payload")
+	}
+
+	return data, nil
+}
+
+func encodeSizeValue(val uint32) []byte {
+	tmp := make([]byte, 4)
+
+	binary.LittleEndian.PutUint32(tmp, val)
+
+	return tmp
 }
 
 func (c *simpleCollector) extractMetricsFromDocument(doc *bson.Document) (int, error) {
@@ -251,4 +253,25 @@ func (c *simpleCollector) encodeMetricFromValue(val *bson.Value) (int, error) {
 	default:
 		return 0, nil
 	}
+}
+
+func compressBuffer(input []byte) ([]byte, error) {
+	buf := bytes.NewBuffer([]byte{})
+	zbuf := zlib.NewWriter(buf)
+
+	var err error
+
+	buf.Write(encodeSizeValue(uint32(len(input))))
+
+	_, err = zbuf.Write(input)
+	if err != nil {
+		return nil, err
+	}
+
+	err = zbuf.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }

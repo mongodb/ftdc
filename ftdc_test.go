@@ -18,7 +18,7 @@ func init() {
 }
 
 func TestReadPathIntegration(t *testing.T) {
-	grip.Warning("the integration test validates the decoder not the decoded values")
+	grip.Warning("the integration test validates the decoder operations not the decoded values")
 
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
