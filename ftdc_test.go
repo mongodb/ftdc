@@ -20,6 +20,12 @@ func init() {
 func TestReadPathIntegration(t *testing.T) {
 	grip.Warning("the integration test validates the decoder operations not the decoded values")
 
+	const (
+		expectedNum     = 1064
+		expectedChunks  = 544
+		expectedMetrics = 300
+	)
+
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
 	defer file.Close()
@@ -37,9 +43,9 @@ func TestReadPathIntegration(t *testing.T) {
 		counter++
 		if num == 0 {
 			num = len(c.metrics)
+			require.Equal(t, expectedNum, num)
 		}
 
-		require.Equal(t, len(c.metrics), num)
 		metric := c.metrics[rand.Intn(num)]
 		if len(metric.Values) > 0 {
 			hasSeries++
@@ -54,16 +60,30 @@ func TestReadPathIntegration(t *testing.T) {
 				"first":       metric.Values[0],
 				"last":        metric.Values[len(metric.Values)-1],
 			})
+
+			assert.Len(t, metric.Values, expectedMetrics)
 		}
+
+		if sometimes.Percent(2) {
+			data := c.Expand()
+			assert.Len(t, data, expectedMetrics)
+
+			for _, v := range c.Map() {
+				assert.Len(t, v.Values, expectedMetrics)
+				assert.Equal(t, v.startingValue, v.Values[0], "key=%s", metric.Key())
+			}
+
+		}
+
 	}
 
 	assert.NoError(t, iter.Err())
 
 	// this might change if we change the data file that we read
-	assert.Equal(t, 1064, num)
-	assert.Equal(t, 544, counter)
+	assert.Equal(t, expectedNum, num)
+	assert.Equal(t, expectedChunks, counter)
+	assert.Equal(t, counter, hasSeries)
 
-	assert.True(t, hasSeries > 0)
 	grip.Notice(message.Fields{
 		"series": num,
 		"iters":  counter,

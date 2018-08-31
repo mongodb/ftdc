@@ -27,10 +27,10 @@ func (c *Chunk) Map() map[string]Metric {
 // point.
 func (c *Chunk) Expand() []map[string]int64 {
 	// Initialize data structures
-	deltas := make([]map[string]int64, 0, c.nPoints+1)
+	deltas := []map[string]int64{}
 
 	// Expand deltas
-	for i := 0; i < c.nPoints; i++ {
+	for i := 0; i < c.nPoints+1; i++ {
 		d := make(map[string]int64)
 
 		for _, m := range c.metrics {
