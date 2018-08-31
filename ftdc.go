@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"context"
 	"strings"
 )
 
@@ -41,6 +42,20 @@ func (c *Chunk) Expand() []map[string]int64 {
 	}
 
 	return deltas
+}
+
+// Iterator returns an iterator that you can use to read documents for
+// each sample period in the chunk. Documents are returned in collection
+// order, with keys flattened and dot-seperated fully qualified
+// paths.
+//
+// The documents are constructed from the metrics data lazily.
+func (c *Chunk) Iterator(ctx context.Context) *SampleIterator {
+	sctx, cancel := context.WithCancel(ctx)
+	return &SampleIterator{
+		closer: cancel,
+		stream: c.streamDocuments(sctx),
+	}
 }
 
 // Metric represents an item in a chunk.

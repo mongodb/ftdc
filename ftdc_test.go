@@ -64,6 +64,8 @@ func TestReadPathIntegration(t *testing.T) {
 			assert.Len(t, metric.Values, expectedMetrics)
 		}
 
+		// check to see if our public accesors for the data
+		// perform as expected
 		if sometimes.Percent(2) {
 			data := c.Expand()
 			assert.Len(t, data, expectedMetrics)
@@ -72,6 +74,18 @@ func TestReadPathIntegration(t *testing.T) {
 				assert.Len(t, v.Values, expectedMetrics)
 				assert.Equal(t, v.startingValue, v.Values[0], "key=%s", metric.Key())
 			}
+
+			numSamples := 0
+			samples := c.Iterator(ctx)
+			for samples.Next(ctx) {
+				doc := samples.Document()
+
+				numSamples++
+				if assert.NotNil(t, doc) {
+					assert.Equal(t, doc.Len(), expectedNum)
+				}
+			}
+			assert.Equal(t, numSamples, expectedMetrics)
 
 		}
 
