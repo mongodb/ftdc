@@ -8,13 +8,13 @@ import (
 )
 
 type payloadEncoder struct {
-	previous  int
+	previous  int64
 	zeroCount int64
 	buf       *bytes.Buffer
 }
 
 type Encoder interface {
-	Add(int) error
+	Add(int64) error
 	Resolve() ([]byte, error)
 	Reset()
 }
@@ -34,7 +34,7 @@ func (e *payloadEncoder) Resolve() ([]byte, error) {
 	return e.buf.Bytes(), nil
 }
 
-func (e *payloadEncoder) Add(in int) error {
+func (e *payloadEncoder) Add(in int64) error {
 	delta := in - e.previous
 	if delta == 0 {
 		e.zeroCount++

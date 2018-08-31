@@ -233,18 +233,18 @@ func (c *simpleCollector) encodeMetricFromValue(val *bson.Value) (int, error) {
 		}
 		return 1, c.encoder.Add(0)
 	case bson.TypeInt32:
-		return 1, errors.WithStack(c.encoder.Add(int(val.Int32())))
+		return 1, errors.WithStack(c.encoder.Add(int64(val.Int32())))
 	case bson.TypeInt64:
-		return 1, errors.WithStack(c.encoder.Add(int(val.Int64())))
+		return 1, errors.WithStack(c.encoder.Add(val.Int64()))
 	case bson.TypeDateTime:
-		return 1, errors.WithStack(c.encoder.Add(int(val.DateTime().Unix())))
+		return 1, errors.WithStack(c.encoder.Add(val.DateTime().Unix()))
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 
-		if err := c.encoder.Add(int(t)); err != nil {
+		if err := c.encoder.Add(int64(t)); err != nil {
 			return 0, errors.WithStack(err)
 		}
-		if err := c.encoder.Add(int(i)); err != nil {
+		if err := c.encoder.Add(int64(i)); err != nil {
 			return 0, errors.WithStack(err)
 		}
 		return 1, nil

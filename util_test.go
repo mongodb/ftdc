@@ -13,71 +13,71 @@ import (
 func TestEncodingSeries(t *testing.T) {
 	for _, test := range []struct {
 		name    string
-		dataset []int
+		dataset []int64
 	}{
 		{
 			name:    "SingleElement",
-			dataset: []int{1},
+			dataset: []int64{1},
 		},
 		{
 			name:    "CommonWithZeros",
-			dataset: []int{32, 1, 0, 0, 25, 42, 42, 6, 3},
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3},
 		},
 		{
 			name:    "CommonEndsWithZero",
-			dataset: []int{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
 		},
 		{
 			name:    "CommonWithOutZeros",
-			dataset: []int{32, 1, 25, 42, 42, 6, 3},
+			dataset: []int64{32, 1, 25, 42, 42, 6, 3},
 		},
 		{
 			name:    "SingleZero",
-			dataset: []int{0},
+			dataset: []int64{0},
 		},
 		{
 			name:    "SeriesStartsWithNegatives",
-			dataset: []int{0},
+			dataset: []int64{0},
 		},
 		{
 			name:    "SingleNegativeOne",
-			dataset: []int{-1},
+			dataset: []int64{-1},
 		},
 		{
 			name:    "SingleNegativeRandSmall",
-			dataset: []int{-rand.Intn(10)},
+			dataset: []int64{-rand.Int63n(10)},
 		},
 		{
 			name:    "SingleNegativeRandLarge",
-			dataset: []int{-rand.Int()},
+			dataset: []int64{-rand.Int63()},
 		},
 		{
 			name:    "OnlyZeros",
-			dataset: []int{0, 0, 0, 0},
+			dataset: []int64{0, 0, 0, 0},
 		},
 		{
 			name:    "AllOnes",
-			dataset: []int{1, 1, 1, 1, 1, 1},
+			dataset: []int64{1, 1, 1, 1, 1, 1},
 		},
 		{
 			name:    "AllNegativeOnes",
-			dataset: []int{-1, -1, -1, -1, -1, -1},
+			dataset: []int64{-1, -1, -1, -1, -1, -1},
 		},
 		{
 			name:    "AllFortyTwo",
-			dataset: []int{42, 42, 42, 42, 42},
+			dataset: []int64{42, 42, 42, 42, 42},
 		},
 		{
 			name:    "Randoms",
-			dataset: []int{rand.Int(), rand.Int(), rand.Int(), rand.Int()},
+			dataset: []int64{rand.Int63(), rand.Int63(), rand.Int63(), rand.Int63()},
 		},
 		{
 			name:    "SmallRandoms",
-			dataset: []int{rand.Intn(100), rand.Intn(100), rand.Intn(100), rand.Intn(100)},
+			dataset: []int64{rand.Int63n(100), rand.Int63n(100), rand.Int63n(100), rand.Int63n(100)},
 		},
 		{
 			name:    "SmallRandSomeNegatives",
-			dataset: []int{rand.Intn(100), -1 * rand.Intn(100), rand.Intn(100), -1 * rand.Intn(100)},
+			dataset: []int64{rand.Int63n(100), -1 * rand.Int63n(100), rand.Int63n(100), -1 * rand.Int63n(100)},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestEncodingSeries(t *testing.T) {
 	}
 }
 
-func encodeSeries(in []int) ([]byte, error) {
+func encodeSeries(in []int64) ([]byte, error) {
 	encoder := NewEncoder()
 
 	for _, val := range in {
