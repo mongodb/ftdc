@@ -69,18 +69,3 @@ func decodeSeries(numPoints int, numZeroes int64, buf io.ByteReader) ([]int64, i
 
 	return out, numZeroes, nil
 }
-
-func undelta(value int64, deltas []int64) []int64 {
-	out := make([]int64, len(deltas))
-	for idx, delta := range deltas {
-		value += delta
-		out[idx] = value
-
-		if delta == 0 {
-			continue
-		}
-
-		value = delta
-	}
-	return out
-}

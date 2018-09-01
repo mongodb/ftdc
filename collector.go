@@ -2,8 +2,6 @@ package ftdc
 
 import (
 	"bytes"
-	"compress/zlib"
-	"encoding/binary"
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -72,7 +70,7 @@ func (c *simpleCollector) Add(doc *bson.Document) error {
 	if c.refrenceDoc == nil {
 		c.refrenceDoc = doc
 		c.startTime = time.Now()
-		num, err := c.extractMetricsFromDocument(doc)
+		num, err := extractMetricsFromDocument(c.encoder, doc)
 		if err != nil {
 			return errors.Wrap(err, "problem parsing metrics from reference document")
 		}
@@ -81,7 +79,7 @@ func (c *simpleCollector) Add(doc *bson.Document) error {
 		return nil
 	}
 
-	num, err := c.extractMetricsFromDocument(doc)
+	num, err := extractMetricsFromDocument(c.encoder, doc)
 	if err != nil {
 		return errors.Wrap(err, "problem parsing metrics sample")
 	}
@@ -154,124 +152,4 @@ func (c *simpleCollector) getPayload() ([]byte, error) {
 	}
 
 	return data, nil
-}
-
-func encodeSizeValue(val uint32) []byte {
-	tmp := make([]byte, 4)
-
-	binary.LittleEndian.PutUint32(tmp, val)
-
-	return tmp
-}
-
-func (c *simpleCollector) extractMetricsFromDocument(doc *bson.Document) (int, error) {
-	iter := doc.Iterator()
-
-	var (
-		err   error
-		num   int
-		total int
-	)
-
-	for iter.Next() {
-		num, err = c.encodeMetricFromValue(iter.Element().Value())
-		if err != nil {
-			return 0, errors.Wrap(err, "problem extracting metrics from value")
-		}
-		total += num
-	}
-
-	if err := iter.Err(); err != nil {
-		return 0, errors.Wrap(err, "problem parsing sample")
-	}
-
-	return total, nil
-}
-
-func (c *simpleCollector) extractMetricsFromArray(array *bson.Array) (int, error) {
-	iter, err := bson.NewArrayIterator(array)
-	if err != nil {
-		return 0, errors.WithStack(err)
-	}
-
-	var (
-		num   int
-		total int
-	)
-
-	for iter.Next() {
-		num, err = c.encodeMetricFromValue(iter.Value())
-		if err != nil {
-			return 0, errors.WithStack(err)
-		}
-
-		total += num
-	}
-
-	if err := iter.Err(); err != nil {
-		return 0, errors.WithStack(err)
-	}
-
-	return total, nil
-}
-
-func (c *simpleCollector) encodeMetricFromValue(val *bson.Value) (int, error) {
-	switch val.Type() {
-	case bson.TypeObjectID:
-		return 0, nil
-	case bson.TypeString:
-		return 0, nil
-	case bson.TypeDecimal128:
-		return 0, nil
-	case bson.TypeArray:
-		num, err := c.extractMetricsFromArray(val.MutableArray())
-		return num, errors.WithStack(err)
-	case bson.TypeEmbeddedDocument:
-		num, err := c.extractMetricsFromDocument(val.MutableDocument())
-		return num, errors.WithStack(err)
-	case bson.TypeBoolean:
-		if val.Boolean() {
-			return 1, errors.WithStack(c.encoder.Add(1))
-		}
-		return 1, c.encoder.Add(0)
-	case bson.TypeInt32:
-		return 1, errors.WithStack(c.encoder.Add(int64(val.Int32())))
-	case bson.TypeInt64:
-		return 1, errors.WithStack(c.encoder.Add(val.Int64()))
-	case bson.TypeDateTime:
-		return 1, errors.WithStack(c.encoder.Add(val.DateTime().Unix()))
-	case bson.TypeTimestamp:
-		t, i := val.Timestamp()
-
-		if err := c.encoder.Add(int64(t)); err != nil {
-			return 0, errors.WithStack(err)
-		}
-		if err := c.encoder.Add(int64(i)); err != nil {
-			return 0, errors.WithStack(err)
-		}
-		return 1, nil
-	default:
-		return 0, nil
-	}
-}
-
-func compressBuffer(input []byte) ([]byte, error) {
-	buf := bytes.NewBuffer([]byte{})
-	zbuf := zlib.NewWriter(buf)
-
-	var err error
-
-	buf.Write(encodeSizeValue(uint32(len(input))))
-
-	_, err = zbuf.Write(input)
-	if err != nil {
-		return nil, err
-	}
-
-	err = zbuf.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
