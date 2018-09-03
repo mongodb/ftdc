@@ -10,7 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEncodingSeries(t *testing.T) {
+func TestEncoder(t *testing.T) {
+	encoder := NewEncoder().(*payloadEncoder)
+	encoder.zeroCount = 32
+	encoder.buf.Write([]byte("foo"))
+	a := encoder.buf
+
+	encoder.Reset()
+	assert.Zero(t, encoder.zeroCount)
+	assert.NotEqual(t, a, encoder.buf)
+}
+
+func TestEncodingSeriesIntegration(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		dataset []int64
@@ -103,7 +114,6 @@ func TestEncodingSeries(t *testing.T) {
 					assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
 				}
 			}
-
 		})
 	}
 }

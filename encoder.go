@@ -10,7 +10,11 @@ import (
 type payloadEncoder struct {
 	previous  int64
 	zeroCount int64
-	buf       *bytes.Buffer
+
+	// we don't check errors when writing to the buffer because
+	// bytes.Buffers never error, if this changes we'll need to
+	// change this implementation.
+	buf *bytes.Buffer
 }
 
 type Encoder interface {
@@ -25,7 +29,12 @@ func NewEncoder() Encoder {
 	}
 }
 
-func (e *payloadEncoder) Reset() { e.buf = bytes.NewBuffer([]byte{}) }
+func (e *payloadEncoder) Reset() {
+	e.buf = bytes.NewBuffer([]byte{})
+	e.previous = 0
+	e.zeroCount = 0
+}
+
 func (e *payloadEncoder) Resolve() ([]byte, error) {
 	if err := e.flushZeros(); err != nil {
 		return nil, errors.WithStack(err)
@@ -47,9 +56,7 @@ func (e *payloadEncoder) Add(in int64) error {
 
 	tmp := make([]byte, binary.MaxVarintLen64)
 	num := binary.PutVarint(tmp, int64(delta))
-	if _, err := e.buf.Write(tmp[:num]); err != nil {
-		return errors.WithStack(err)
-	}
+	_, _ = e.buf.Write(tmp[:num])
 
 	e.previous = delta
 
@@ -63,15 +70,11 @@ func (e *payloadEncoder) flushZeros() error {
 
 	tmp := make([]byte, binary.MaxVarintLen64)
 	num := binary.PutVarint(tmp, 0)
-	if _, err := e.buf.Write(tmp[:num]); err != nil {
-		return errors.WithStack(err)
-	}
+	_, _ = e.buf.Write(tmp[:num])
 
 	tmp = make([]byte, binary.MaxVarintLen64)
 	num = binary.PutVarint(tmp, e.zeroCount-1)
-	if _, err := e.buf.Write(tmp[:num]); err != nil {
-		return errors.WithStack(err)
-	}
+	_, _ = e.buf.Write(tmp[:num])
 
 	e.zeroCount = 0
 	return nil

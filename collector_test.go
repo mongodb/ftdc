@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,6 +36,17 @@ func TestCollectorIntegration(t *testing.T) {
 	assert.Equal(t, 4, collector.metricsCount)
 	assert.Equal(t, 25, collector.sampleCount)
 
+	assert.Error(t, collector.Add(nil))
+
+	assert.Equal(t, 4, collector.metricsCount)
+	assert.Equal(t, 25, collector.sampleCount)
+
+	assert.Nil(t, collector.metadata)
+	meta := createEventRecord(42, 43, 44, 45)
+	collector.SetMetadata(meta)
+	assert.Equal(t, 4, collector.metricsCount)
+	assert.Equal(t, 25, collector.sampleCount)
+
 	data, err := collector.Resolve()
 	require.NoError(t, err)
 	assert.NotNil(t, data)
@@ -55,8 +67,12 @@ func TestCollectorIntegration(t *testing.T) {
 	}
 
 	assert.NoError(t, iter.Err())
+
+	iter.Close()
+
 	assert.True(t, iter.closed)
 	assert.Equal(t, 1, numSeen)
+
 }
 
 func TestCompressorRoundTrip(t *testing.T) {
@@ -75,4 +91,50 @@ func TestCompressorRoundTrip(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, data, rt)
 	}
+}
+
+func TestMetadataDocumentCollection(t *testing.T) {
+	collector := NewSimpleCollector().(*simpleCollector)
+	assert.Nil(t, collector.metadata)
+	assert.Zero(t, collector.metricsCount)
+	doc := createEventRecord(rand.Int63n(42), rand.Int63()*int64(time.Second), rand.Int63n(37), 4)
+	doc2 := createEventRecord(rand.Int63n(42), rand.Int63()*int64(time.Second), rand.Int63n(37), 4)
+	require.NotEqual(t, doc, doc2)
+	collector.SetMetadata(doc)
+
+	assert.Equal(t, doc, collector.metadata)
+	assert.Zero(t, collector.metricsCount)
+
+	collector.SetMetadata(doc2)
+	assert.Equal(t, doc2, collector.metadata)
+	assert.Zero(t, collector.metricsCount)
+}
+
+func TestErrorHandlingCollectorResolver(t *testing.T) {
+	collector := NewSimpleCollector().(*simpleCollector)
+	assert.Nil(t, collector.refrenceDoc)
+
+	_, err := collector.Resolve()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "document must not be nil")
+
+	out, err := collector.getPayload()
+	assert.Error(t, err)
+	assert.Nil(t, out)
+
+	collector.refrenceDoc = createEventRecord(rand.Int63n(42), rand.Int63()*int64(time.Second), rand.Int63n(37), 4)
+
+	collector.encoder = &MockEncoder{
+		ResolveError: errors.New("what"),
+	}
+	out, err = collector.getPayload()
+	assert.Nil(t, out)
+	assert.Error(t, err)
+
+	_, err = collector.Resolve()
+	assert.Error(t, err)
+
+	assert.NotNil(t, collector.refrenceDoc)
+	collector.Reset()
+	assert.Nil(t, collector.refrenceDoc)
 }

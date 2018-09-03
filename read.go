@@ -25,29 +25,10 @@ func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bson.Document) 
 		}
 		select {
 		case ch <- doc:
+			continue
 		case <-ctx.Done():
 			return nil
 		}
-	}
-}
-
-func isOne(val *bson.Value) bool {
-	if val == nil {
-		return false
-	}
-
-	switch val.Type() {
-	case bson.TypeInt32:
-		return val.Int32() == 1
-	case bson.TypeInt64:
-		return val.Int64() == 1
-	case bson.TypeDouble:
-		return val.Double() == 1.0
-	case bson.TypeString:
-		str := val.StringValue()
-		return str == "1" || str == "1.0"
-	default:
-		return false
 	}
 }
 

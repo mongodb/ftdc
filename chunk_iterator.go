@@ -56,14 +56,18 @@ func ReadChunks(ctx context.Context, r io.Reader) *ChunkIterator {
 	go func() {
 		select {
 		case <-ctx.Done():
+			return
 		case iter.errs <- readDiagnostic(ctx, r, ipc):
+			return
 		}
 	}()
 
 	go func() {
 		select {
 		case <-ctx.Done():
+			return
 		case iter.errs <- readChunks(ctx, ipc, iter.pipe):
+			return
 		}
 	}()
 

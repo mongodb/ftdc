@@ -18,6 +18,10 @@ func init() {
 }
 
 func TestReadPathIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping real integration test for runtime")
+	}
+
 	grip.Warning("the integration test validates the decoder operations not the decoded values")
 
 	const (

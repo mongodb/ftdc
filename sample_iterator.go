@@ -28,6 +28,7 @@ func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
 
 			select {
 			case out <- doc:
+				continue
 			case <-ctx.Done():
 				return
 			}

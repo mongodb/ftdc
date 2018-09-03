@@ -11,8 +11,9 @@ import (
 //
 // Helpers for parsing the timeseries data from a metrics payload
 
-func flattenDocument(path []string, d *bson.Document) (o []Metric) {
+func flattenDocument(path []string, d *bson.Document) []Metric {
 	iter := d.Iterator()
+	o := []Metric{}
 
 	for iter.Next() {
 		e := iter.Element()
@@ -22,15 +23,16 @@ func flattenDocument(path []string, d *bson.Document) (o []Metric) {
 		o = append(o, metricForType(key, path, val)...)
 	}
 
-	return
+	return o
 }
 
-func flattenArray(key string, path []string, a *bson.Array) (o []Metric) {
-	iter, err := bson.NewArrayIterator(a)
-	if err != nil {
-		return nil
+func flattenArray(key string, path []string, a *bson.Array) []Metric {
+	if a == nil {
+		return []Metric{}
 	}
 
+	iter, _ := bson.NewArrayIterator(a) // ignore the error which can never be non-nil
+	o := []Metric{}
 	idx := 0
 	for iter.Next() {
 		val := iter.Value()
@@ -41,19 +43,20 @@ func flattenArray(key string, path []string, a *bson.Array) (o []Metric) {
 	return o
 }
 
-func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
+func metricForType(key string, path []string, val *bson.Value) []Metric {
 	switch val.Type() {
 	case bson.TypeObjectID:
-		// pass
+		return []Metric{}
 	case bson.TypeString:
-		// pass
+		return []Metric{}
 	case bson.TypeDecimal128:
-		// pass
+		return []Metric{}
 	case bson.TypeArray:
-		o = append(o, flattenArray(key, path, val.MutableArray())...)
+		return flattenArray(key, path, val.MutableArray())
 	case bson.TypeEmbeddedDocument:
 		path = append(path, key)
 
+		o := []Metric{}
 		for _, ne := range flattenDocument(path, val.MutableDocument()) {
 			o = append(o, Metric{
 				ParentPath:    path,
@@ -61,58 +64,73 @@ func metricForType(key string, path []string, val *bson.Value) (o []Metric) {
 				startingValue: ne.startingValue,
 			})
 		}
+		return o
 	case bson.TypeBoolean:
 		if val.Boolean() {
-			o = append(o, Metric{
-				ParentPath:    path,
-				KeyName:       key,
-				startingValue: 1,
-			})
-		} else {
-			o = append(o, Metric{
+			return []Metric{
+				{
+					ParentPath:    path,
+					KeyName:       key,
+					startingValue: 1,
+				},
+			}
+		}
+		return []Metric{
+			{
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: 0,
-			})
+			},
 		}
 	case bson.TypeDouble:
-		o = append(o, Metric{
-			ParentPath:    path,
-			KeyName:       key,
-			startingValue: int64(val.Double()),
-		})
+		return []Metric{
+			{
+				ParentPath:    path,
+				KeyName:       key,
+				startingValue: int64(val.Double()),
+			},
+		}
 	case bson.TypeInt32:
-		o = append(o, Metric{
-			ParentPath:    path,
-			KeyName:       key,
-			startingValue: int64(val.Int32()),
-		})
+		return []Metric{
+			{
+				ParentPath:    path,
+				KeyName:       key,
+				startingValue: int64(val.Int32()),
+			},
+		}
 	case bson.TypeInt64:
-		o = append(o, Metric{
-			ParentPath:    path,
-			KeyName:       key,
-			startingValue: val.Int64(),
-		})
+		return []Metric{
+			{
+				ParentPath:    path,
+				KeyName:       key,
+				startingValue: val.Int64(),
+			},
+		}
 	case bson.TypeDateTime:
-		o = append(o, Metric{
-			ParentPath:    path,
-			KeyName:       key,
-			startingValue: val.DateTime().Unix() * 1000,
-		})
+		return []Metric{
+			{
+				ParentPath:    path,
+				KeyName:       key,
+				startingValue: val.DateTime().Unix() * 1000,
+			},
+		}
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
-		o = append(o, Metric{
-			ParentPath:    path,
-			KeyName:       key,
-			startingValue: int64(t) * 1000,
-		}, Metric{
-			ParentPath:    path,
-			KeyName:       key + ".inc",
-			startingValue: int64(i),
-		})
+		return []Metric{
+			{
+				ParentPath:    path,
+				KeyName:       key,
+				startingValue: int64(t) * 1000,
+			},
+			{
+				ParentPath:    path,
+				KeyName:       key + ".inc",
+				startingValue: int64(i),
+			},
+		}
+	default:
+		return []Metric{}
 	}
-
-	return o
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -125,6 +143,9 @@ func extractMetricsFromDocument(encoder Encoder, doc *bson.Document) (int, error
 		num   int
 		total int
 	)
+	if doc == nil {
+		return 0, errors.New("cannot make nil Document")
+	}
 
 	iter := doc.Iterator()
 
@@ -144,6 +165,10 @@ func extractMetricsFromDocument(encoder Encoder, doc *bson.Document) (int, error
 }
 
 func extractMetricsFromArray(encoder Encoder, array *bson.Array) (int, error) {
+	if array == nil {
+		return 0, errors.New("cannot pass an empty array")
+	}
+
 	iter, err := bson.NewArrayIterator(array)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -198,15 +223,36 @@ func extractMetricsFromValue(encoder Encoder, val *bson.Value) (int, error) {
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 
-		if err := encoder.Add(int64(t)); err != nil {
-			return 0, errors.WithStack(err)
+		for _, v := range []uint32{t, i} {
+			if err := encoder.Add(int64(v)); err != nil {
+				return 0, errors.WithStack(err)
+			}
 		}
-		if err := encoder.Add(int64(i)); err != nil {
-			return 0, errors.WithStack(err)
-		}
+
 		return 1, nil
 	default:
 		return 0, nil
 	}
 
+}
+
+////////////////////////////////////////////////////////////////////////
+//
+// utility functions
+
+func isOne(val *bson.Value) bool {
+	if val == nil {
+		return false
+	}
+
+	switch val.Type() {
+	case bson.TypeInt32:
+		return val.Int32() == 1
+	case bson.TypeInt64:
+		return val.Int64() == 1
+	case bson.TypeDouble:
+		return val.Double() == 1.0
+	default:
+		return false
+	}
 }
