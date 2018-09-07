@@ -6,6 +6,7 @@ type MockEncoder struct {
 	ResolveOutput []byte
 	ResolveError  error
 	ResetCalled   bool
+	ReportedSize  int
 }
 
 func (e *MockEncoder) Add(in int64) error {
@@ -17,3 +18,4 @@ func (e *MockEncoder) Add(in int64) error {
 }
 func (e *MockEncoder) Resolve() ([]byte, error) { return e.ResolveOutput, e.ResolveError }
 func (e *MockEncoder) Reset()                   { e.ResetCalled = true }
+func (e *MockEncoder) Size() int                { return e.ReportedSize }

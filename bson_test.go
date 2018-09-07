@@ -786,19 +786,19 @@ func TestArrayExtraction(t *testing.T) {
 }
 
 func TestIsOneChecker(t *testing.T) {
-	assert.False(t, isOne(nil))
-	assert.False(t, isOne(bson.VC.Int32(32)))
-	assert.False(t, isOne(bson.VC.Int32(0)))
-	assert.False(t, isOne(bson.VC.Int64(32)))
-	assert.False(t, isOne(bson.VC.Int64(0)))
-	assert.False(t, isOne(bson.VC.Double(32.2)))
-	assert.False(t, isOne(bson.VC.Double(0.45)))
-	assert.False(t, isOne(bson.VC.Double(0.0)))
-	assert.False(t, isOne(bson.VC.String("foo")))
-	assert.False(t, isOne(bson.VC.Boolean(true)))
-	assert.False(t, isOne(bson.VC.Boolean(false)))
+	assert.False(t, isNum(1, nil))
+	assert.False(t, isNum(1, bson.VC.Int32(32)))
+	assert.False(t, isNum(1, bson.VC.Int32(0)))
+	assert.False(t, isNum(1, bson.VC.Int64(32)))
+	assert.False(t, isNum(1, bson.VC.Int64(0)))
+	assert.False(t, isNum(1, bson.VC.Double(32.2)))
+	assert.False(t, isNum(1, bson.VC.Double(0.45)))
+	assert.False(t, isNum(1, bson.VC.Double(0.0)))
+	assert.False(t, isNum(1, bson.VC.String("foo")))
+	assert.False(t, isNum(1, bson.VC.Boolean(true)))
+	assert.False(t, isNum(1, bson.VC.Boolean(false)))
 
-	assert.True(t, isOne(bson.VC.Int32(1)))
-	assert.True(t, isOne(bson.VC.Int64(1)))
-	assert.True(t, isOne(bson.VC.Double(1.0)))
+	assert.True(t, isNum(1, bson.VC.Int32(1)))
+	assert.True(t, isNum(1, bson.VC.Int64(1)))
+	assert.True(t, isNum(1, bson.VC.Double(1.0)))
 }

@@ -240,18 +240,18 @@ func extractMetricsFromValue(encoder Encoder, val *bson.Value) (int, error) {
 //
 // utility functions
 
-func isOne(val *bson.Value) bool {
+func isNum(num int, val *bson.Value) bool {
 	if val == nil {
 		return false
 	}
 
 	switch val.Type() {
 	case bson.TypeInt32:
-		return val.Int32() == 1
+		return val.Int32() == int32(num)
 	case bson.TypeInt64:
-		return val.Int64() == 1
+		return val.Int64() == int64(num)
 	case bson.TypeDouble:
-		return val.Double() == 1.0
+		return val.Double() == float64(num)
 	default:
 		return false
 	}

@@ -3,12 +3,19 @@ package ftdc
 import (
 	"context"
 	"strings"
+
+	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
 type Chunk struct {
-	metrics []Metric
-	nPoints int
+	metrics  []Metric
+	nPoints  int
+	metadata *bson.Document
+}
+
+func (c *Chunk) GetMetadata() *bson.Document {
+	return c.metadata
 }
 
 // Map converts the chunk to a map representation. Each key in the map

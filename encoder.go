@@ -21,6 +21,7 @@ type Encoder interface {
 	Add(int64) error
 	Resolve() ([]byte, error)
 	Reset()
+	Size() int
 }
 
 func NewEncoder() Encoder {
@@ -28,6 +29,8 @@ func NewEncoder() Encoder {
 		buf: bytes.NewBuffer([]byte{}),
 	}
 }
+
+func (e *payloadEncoder) Size() int { return e.buf.Len() }
 
 func (e *payloadEncoder) Reset() {
 	e.buf = bytes.NewBuffer([]byte{})

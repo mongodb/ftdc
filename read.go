@@ -35,12 +35,19 @@ func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bson.Document) 
 func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) error {
 	defer close(o)
 
+	var metadata *bson.Document
+
 	for doc := range ch {
 		// the FTDC streams typically have onetime-per-file
 		// metadata that includes information that doesn't
 		// change (like process parameters, and machine
 		// info. This implementation entirely ignores that.)
-		if !isOne(doc.Lookup("type")) {
+		docType := doc.Lookup("type")
+
+		if isNum(0, docType) {
+			metadata = doc
+			continue
+		} else if !isNum(1, docType) {
 			continue
 		}
 
@@ -104,8 +111,9 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		}
 		select {
 		case o <- Chunk{
-			metrics: metrics,
-			nPoints: ndeltas,
+			metrics:  metrics,
+			nPoints:  ndeltas,
+			metadata: metadata,
 		}:
 		case <-ctx.Done():
 			return nil
