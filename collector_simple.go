@@ -12,7 +12,9 @@ import (
 // can populate by adding BSON documents. The collector assumes that
 // the first document contains the schema of the collection and does
 // NOT detect or handle schema changes.
-func NewSimpleCollector() Collector {
+func NewSimpleCollector() Collector { return newSimpleCollector() }
+
+func newSimpleCollector() *simpleCollector {
 	return &simpleCollector{
 		encoder: NewEncoder(),
 	}
