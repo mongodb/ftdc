@@ -9,9 +9,19 @@ import (
 
 type batchCollector struct {
 	maxChunkSize int
-	chunks       []*simpleCollector
+	chunks       []*basicCollector
 }
 
+// NewBatchCollector constructs a collector implementation that
+// builds data chunks with payloads of the specified size. There is
+// some additional per-chunk overhead in addition to the size, but
+// this implementation allows you break data into smaller components
+// for more efficient read operations.
+//
+// Like the Basic collector, the Batch collector, does not handle
+// schema changes: if the schema changes during collection, the Add
+// method returns an error and you should reset the collector and
+// restart collection.
 func NewBatchCollector(maxChunkSize int) Collector {
 	return newBatchCollector(maxChunkSize)
 }
@@ -19,8 +29,8 @@ func NewBatchCollector(maxChunkSize int) Collector {
 func newBatchCollector(size int) *batchCollector {
 	return &batchCollector{
 		maxChunkSize: size,
-		chunks: []*simpleCollector{
-			newSimpleCollector(),
+		chunks: []*basicCollector{
+			newBasicCollector(),
 		},
 	}
 }
@@ -37,7 +47,7 @@ func (c *batchCollector) Info() CollectorInfo {
 }
 
 func (c *batchCollector) Reset() {
-	c.chunks = []*simpleCollector{newSimpleCollector()}
+	c.chunks = []*basicCollector{newBasicCollector()}
 }
 
 func (c *batchCollector) SetMetadata(d *bson.Document) {
@@ -48,7 +58,7 @@ func (c *batchCollector) Add(d *bson.Document) error {
 	last := c.chunks[len(c.chunks)-1]
 
 	if last.Info().PayloadSize >= c.maxChunkSize {
-		last = newSimpleCollector()
+		last = newBasicCollector()
 		c.chunks = append(c.chunks, last)
 	}
 

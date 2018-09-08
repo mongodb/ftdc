@@ -26,7 +26,7 @@ func createEventRecord(count, duration, size, workers int64) *bson.Document {
 }
 
 func TestCollectorIntegration(t *testing.T) {
-	collector := NewSimpleCollector().(*simpleCollector)
+	collector := NewBasicCollector().(*basicCollector)
 	for i := int64(0); i < 25; i++ {
 		doc := createEventRecord(i, 1+i*int64(time.Second), rand.Int63n(i+1*2), 4)
 
@@ -94,7 +94,7 @@ func TestCompressorRoundTrip(t *testing.T) {
 }
 
 func TestMetadataDocumentCollection(t *testing.T) {
-	collector := NewSimpleCollector().(*simpleCollector)
+	collector := NewBasicCollector().(*basicCollector)
 	assert.Nil(t, collector.metadata)
 	assert.Zero(t, collector.metricsCount)
 	doc := createEventRecord(rand.Int63n(42), rand.Int63()*int64(time.Second), rand.Int63n(37), 4)
@@ -111,7 +111,7 @@ func TestMetadataDocumentCollection(t *testing.T) {
 }
 
 func TestErrorHandlingCollectorResolver(t *testing.T) {
-	collector := NewSimpleCollector().(*simpleCollector)
+	collector := NewBasicCollector().(*basicCollector)
 	assert.Nil(t, collector.refrenceDoc)
 
 	_, err := collector.Resolve()

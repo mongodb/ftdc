@@ -8,19 +8,23 @@ import (
 	"github.com/pkg/errors"
 )
 
-// NewSimpleCollector constructs a collector implementation that you
+// NewBasicCollector constructs a collector implementation that you
 // can populate by adding BSON documents. The collector assumes that
 // the first document contains the schema of the collection and does
-// NOT detect or handle schema changes.
-func NewSimpleCollector() Collector { return newSimpleCollector() }
+// NOT handle schema changes.
+//
+// If the number of metrics collected from
+// a single document differs from the reference document the add
+// operation errors and you should reset the collector.
+func NewBasicCollector() Collector { return newBasicCollector() }
 
-func newSimpleCollector() *simpleCollector {
-	return &simpleCollector{
+func newBasicCollector() *basicCollector {
+	return &basicCollector{
 		encoder: NewEncoder(),
 	}
 }
 
-type simpleCollector struct {
+type basicCollector struct {
 	metadata     *bson.Document
 	startTime    time.Time
 	refrenceDoc  *bson.Document
@@ -29,11 +33,11 @@ type simpleCollector struct {
 	encoder      Encoder
 }
 
-func (c *simpleCollector) SetMetadata(doc *bson.Document) {
+func (c *basicCollector) SetMetadata(doc *bson.Document) {
 	c.metadata = doc
 }
 
-func (c *simpleCollector) Info() CollectorInfo {
+func (c *basicCollector) Info() CollectorInfo {
 	return CollectorInfo{
 		MetricsCount: c.metricsCount,
 		SampleCount:  c.sampleCount,
@@ -41,7 +45,7 @@ func (c *simpleCollector) Info() CollectorInfo {
 	}
 }
 
-func (c *simpleCollector) Reset() {
+func (c *basicCollector) Reset() {
 	c.metadata = nil
 	c.startTime = time.Time{}
 	c.refrenceDoc = nil
@@ -50,7 +54,7 @@ func (c *simpleCollector) Reset() {
 	c.encoder.Reset()
 }
 
-func (c *simpleCollector) Add(doc *bson.Document) error {
+func (c *basicCollector) Add(doc *bson.Document) error {
 	if doc == nil {
 		return errors.New("cannot add nil documents")
 	}
@@ -80,7 +84,7 @@ func (c *simpleCollector) Add(doc *bson.Document) error {
 	return nil
 }
 
-func (c *simpleCollector) Resolve() ([]byte, error) {
+func (c *basicCollector) Resolve() ([]byte, error) {
 	if c.refrenceDoc == nil {
 		return nil, errors.New("reference document must not be nil")
 	}
@@ -118,7 +122,7 @@ func (c *simpleCollector) Resolve() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (c *simpleCollector) getPayload() ([]byte, error) {
+func (c *basicCollector) getPayload() ([]byte, error) {
 	payload := bytes.NewBuffer([]byte{})
 	if _, err := c.refrenceDoc.WriteTo(payload); err != nil {
 		return nil, errors.Wrap(err, "problem writing reference document")

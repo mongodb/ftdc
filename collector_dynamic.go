@@ -14,6 +14,14 @@ type dynamicCollector struct {
 	currentNum   int
 }
 
+// NewDynamicCollector constructs a Collector that records metrics
+// from documents, creating new chunks when either the size of the
+// metrics payload exceeds the specified max chunk size OR the schema
+// changes.
+//
+// There is some overhead associated with detecting schema changes,
+// particularly for documents with more complex schemas, so you may
+// wish to opt for a simpler collector in some cases.
 func NewDynamicCollector(maxChunkSize int) Collector {
 	return &dynamicCollector{
 		maxChunkSize: maxChunkSize,
