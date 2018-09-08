@@ -785,6 +785,179 @@ func TestArrayExtraction(t *testing.T) {
 	}
 }
 
+func TestMetricsHashValue(t *testing.T) {
+	now := time.Now()
+	for _, test := range []struct {
+		name        string
+		value       *bson.Value
+		expectedNum int
+		keyElems    int
+	}{
+		{
+			name:        "IgnoredType",
+			value:       bson.VC.Null(),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "ObjectID",
+			value:       bson.VC.ObjectID(objectid.New()),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "String",
+			value:       bson.VC.String("foo"),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "Decimal128",
+			value:       bson.VC.Decimal128(decimal.NewDecimal128(42, 42)),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "BoolTrue",
+			value:       bson.VC.Boolean(true),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "BoolFalse",
+			value:       bson.VC.Boolean(false),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int32",
+			value:       bson.VC.Int32(42),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int32Zero",
+			value:       bson.VC.Int32(0),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int32Negative",
+			value:       bson.VC.Int32(42),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int64",
+			value:       bson.VC.Int64(42),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int64Zero",
+			value:       bson.VC.Int64(0),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "Int64Negative",
+			value:       bson.VC.Int64(42),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "DateTimeZero",
+			value:       bson.VC.DateTime(0),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "DateTime",
+			value:       bson.EC.Time("", now.Round(time.Second)).Value(),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "TimestampZero",
+			value:       bson.VC.Timestamp(0, 0),
+			expectedNum: 2,
+			keyElems:    1,
+		},
+		{
+			name:        "TimestampLarger",
+			value:       bson.VC.Timestamp(42, 42),
+			expectedNum: 2,
+			keyElems:    1,
+		},
+		{
+			name:        "EmptyDocument",
+			value:       bson.EC.SubDocumentFromElements("data").Value(),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "SingleMetricValue",
+			value:       bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 42)).Value(),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "MultiMetricValue",
+			value:       bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)).Value(),
+			expectedNum: 2,
+			keyElems:    2,
+		},
+		{
+			name:        "MultiNonMetricValue",
+			value:       bson.EC.SubDocumentFromElements("data", bson.EC.String("foo", "var"), bson.EC.String("bar", "bar")).Value(),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "MixedArrayFirstMetrics",
+			value:       bson.EC.SubDocumentFromElements("data", bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)).Value(),
+			expectedNum: 2,
+			keyElems:    2,
+		},
+		{
+			name:        "ArraEmptyArray",
+			value:       bson.VC.Array(bson.NewArray()),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "ArrayWithSingleMetricValue",
+			value:       bson.VC.ArrayFromValues(bson.VC.Int64(42)),
+			expectedNum: 1,
+			keyElems:    1,
+		},
+		{
+			name:        "ArrayWithMultiMetricValue",
+			value:       bson.VC.ArrayFromValues(bson.VC.Int64(7), bson.VC.Int32(72)),
+			expectedNum: 2,
+			keyElems:    2,
+		},
+		{
+			name:        "ArrayWithMultiNonMetricValue",
+			value:       bson.VC.ArrayFromValues(bson.VC.String("var"), bson.VC.String("bar")),
+			expectedNum: 0,
+			keyElems:    0,
+		},
+		{
+			name:        "ArrayWithMixedArrayFirstMetrics",
+			value:       bson.VC.ArrayFromValues(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
+			expectedNum: 2,
+			keyElems:    2,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			keys, num := isMetricsValue("key", test.value)
+			assert.Equal(t, test.expectedNum, num)
+			assert.Equal(t, test.keyElems, len(keys))
+		})
+	}
+}
+
 func TestIsOneChecker(t *testing.T) {
 	assert.False(t, isNum(1, nil))
 	assert.False(t, isNum(1, bson.VC.Int32(32)))

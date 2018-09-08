@@ -62,6 +62,26 @@ func TestCollectorInterface(t *testing.T) {
 			factory: func() Collector { return NewSimpleCollector() },
 		},
 		{
+			name:    "SmallBatch",
+			factory: func() Collector { return NewBatchCollector(10) },
+		},
+		{
+			name:    "MediumBatch",
+			factory: func() Collector { return NewBatchCollector(100) },
+		},
+		{
+			name:    "LargeBatch",
+			factory: func() Collector { return NewBatchCollector(1000) },
+		},
+		{
+			name:    "XtraLargeBatch",
+			factory: func() Collector { return NewBatchCollector(10000) },
+		},
+		{
+			name:    "SuperXtraLargeBatch",
+			factory: func() Collector { return NewBatchCollector(100000) },
+		},
+		{
 			name:    "SmallDynamic",
 			factory: func() Collector { return NewDynamicCollector(10) },
 		},

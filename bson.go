@@ -2,6 +2,8 @@ package ftdc
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
@@ -233,7 +235,77 @@ func extractMetricsFromValue(encoder Encoder, val *bson.Value) (int, error) {
 	default:
 		return 0, nil
 	}
+}
 
+////////////////////////////////////////////////////////////////////////
+//
+// hashing functions for metrics-able documents
+
+func metricsHash(doc *bson.Document) (string, int) {
+	keys, num := isMetricsDocument("", doc)
+	return strings.Join(keys, "\n"), num
+}
+
+func isMetricsDocument(key string, doc *bson.Document) ([]string, int) {
+	iter := doc.Iterator()
+	keys := []string{}
+	seen := 0
+	for iter.Next() {
+		elem := iter.Element()
+		k, num := isMetricsValue(fmt.Sprintf("%s/%s", key, elem.Key()), elem.Value())
+		if num > 0 {
+			seen += num
+			keys = append(keys, k...)
+		}
+	}
+
+	return keys, seen
+}
+
+func isMetricsArray(key string, array *bson.Array) ([]string, int) {
+	iter, _ := bson.NewArrayIterator(array) // ignore the error which can never be non-nil
+	idx := 0
+	numKeys := 0
+	keys := []string{}
+	for iter.Next() {
+		ks, num := isMetricsValue(key+strconv.Itoa(idx), iter.Value())
+
+		if num > 0 {
+			numKeys += num
+			keys = append(keys, ks...)
+		}
+
+		idx++
+	}
+
+	return keys, numKeys
+}
+
+func isMetricsValue(key string, val *bson.Value) ([]string, int) {
+	switch val.Type() {
+	case bson.TypeObjectID:
+		return nil, 0
+	case bson.TypeString:
+		return nil, 0
+	case bson.TypeDecimal128:
+		return nil, 0
+	case bson.TypeArray:
+		return isMetricsArray(key, val.MutableArray())
+	case bson.TypeEmbeddedDocument:
+		return isMetricsDocument(key, val.MutableDocument())
+	case bson.TypeBoolean:
+		return []string{key}, 1
+	case bson.TypeInt32:
+		return []string{key}, 1
+	case bson.TypeInt64:
+		return []string{key}, 1
+	case bson.TypeDateTime:
+		return []string{key}, 1
+	case bson.TypeTimestamp:
+		return []string{key}, 2
+	default:
+		return nil, 0
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////
