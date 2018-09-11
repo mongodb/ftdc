@@ -1,0 +1,17 @@
+hash: 8ee8e1a14968cf6c24ca5741992e229bd8d88f06ec31ba649860cdd240102a9d
+updated: 2016-06-16T13:39:28.50048459-04:00
+imports:
+- name: github.com/satori/go.uuid
+  version: 879c5887cd475cd7864858769793b2ceb0d44feb
+- name: github.com/pkg/errors
+  version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
+- name: github.com/stretchr/testify
+  version: 890a5c3458b43e6104ff5da8dfa139d013d77544
+
+- name: github.com/mongodb/mongo-go-driver
+  version: 46eb1c8d5562b601a29716199bad4ca1ca052147
+
+- name: github.com/mongodb/grip
+  version: 5d6dffc047e01c5553d48459d68a2d4f6c11a6ff
+
+devImports: []

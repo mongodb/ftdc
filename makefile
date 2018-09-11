@@ -42,3 +42,12 @@ $(buildDir)/cover.html:$(buildDir)/cover.out
 
 metrics.ftdc:
 	wget "https://whatfox.net/metrics.ftdc"
+
+vendor-clean:
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/davecgh/
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/stretchr/testify/
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/data/
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/pmezard/
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/google/go-cmp/
+	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/kr/
+	sed -ri 's/bson:"(.*),omitempty"/bson:"\1"/' `find vendor/github.com/mongodb/grip/vendor/github.com/shirou/gopsutil/ -name "*go"` || true
