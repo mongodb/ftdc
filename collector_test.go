@@ -53,6 +53,7 @@ func randComplexDocument(numKeys, otherNum int) *bson.Document {
 }
 
 func TestCollectorInterface(t *testing.T) {
+	t.Parallel()
 	for _, collect := range []struct {
 		name    string
 		factory func() Collector

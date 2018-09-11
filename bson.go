@@ -33,7 +33,7 @@ func flattenArray(key string, path []string, a *bson.Array) []Metric {
 		return []Metric{}
 	}
 
-	iter, _ := bson.NewArrayIterator(a) // ignore the error which can never be non-nil
+	iter, _ := a.Iterator() // ignore the error which can never be non-nil
 	o := []Metric{}
 	idx := 0
 	for iter.Next() {
@@ -113,7 +113,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 			{
 				ParentPath:    path,
 				KeyName:       key,
-				startingValue: val.DateTime().Unix() * 1000,
+				startingValue: val.Time().Unix() * 1000,
 			},
 		}
 	case bson.TypeTimestamp:
@@ -221,7 +221,7 @@ func extractMetricsFromValue(encoder Encoder, val *bson.Value) (int, error) {
 	case bson.TypeInt64:
 		return 1, errors.WithStack(encoder.Add(val.Int64()))
 	case bson.TypeDateTime:
-		return 1, errors.WithStack(encoder.Add(val.DateTime().Unix()))
+		return 1, errors.WithStack(encoder.Add(val.Time().Unix()))
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 

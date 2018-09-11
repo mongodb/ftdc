@@ -66,7 +66,9 @@ func (c *batchCollector) Add(d *bson.Document) error {
 }
 
 func (c *batchCollector) Resolve() ([]byte, error) {
-	buf := bytes.NewBuffer([]byte{})
+	data := []byte{}
+	buf := bytes.NewBuffer(data)
+
 	for _, chunk := range c.chunks {
 		out, err := chunk.Resolve()
 		if err != nil {
@@ -76,5 +78,5 @@ func (c *batchCollector) Resolve() ([]byte, error) {
 		_, _ = buf.Write(out)
 	}
 
-	return buf.Bytes(), nil
+	return data, nil
 }

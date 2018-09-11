@@ -22,6 +22,8 @@ func TestReadPathIntegration(t *testing.T) {
 		t.Skip("skipping real integration test for runtime")
 	}
 
+	t.Parallel()
+
 	grip.Warning("the integration test validates the decoder operations not the decoded values")
 
 	const (
