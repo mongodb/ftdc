@@ -52,7 +52,7 @@ Upcoming
 Documentation
 -------------
 
-All documentation is in the `godoc <https://godoc.org/github.com/tychoish/ftdc>`_.
+All documentation is in the `godoc <https://godoc.org/github.com/mongodb/ftdc>`_.
 
 Participate
 -----------
