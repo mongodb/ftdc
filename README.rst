@@ -1,6 +1,6 @@
-=======================================================
-``ftdc`` -- Golang FT DC Parsing and Generating Library
-=======================================================
+======================================================
+``ftdc`` -- Golang FTDC Parsing and Generating Library
+======================================================
 
 Overview
 --------
@@ -14,7 +14,8 @@ a few hundred megabytes of storage.
 This library provides a fully-featured and easy to use toolkit for
 interacting data stored in this format in Go programs. The library
 itself originated as a `project by 2016 Summer interns at MongoDB
-<https://github.com/10gen/ftdc-utils>`_ but has diverged since then. 
+<https://github.com/10gen/ftdc-utils>`_ but has diverged substantially
+since then.
 
 Features
 --------
@@ -25,23 +26,33 @@ Current
 Currently the library provides parsing of the FTDC data format and
 several ways of iterating these results. Additionally, it provides the
 ability to create FTDC payloads, and is the only extant (?) tool for
-generating FTDC data outside of the MongoDB code base. 
+generating FTDC data outside of the MongoDB code base.
+
+The library includes tools for generating FTDC payloads and document
+streams as well as iterators and tools for accessing data from FTDC
+files. All functionality is part of the ``ftdc`` package, and the API
+is fully documented.
 
 Upcoming
 ~~~~~~~~
 
-- Handling of schema changes in document construction
-- Complete unit testing of lower level encoder and decoder functionality
-- Access to the "metadata" document during chunk iteration. 
-- Simplify chunk iterator, return pointers to chunks
-- Tools for truncating or dropping samples from streams.
+- (pending requests and use-cases) mode to read FTDC data without
+  flattening the document structure.
 
-... and more 
+- command line tools for parsing and generating FTDC payloads.
+
+- helpers for generating default collector configurations.
+
+- combined check
+
+- improved collector performance.
+
+... and more
 
 Documentation
 -------------
 
-All documentation is in the `godoc <https://godoc.org/github.com/tychoish/ftdc>`_. 
+All documentation is in the `godoc <https://godoc.org/github.com/tychoish/ftdc>`_.
 
 Participate
 -----------
@@ -50,4 +61,4 @@ File tickets in the `MAKE <https://jira.mongodb.org/browse/MAKE>`_
 project on the MongoDB jira. The repository will shortly move back to
 an offical MongoDB GitHub organization.
 
-Pull requests are welcome. 
+Pull requests are welcome.

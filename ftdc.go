@@ -57,11 +57,12 @@ func (c *Chunk) Expand() []map[string]int64 {
 // paths.
 //
 // The documents are constructed from the metrics data lazily.
-func (c *Chunk) Iterator(ctx context.Context) *SampleIterator {
+func (c *Chunk) Iterator(ctx context.Context) Iterator {
 	sctx, cancel := context.WithCancel(ctx)
-	return &SampleIterator{
-		closer: cancel,
-		stream: c.streamDocuments(sctx),
+	return &sampleIterator{
+		closer:   cancel,
+		stream:   c.streamDocuments(sctx),
+		metadata: c.GetMetadata(),
 	}
 }
 
