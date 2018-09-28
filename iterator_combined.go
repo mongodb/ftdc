@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/pkg/errors"
 )
 
 type Iterator interface {
@@ -51,11 +52,16 @@ func (iter *combinedIterator) Document() *bson.Document { return iter.document }
 
 func (iter *combinedIterator) Next(ctx context.Context) bool {
 	if iter.sample != nil {
-		out := iter.sample.Next(ctx)
-		if out {
+		if out := iter.sample.Next(ctx); out {
 			iter.document = iter.sample.Document()
 			return true
 		}
+
+		if err := iter.Err(); err != nil {
+			iter.err = err
+			return false
+		}
+
 		iter.sample = nil
 	}
 
@@ -65,17 +71,21 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 			chunk := iter.chunks.Chunk()
 			iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
 			if !ok {
+				iter.err = errors.New("programmer error")
 				return false
 			}
 
-			chunk.GetMetadata()
-			out := iter.sample.Next(ctx)
-			if out {
+			iter.metadata = chunk.GetMetadata()
+
+			if out := iter.sample.Next(ctx); out {
 				iter.document = iter.sample.Document()
 				return true
 			}
-
+			iter.err = iter.sample.Err()
 			iter.sample = nil
+			if iter.err != nil {
+				return false
+			}
 		}
 		iter.err = iter.chunks.Err()
 		iter.chunks = nil

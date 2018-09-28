@@ -40,7 +40,6 @@ func (c *basicCollector) Info() CollectorInfo {
 	return CollectorInfo{
 		MetricsCount: c.metricsCount,
 		SampleCount:  c.sampleCount,
-		PayloadSize:  c.encoder.Size(),
 	}
 }
 
@@ -50,7 +49,6 @@ func (c *basicCollector) Reset() {
 	c.refrenceDoc = nil
 	c.metricsCount = 0
 	c.sampleCount = 0
-	c.encoder.Reset()
 }
 
 func (c *basicCollector) Add(doc *bson.Document) error {
