@@ -53,7 +53,7 @@ func (e *payloadEncoder) Encode(in []int64) error {
 
 	deltas := make([]int64, len(in))
 	for idx := range in {
-		deltas[idx] = e.previous[idx] - in[idx]
+		deltas[idx] = in[idx] - e.previous[idx]
 	}
 
 	for idx := range deltas {

@@ -93,25 +93,27 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			out, err := encodeSeries(test.dataset)
-			assert.NoError(t, err)
+			t.Run("Unit", func(t *testing.T) {
+				out, err := encodeSeries(test.dataset)
+				assert.NoError(t, err)
 
-			buf := bufio.NewReader(bytes.NewBuffer(out))
+				buf := bufio.NewReader(bytes.NewBuffer(out))
 
-			var res []int64
-			var nzeros int64
-			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
-			grip.Infoln("in:", test.dataset)
-			grip.Infoln("out:", res)
+				var res []int64
+				var nzeros int64
+				res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
+				grip.Infoln("in:", test.dataset)
+				grip.Infoln("out:", res)
 
-			assert.NoError(t, err)
-			assert.Equal(t, int64(0), nzeros)
+				assert.NoError(t, err)
+				assert.Equal(t, int64(0), nzeros)
 
-			if assert.Equal(t, len(test.dataset), len(res)) {
-				for idx := range test.dataset {
-					assert.Equal(t, test.dataset[idx], -1*res[idx], "at idx %d", idx)
+				if assert.Equal(t, len(test.dataset), len(res)) {
+					for idx := range test.dataset {
+						assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
+					}
 				}
-			}
+			})
 		})
 	}
 }
