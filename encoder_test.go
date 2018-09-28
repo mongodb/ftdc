@@ -1,16 +1,14 @@
 package ftdc
 
 import (
+	"bufio"
 	"bytes"
-	"context"
 	"math/rand"
 	"testing"
 
 	"github.com/mongodb/grip"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestEncoder(t *testing.T) {
@@ -32,10 +30,6 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 		{
 			name:    "SingleElement",
 			dataset: []int64{1},
-		},
-		{
-			name:    "Random",
-			dataset: []int64{rand.Int63()},
 		},
 		{
 			name:    "CommonWithZeros",
@@ -99,58 +93,25 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			// t.Run("Unit", func(t *testing.T) {
-			//	out, err := encodeSeries(test.dataset)
-			//	assert.NoError(t, err)
+			out, err := encodeSeries(test.dataset)
+			assert.NoError(t, err)
 
-			//	buf := bufio.NewReader(bytes.NewBuffer(out))
+			buf := bufio.NewReader(bytes.NewBuffer(out))
 
-			//	var res []int64
-			//	var nzeros int64
-			//	res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
-			//	grip.Infoln("in:", test.dataset)
-			//	grip.Infoln("out:", res)
-
-			//	assert.NoError(t, err)
-			//	assert.Equal(t, int64(0), nzeros)
-
-			//	require.Equal(t, len(test.dataset), len(res))
-			//	for idx := range test.dataset {
-			//		assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
-			//	}
-			// })
-			// t.Run("Integration", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			collector := NewBasicCollector()
-			for _, val := range test.dataset {
-				collector.Add(bson.NewDocument(bson.EC.Int64("foo", val)))
-			}
-
-			payload, err := collector.Resolve()
-			require.NoError(t, err)
-			iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
-			idx := 0
-			res := []int64{}
-			for iter.Next(ctx) {
-				expected := test.dataset[idx]
-				idx++
-
-				doc := iter.Document()
-				require.NotNil(t, doc)
-
-				val := doc.Lookup("foo").Int64()
-				res = append(res, val)
-				assert.Equal(t, expected, val)
-				if idx == len(test.dataset) {
-					break
-				}
-			}
+			var res []int64
+			var nzeros int64
+			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
 			grip.Infoln("in:", test.dataset)
 			grip.Infoln("out:", res)
-			// })
 
+			assert.NoError(t, err)
+			assert.Equal(t, int64(0), nzeros)
+
+			if assert.Equal(t, len(test.dataset), len(res)) {
+				for idx := range test.dataset {
+					assert.Equal(t, test.dataset[idx], -1*res[idx], "at idx %d", idx)
+				}
+			}
 		})
 	}
 }
