@@ -3,21 +3,24 @@ package ftdc
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"math/rand"
 	"testing"
 
 	"github.com/mongodb/grip"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEncoder(t *testing.T) {
-	encoder := NewEncoder().(*payloadEncoder)
+	t.Skip("foo")
+	encoder := NewEncoder([]int64{0}).(*payloadEncoder)
 	encoder.zeroCount = 32
 	encoder.buf.Write([]byte("foo"))
 	a := encoder.buf
 
-	encoder.Reset()
 	assert.Zero(t, encoder.zeroCount)
 	assert.NotEqual(t, a, encoder.buf)
 }
@@ -102,24 +105,55 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 				var res []int64
 				var nzeros int64
 				res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
-				grip.Infoln("in:", test.dataset)
-				grip.Infoln("out:", res)
 
 				assert.NoError(t, err)
 				assert.Equal(t, int64(0), nzeros)
+				require.Equal(t, len(test.dataset), len(res))
+				for idx := range test.dataset {
+					assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
+				}
+			})
+			t.Run("Integration", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
 
-				if assert.Equal(t, len(test.dataset), len(res)) {
-					for idx := range test.dataset {
-						assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
+				collector := NewBasicCollector()
+				for _, val := range test.dataset {
+					assert.NoError(t, collector.Add(bson.NewDocument(
+						bson.EC.Int64("foo", val),
+					)))
+				}
+
+				payload, err := collector.Resolve()
+				require.NoError(t, err)
+				iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
+				idx := 0
+				res := []int64{}
+				for iter.Next(ctx) {
+					expected := test.dataset[idx]
+					idx++
+
+					doc := iter.Document()
+					require.NotNil(t, doc)
+
+					val := doc.Lookup("foo").Int64()
+					res = append(res, val)
+					assert.Equal(t, expected, val)
+					if idx == len(test.dataset) {
+						break
 					}
 				}
+				require.NoError(t, iter.Err())
+				assert.Equal(t, len(test.dataset), len(res))
+				grip.Infoln("in:", test.dataset)
+				grip.Infoln("out:", res)
 			})
 		})
 	}
 }
 
 func encodeSeries(in []int64) ([]byte, error) {
-	encoder := NewEncoder()
+	encoder := NewEncoder(make([]int64, len(in)))
 
 	if err := encoder.Encode(in); err != nil {
 		return nil, errors.WithStack(err)

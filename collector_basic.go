@@ -19,15 +19,14 @@ import (
 func NewBasicCollector() Collector { return newBasicCollector() }
 
 func newBasicCollector() *basicCollector {
-	return &basicCollector{
-		encoder: NewEncoder(),
-	}
+	return &basicCollector{}
 }
 
 type basicCollector struct {
 	metadata     *bson.Document
 	startTime    time.Time
 	refrenceDoc  *bson.Document
+	data         [][]int64
 	metricsCount int
 	sampleCount  int
 	encoder      Encoder
@@ -67,9 +66,9 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 			return errors.Wrap(err, "problem parsing metrics from reference document")
 		}
 		c.metricsCount = len(metrics)
-		c.sampleCount++
-
-		return errors.WithStack(c.encoder.Encode(metrics))
+		c.encoder = NewEncoder(metrics)
+		c.data = append(c.data, metrics)
+		return nil
 	}
 
 	metrics, err := extractMetricsFromDocument(doc)
@@ -82,7 +81,8 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 	}
 
 	c.sampleCount++
-	return errors.WithStack(c.encoder.Encode(metrics))
+	c.data = append(c.data, metrics)
+	return nil
 }
 
 func (c *basicCollector) Resolve() ([]byte, error) {
@@ -131,6 +131,12 @@ func (c *basicCollector) getPayload() ([]byte, error) {
 
 	payload.Write(encodeSizeValue(uint32(c.metricsCount)))
 	payload.Write(encodeSizeValue(uint32(c.sampleCount)))
+
+	for _, series := range c.data {
+		if err := c.encoder.Encode(series); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
 
 	// get the metrics payload
 	metrics, err := c.encoder.Resolve()

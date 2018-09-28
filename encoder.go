@@ -24,9 +24,10 @@ type Encoder interface {
 	Size() int
 }
 
-func NewEncoder() Encoder {
+func NewEncoder(reference []int64) Encoder {
 	return &payloadEncoder{
-		buf: bytes.NewBuffer([]byte{}),
+		previous: reference,
+		buf:      bytes.NewBuffer([]byte{}),
 	}
 }
 
@@ -45,9 +46,7 @@ func (e *payloadEncoder) Resolve() ([]byte, error) {
 }
 
 func (e *payloadEncoder) Encode(in []int64) error {
-	if len(e.previous) == 0 {
-		e.previous = make([]int64, len(in))
-	} else if len(in) != len(e.previous) {
+	if len(in) != len(e.previous) {
 		return errors.New("undetected schema change")
 	}
 

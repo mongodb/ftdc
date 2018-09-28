@@ -47,9 +47,10 @@ func decodeSeries(numPoints int, numZeroes int64, buf io.ByteReader) ([]int64, i
 	for i := 0; i < numPoints; i++ {
 		var delta int64
 
-		if numZeroes != 0 {
+		if numZeroes > 0 {
 			delta = 0
 			numZeroes--
+			continue
 		} else {
 			delta, err = binary.ReadVarint(buf)
 			if err != nil {
