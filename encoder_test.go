@@ -38,18 +38,6 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			dataset: []int64{rand.Int63()},
 		},
 		{
-			name:    "CommonWithZeros",
-			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3},
-		},
-		{
-			name:    "CommonEndsWithZero",
-			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
-		},
-		{
-			name:    "CommonWithOutZeros",
-			dataset: []int64{32, 1, 25, 42, 42, 6, 3},
-		},
-		{
 			name:    "SingleZero",
 			dataset: []int64{0},
 		},
@@ -97,6 +85,18 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			name:    "SmallRandSomeNegatives",
 			dataset: []int64{rand.Int63n(100), -1 * rand.Int63n(100), rand.Int63n(100), -1 * rand.Int63n(100)},
 		},
+		{
+			name:    "CommonWithOutZeros",
+			dataset: []int64{32, 1, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "CommonWithZeros",
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "CommonEndsWithZero",
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			// t.Run("Unit", func(t *testing.T) {
@@ -119,37 +119,40 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			//		assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
 			//	}
 			// })
-			// t.Run("Integration", func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			t.Run("Integration", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
 
-			collector := NewBasicCollector()
-			for _, val := range test.dataset {
-				collector.Add(bson.NewDocument(bson.EC.Int64("foo", val)))
-			}
-
-			payload, err := collector.Resolve()
-			require.NoError(t, err)
-			iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
-			idx := 0
-			res := []int64{}
-			for iter.Next(ctx) {
-				expected := test.dataset[idx]
-				idx++
-
-				doc := iter.Document()
-				require.NotNil(t, doc)
-
-				val := doc.Lookup("foo").Int64()
-				res = append(res, val)
-				assert.Equal(t, expected, val)
-				if idx == len(test.dataset) {
-					break
+				collector := NewBasicCollector()
+				for _, val := range test.dataset {
+					assert.NoError(t, collector.Add(bson.NewDocument(
+						bson.EC.Int64("foo", val),
+					)))
 				}
-			}
-			grip.Infoln("in:", test.dataset)
-			grip.Infoln("out:", res)
-			// })
+
+				payload, err := collector.Resolve()
+				require.NoError(t, err)
+				iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
+				idx := 0
+				res := []int64{}
+				for iter.Next(ctx) {
+					expected := test.dataset[idx]
+					idx++
+
+					doc := iter.Document()
+					require.NotNil(t, doc)
+
+					val := doc.Lookup("foo").Int64()
+					res = append(res, val)
+					assert.Equal(t, expected, val)
+					if idx == len(test.dataset) {
+						break
+					}
+				}
+				assert.Equal(t, len(test.dataset), len(res))
+				grip.Infoln("in:", test.dataset)
+				grip.Infoln("out:", res)
+			})
 
 		})
 	}
