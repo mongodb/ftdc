@@ -66,6 +66,7 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 		c.metricsCount = len(metrics)
 		c.encoder = NewEncoder(metrics)
 		c.data = append(c.data, metrics)
+		c.sampleCount++
 		return nil
 	}
 

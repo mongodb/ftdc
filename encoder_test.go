@@ -94,6 +94,22 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			dataset: []int64{rand.Int63n(100), rand.Int63n(100), rand.Int63n(100), rand.Int63n(100)},
 		},
 		{
+			name:    "SmallIncreases",
+			dataset: []int64{1, 2, 3, 4, 5, 6, 7},
+		},
+		{
+			name:    "SmallIncreaseStall",
+			dataset: []int64{1, 2, 2, 2, 2, 3},
+		},
+		{
+			name:    "SmallDecreases",
+			dataset: []int64{10, 9, 8, 7, 6, 5, 4, 3, 2},
+		},
+		{
+			name:    "SmallDecreasesStall",
+			dataset: []int64{10, 9, 9, 9, 9},
+		},
+		{
 			name:    "SmallRandSomeNegatives",
 			dataset: []int64{rand.Int63n(100), -1 * rand.Int63n(100), rand.Int63n(100), -1 * rand.Int63n(100)},
 		},
@@ -117,7 +133,7 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 				}
 			})
 			t.Run("StreamIntegration", func(t *testing.T) {
-				t.Skip("doesn't work yet")
+				t.Skip("this is broken for reasons")
 				collector := NewBasicCollector()
 				for _, val := range test.dataset {
 					assert.NoError(t, collector.Add(bson.NewDocument(
@@ -129,7 +145,12 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 				require.NoError(t, err)
 				iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 				res := []int64{}
+				idx := 0
 				for iter.Next(ctx) {
+					idx++
+					if idx == 1 {
+						continue
+					}
 					doc := iter.Document()
 					require.NotNil(t, doc)
 

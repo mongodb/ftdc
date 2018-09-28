@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
 )
 
@@ -69,9 +71,13 @@ func (e *payloadEncoder) Encode(in []int64) error {
 	}
 
 	e.flushZeros()
-
+	oldPrev := e.previous
 	e.previous = in
-
+	grip.Info(message.Fields{
+		"deltas": deltas,
+		"prev":   oldPrev,
+		"in":     in,
+	})
 	return nil
 }
 
