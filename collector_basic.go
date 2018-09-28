@@ -2,8 +2,11 @@ package ftdc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"time"
 
+	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
@@ -28,6 +31,7 @@ type basicCollector struct {
 	metadata     *bson.Document
 	startTime    time.Time
 	refrenceDoc  *bson.Document
+	data         [][]int64
 	metricsCount int
 	sampleCount  int
 	encoder      Encoder
@@ -69,7 +73,8 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 		c.metricsCount = len(metrics)
 		c.sampleCount++
 
-		return errors.WithStack(c.encoder.Encode(metrics))
+		c.data = append(c.data, metrics)
+		return nil
 	}
 
 	metrics, err := extractMetricsFromDocument(doc)
@@ -82,7 +87,9 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 	}
 
 	c.sampleCount++
-	return errors.WithStack(c.encoder.Encode(metrics))
+
+	c.data = append(c.data, metrics)
+	return nil
 }
 
 func (c *basicCollector) Resolve() ([]byte, error) {
@@ -132,12 +139,48 @@ func (c *basicCollector) getPayload() ([]byte, error) {
 	payload.Write(encodeSizeValue(uint32(c.metricsCount)))
 	payload.Write(encodeSizeValue(uint32(c.sampleCount)))
 
-	// get the metrics payload
-	metrics, err := c.encoder.Resolve()
-	if err != nil {
-		return nil, errors.Wrap(err, "problem reading encoded metrics data")
+	for _, series := range c.data {
+		deltas := make([]int64, len(series))
+
+		for idx := range deltas {
+			if idx == 0 {
+				deltas[idx] = series[idx]
+				continue
+			}
+
+			deltas[idx] = series[idx] - deltas[idx-1]
+		}
+
+		rted := []int64{}
+		zcount := int64(0)
+		for _, val := range deltas {
+			if val == 0 {
+				zcount++
+				continue
+			}
+			if zcount > 0 {
+				rted = append(rted, 0, zcount)
+				zcount = 0
+			}
+
+			rted = append(rted, val)
+		}
+
+		if zcount > 0 {
+			rted = append(rted, 0, zcount)
+		}
+		grip.Alert(message.Fields{
+			"deltas": deltas,
+			"series": series,
+			"rte":    rted,
+		})
+
+		for idx := range rted {
+			tmp := make([]byte, binary.MaxVarintLen64)
+			num := binary.PutVarint(tmp, rted[idx])
+			payload.Write(tmp[:num])
+		}
 	}
-	payload.Write(metrics)
 
 	data, err := compressBuffer(payload.Bytes())
 	if err != nil {

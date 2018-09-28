@@ -68,7 +68,7 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 				return false
 			}
 
-			chunk.GetMetadata()
+			iter.metadata = chunk.GetMetadata()
 			out := iter.sample.Next(ctx)
 			if out {
 				iter.document = iter.sample.Document()

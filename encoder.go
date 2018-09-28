@@ -3,8 +3,6 @@ package ftdc
 import (
 	"bytes"
 	"encoding/binary"
-
-	"github.com/pkg/errors"
 )
 
 type payloadEncoder struct {
@@ -47,31 +45,13 @@ func (e *payloadEncoder) Resolve() ([]byte, error) {
 func (e *payloadEncoder) Encode(in []int64) error {
 	if len(e.previous) == 0 {
 		e.previous = make([]int64, len(in))
-	} else if len(in) != len(e.previous) {
-		return errors.New("undetected schema change")
 	}
 
-	deltas := make([]int64, len(in))
 	for idx := range in {
-		deltas[idx] = e.previous[idx] - in[idx]
-	}
-
-	for idx := range deltas {
-		if deltas[idx] == 0 {
-			e.zeroCount++
-			continue
-		}
-
-		e.flushZeros()
-
 		tmp := make([]byte, binary.MaxVarintLen64)
-		num := binary.PutVarint(tmp, deltas[idx])
+		num := binary.PutVarint(tmp, in[idx])
 		_, _ = e.buf.Write(tmp[:num])
 	}
-
-	e.flushZeros()
-
-	e.previous = in
 
 	return nil
 }
