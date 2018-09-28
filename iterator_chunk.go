@@ -3,7 +3,6 @@ package ftdc
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -93,7 +92,6 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 			return true
 		case <-ctx.Done():
 			iter.err = errors.New("operation canceled")
-			fmt.Println("what")
 			return false
 		case err := <-iter.errs:
 			iter.err = err
@@ -104,6 +102,7 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 				iter.Close()
 				return true
 			}
+
 			return false
 		}
 	}

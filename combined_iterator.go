@@ -80,6 +80,5 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 		iter.err = iter.chunks.Err()
 		iter.chunks = nil
 	}
-
 	return false
 }

@@ -7,15 +7,14 @@ import (
 )
 
 func undelta(value int64, deltas []int64) []int64 {
-	return deltas
 	out := make([]int64, len(deltas))
 	for idx, delta := range deltas {
-		//value += delta
+		value += delta
 		out[idx] = value
 
-		// if delta == 0 {
-		//	continue
-		// }
+		if delta == 0 {
+			continue
+		}
 
 		value = delta
 	}

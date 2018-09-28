@@ -3,7 +3,6 @@ package ftdc
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"github.com/mongodb/grip"
@@ -29,14 +28,13 @@ func newBasicCollector() *basicCollector {
 }
 
 type basicCollector struct {
-	metadata       *bson.Document
-	startTime      time.Time
-	refrenceDoc    *bson.Document
-	startingValues []int64
-	data           [][]int64
-	metricsCount   int
-	sampleCount    int
-	encoder        Encoder
+	metadata     *bson.Document
+	startTime    time.Time
+	refrenceDoc  *bson.Document
+	data         [][]int64
+	metricsCount int
+	sampleCount  int
+	encoder      Encoder
 }
 
 func (c *basicCollector) SetMetadata(doc *bson.Document) {
@@ -75,7 +73,7 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 		c.metricsCount = len(metrics)
 		c.sampleCount++
 
-		c.startingValues = metrics
+		c.data = append(c.data, metrics)
 		return nil
 	}
 
@@ -129,7 +127,6 @@ func (c *basicCollector) Resolve() ([]byte, error) {
 		return nil, errors.Wrap(err, "problem writing metric chunk document")
 	}
 
-	fmt.Println("writing", len(buf.Bytes()))
 	return buf.Bytes(), nil
 }
 
@@ -142,51 +139,47 @@ func (c *basicCollector) getPayload() ([]byte, error) {
 	payload.Write(encodeSizeValue(uint32(c.metricsCount)))
 	payload.Write(encodeSizeValue(uint32(c.sampleCount)))
 
-	var (
-		deltas []int64
-		prev   []int64
-	)
-	for idx, series := range c.data {
-		if idx == 0 {
-			prev = c.startingValues
+	for _, series := range c.data {
+		deltas := make([]int64, len(series))
+
+		for idx := range deltas {
+			if idx == 0 {
+				deltas[idx] = series[idx]
+				continue
+			}
+
+			deltas[idx] = series[idx] - deltas[idx-1]
 		}
 
-		for sidx := range series {
-			fmt.Println(">>", series[sidx], series[sidx]-prev[sidx])
-			deltas = append(deltas, series[sidx]-prev[sidx])
+		rted := []int64{}
+		zcount := int64(0)
+		for _, val := range deltas {
+			if val == 0 {
+				zcount++
+				continue
+			}
+			if zcount > 0 {
+				rted = append(rted, 0, zcount)
+				zcount = 0
+			}
+
+			rted = append(rted, val)
 		}
 
-		prev = c.data[idx]
-	}
-	fmt.Println(len(deltas), ",", c.metricsCount, "-->", deltas)
-
-	rted := []int64{}
-	zcount := int64(0)
-	for _, point := range deltas {
-		if point == 0 {
-			zcount++
-			continue
-		}
 		if zcount > 0 {
-			rted = append(rted, 0, zcount-1)
-			zcount = 0
+			rted = append(rted, 0, zcount)
 		}
+		grip.Alert(message.Fields{
+			"deltas": deltas,
+			"series": series,
+			"rte":    rted,
+		})
 
-		rted = append(rted, point)
-
-	}
-	if zcount > 0 {
-		rted = append(rted, 0, zcount-1)
-	}
-	grip.Info(message.Fields{
-		"rte":    rted,
-		"deltas": deltas,
-	})
-
-	for idx := range rted {
-		tmp := make([]byte, binary.MaxVarintLen64)
-		num := binary.PutVarint(tmp, rted[idx])
-		_, _ = payload.Write(tmp[:num])
+		for idx := range rted {
+			tmp := make([]byte, binary.MaxVarintLen64)
+			num := binary.PutVarint(tmp, rted[idx])
+			payload.Write(tmp[:num])
+		}
 	}
 
 	data, err := compressBuffer(payload.Bytes())
