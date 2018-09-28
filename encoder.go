@@ -8,7 +8,7 @@ import (
 )
 
 type payloadEncoder struct {
-	previous  int64
+	previous  []int64
 	zeroCount int64
 
 	// we don't check errors when writing to the buffer because
@@ -18,7 +18,7 @@ type payloadEncoder struct {
 }
 
 type Encoder interface {
-	Add(int64) error
+	Encode([]int64) error
 	Resolve() ([]byte, error)
 	Reset()
 	Size() int
@@ -34,41 +34,51 @@ func (e *payloadEncoder) Size() int { return e.buf.Len() }
 
 func (e *payloadEncoder) Reset() {
 	e.buf = bytes.NewBuffer([]byte{})
-	e.previous = 0
+	e.previous = []int64{}
 	e.zeroCount = 0
 }
 
 func (e *payloadEncoder) Resolve() ([]byte, error) {
-	if err := e.flushZeros(); err != nil {
-		return nil, errors.WithStack(err)
+	e.flushZeros()
 
-	}
 	return e.buf.Bytes(), nil
 }
 
-func (e *payloadEncoder) Add(in int64) error {
-	delta := in - e.previous
-	if delta == 0 {
-		e.zeroCount++
-		return nil
+func (e *payloadEncoder) Encode(in []int64) error {
+	if len(e.previous) == 0 {
+		e.previous = make([]int64, len(in))
+	} else if len(in) != len(e.previous) {
+		return errors.New("undetected schema change")
 	}
 
-	if err := e.flushZeros(); err != nil {
-		return errors.WithStack(err)
+	deltas := make([]int64, len(in))
+	for idx := range in {
+		deltas[idx] = e.previous[idx] - in[idx]
 	}
 
-	tmp := make([]byte, binary.MaxVarintLen64)
-	num := binary.PutVarint(tmp, int64(delta))
-	_, _ = e.buf.Write(tmp[:num])
+	for idx := range deltas {
+		if deltas[idx] == 0 {
+			e.zeroCount++
+			continue
+		}
 
-	e.previous = delta
+		e.flushZeros()
+
+		tmp := make([]byte, binary.MaxVarintLen64)
+		num := binary.PutVarint(tmp, deltas[idx])
+		_, _ = e.buf.Write(tmp[:num])
+	}
+
+	e.flushZeros()
+
+	e.previous = in
 
 	return nil
 }
 
-func (e *payloadEncoder) flushZeros() error {
+func (e *payloadEncoder) flushZeros() {
 	if e.zeroCount <= 0 {
-		return nil
+		return
 	}
 
 	tmp := make([]byte, binary.MaxVarintLen64)
@@ -80,5 +90,5 @@ func (e *payloadEncoder) flushZeros() error {
 	_, _ = e.buf.Write(tmp[:num])
 
 	e.zeroCount = 0
-	return nil
+	return
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/decimal"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -246,356 +245,201 @@ func TestBSONValueToMetric(t *testing.T) {
 func TestExtractingMetrics(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
-		Name               string
-		Value              *bson.Value
-		ExpectedCount      int
-		EncoderShouldError bool
-		FirstEncodedValue  int64
-		NumEncodedValues   int
+		Name              string
+		Value             *bson.Value
+		ExpectedCount     int
+		FirstEncodedValue int64
+		NumEncodedValues  int
 	}{
 		{
-			Name:               "IgnoredType",
-			Value:              bson.VC.Null(),
-			EncoderShouldError: false,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "IgnoredType",
+			Value:             bson.VC.Null(),
+			ExpectedCount:     0,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  0,
 		},
 		{
-			Name:               "ObjectID",
-			Value:              bson.VC.ObjectID(objectid.New()),
-			EncoderShouldError: false,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "ObjectID",
+			Value:             bson.VC.ObjectID(objectid.New()),
+			ExpectedCount:     0,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  0,
 		},
 		{
-			Name:               "String",
-			Value:              bson.VC.String("foo"),
-			EncoderShouldError: false,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "String",
+			Value:             bson.VC.String("foo"),
+			ExpectedCount:     0,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  0,
 		},
 		{
-			Name:               "Decimal128",
-			Value:              bson.VC.Decimal128(decimal.NewDecimal128(42, 42)),
-			EncoderShouldError: false,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "Decimal128",
+			Value:             bson.VC.Decimal128(decimal.NewDecimal128(42, 42)),
+			ExpectedCount:     0,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  0,
 		},
 		{
-			Name:               "BoolTrueFunctionalEncoder",
-			Value:              bson.VC.Boolean(true),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  1,
-			NumEncodedValues:   1,
+			Name:              "BoolTrue",
+			Value:             bson.VC.Boolean(true),
+			ExpectedCount:     1,
+			FirstEncodedValue: 1,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "BoolTrueBrokenEncoder",
-			Value:              bson.VC.Boolean(true),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "BoolFalse",
+			Value:             bson.VC.Boolean(false),
+			ExpectedCount:     1,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "BoolFalseFunctionalEncoder",
-			Value:              bson.VC.Boolean(false),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   1,
+			Name:              "Int32",
+			Value:             bson.VC.Int32(42),
+			ExpectedCount:     1,
+			FirstEncodedValue: 42,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "BoolFalseBrokenEncoder",
-			Value:              bson.VC.Boolean(false),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "Int32Zero",
+			Value:             bson.VC.Int32(0),
+			ExpectedCount:     1,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32FunctionalEncoder",
-			Value:              bson.VC.Int32(42),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  42,
-			NumEncodedValues:   1,
+			Name:              "Int32Negative",
+			Value:             bson.VC.Int32(-42),
+			ExpectedCount:     1,
+			FirstEncodedValue: -42,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32BrokenEncoder",
-			Value:              bson.VC.Int32(42),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "Int64",
+			Value:             bson.VC.Int64(42),
+			ExpectedCount:     1,
+			FirstEncodedValue: 42,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32ZeroFunctionalEncoder",
-			Value:              bson.VC.Int32(0),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   1,
+			Name:              "Int64Zero",
+			Value:             bson.VC.Int64(0),
+			ExpectedCount:     1,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32ZeroBrokenEncoder",
-			Value:              bson.VC.Int32(0),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "Int64Negative",
+			Value:             bson.VC.Int64(-42),
+			ExpectedCount:     1,
+			FirstEncodedValue: -42,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32NegativeFunctionalEncoder",
-			Value:              bson.VC.Int32(-42),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  -42,
-			NumEncodedValues:   1,
+			Name:              "DateTimeZero",
+			Value:             bson.VC.DateTime(0),
+			ExpectedCount:     1,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int32NegativeBrokenEncoder",
-			Value:              bson.VC.Int32(-42),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "DateTime",
+			Value:             bson.EC.Time("", now.Round(time.Second)).Value(),
+			ExpectedCount:     1,
+			FirstEncodedValue: now.Round(time.Second).Unix(),
+			NumEncodedValues:  1,
 		},
 		{
-			Name:               "Int64FunctionalEncoder",
-			Value:              bson.VC.Int64(42),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  42,
-			NumEncodedValues:   1,
+			Name:              "TimestampZero",
+			Value:             bson.VC.Timestamp(0, 0),
+			ExpectedCount:     1,
+			FirstEncodedValue: 0,
+			NumEncodedValues:  2,
 		},
 		{
-			Name:               "Int64BrokenEncoder",
-			Value:              bson.VC.Int64(42),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "TimestampLarger",
+			Value:             bson.VC.Timestamp(42, 42),
+			ExpectedCount:     1,
+			FirstEncodedValue: 42,
+			NumEncodedValues:  2,
 		},
 		{
-			Name:               "Int64ZeroFunctionalEncoder",
-			Value:              bson.VC.Int64(0),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   1,
+			Name:              "EmptyDocument",
+			Value:             bson.EC.SubDocumentFromElements("data").Value(),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "Int64ZeroBrokenEncoder",
-			Value:              bson.VC.Int64(0),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "SingleMetricValue",
+			Value:             bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 42)).Value(),
+			ExpectedCount:     1,
+			NumEncodedValues:  1,
+			FirstEncodedValue: 42,
 		},
 		{
-			Name:               "Int64NegativeFunctionalEncoder",
-			Value:              bson.VC.Int64(-42),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  -42,
-			NumEncodedValues:   1,
+			Name:              "MultiMetricValue",
+			Value:             bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)).Value(),
+			ExpectedCount:     2,
+			NumEncodedValues:  2,
+			FirstEncodedValue: 7,
 		},
 		{
-			Name:               "Int64NegativeBrokenEncoder",
-			Value:              bson.VC.Int64(-42),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "MultiNonMetricValue",
+			Value:             bson.EC.SubDocumentFromElements("data", bson.EC.String("foo", "var"), bson.EC.String("bar", "bar")).Value(),
+			ExpectedCount:     0,
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "DateTimeZero",
-			Value:              bson.VC.DateTime(0),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   1,
+			Name:              "MixedArrayFirstMetrics",
+			Value:             bson.EC.SubDocumentFromElements("data", bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)).Value(),
+			ExpectedCount:     2,
+			NumEncodedValues:  2,
+			FirstEncodedValue: 1,
 		},
 		{
-			Name:               "DateTime",
-			Value:              bson.EC.Time("", now.Round(time.Second)).Value(),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  now.Round(time.Second).Unix(),
-			NumEncodedValues:   1,
+			Name:              "ArraEmptyArray",
+			Value:             bson.VC.Array(bson.NewArray()),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "DateTimeBrokenEncoder",
-			Value:              bson.EC.Time("", now.Round(time.Second)).Value(),
-			EncoderShouldError: true,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
+			Name:              "ArrayWithSingleMetricValue",
+			Value:             bson.VC.ArrayFromValues(bson.VC.Int64(42)),
+			ExpectedCount:     1,
+			NumEncodedValues:  1,
+			FirstEncodedValue: 42,
 		},
 		{
-			Name:               "TimestampZero",
-			Value:              bson.VC.Timestamp(0, 0),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   2,
+			Name:              "ArrayWithMultiMetricValue",
+			Value:             bson.VC.ArrayFromValues(bson.VC.Int64(7), bson.VC.Int32(72)),
+			ExpectedCount:     2,
+			NumEncodedValues:  2,
+			FirstEncodedValue: 7,
 		},
 		{
-			Name:               "TimestampLarger",
-			Value:              bson.VC.Timestamp(42, 42),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			FirstEncodedValue:  42,
-			NumEncodedValues:   2,
+			Name:              "ArrayWithMultiNonMetricValue",
+			Value:             bson.VC.ArrayFromValues(bson.VC.String("var"), bson.VC.String("bar")),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "TimestampZeroBrokenEncoder",
-			Value:              bson.VC.Timestamp(0, 0),
-			EncoderShouldError: true,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
-		},
-		{
-			Name:               "TimestampLargerBrokenEncoder",
-			Value:              bson.VC.Timestamp(42, 42),
-			EncoderShouldError: true,
-			ExpectedCount:      0,
-			FirstEncodedValue:  0,
-			NumEncodedValues:   0,
-		},
-		{
-			Name:               "EmptyDocument",
-			Value:              bson.EC.SubDocumentFromElements("data").Value(),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "SingleMetricValue",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 42)).Value(),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			NumEncodedValues:   1,
-			FirstEncodedValue:  42,
-		},
-		{
-			Name:               "MultiMetricValue",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)).Value(),
-			EncoderShouldError: false,
-			ExpectedCount:      2,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  7,
-		},
-		{
-			Name:               "MultiNonMetricValue",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.String("foo", "var"), bson.EC.String("bar", "bar")).Value(),
-			EncoderShouldError: false,
-			ExpectedCount:      0,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "MixedArrayFirstMetrics",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)).Value(),
-			EncoderShouldError: false,
-			ExpectedCount:      2,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  1,
-		},
-		{
-			Name:               "SingleMetricValueBrokenEncoder",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 42)).Value(),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MultiMetricValueBrokenEncoder",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)).Value(),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MixedDocumentFirstMetricsBrokenEncoder",
-			Value:              bson.EC.SubDocumentFromElements("data", bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)).Value(),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "ArraEmptyArray",
-			Value:              bson.VC.Array(bson.NewArray()),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "ArrayWithSingleMetricValue",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Int64(42)),
-			EncoderShouldError: false,
-			ExpectedCount:      1,
-			NumEncodedValues:   1,
-			FirstEncodedValue:  42,
-		},
-		{
-			Name:               "ArrayWithMultiMetricValue",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Int64(7), bson.VC.Int32(72)),
-			EncoderShouldError: false,
-			ExpectedCount:      2,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  7,
-		},
-		{
-			Name:               "ArrayWithMultiNonMetricValue",
-			Value:              bson.VC.ArrayFromValues(bson.VC.String("var"), bson.VC.String("bar")),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "ArrayWithMixedArrayFirstMetrics",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
-			EncoderShouldError: false,
-			NumEncodedValues:   2,
-			ExpectedCount:      2,
-			FirstEncodedValue:  1,
-		},
-		{
-			Name:               "ArrayWithSingleMetricValueBrokenEncoder",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Int64(42)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "ArrayWithMultiMetricValueBrokenEncoder",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Int64(7), bson.VC.Int32(72)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "ArrayWithMixedArrayFirstMetricsBrokenEncoder",
-			Value:              bson.VC.ArrayFromValues(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
-			EncoderShouldError: true,
+			Name:              "ArrayWithMixedArrayFirstMetrics",
+			Value:             bson.VC.ArrayFromValues(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
+			NumEncodedValues:  2,
+			ExpectedCount:     2,
+			FirstEncodedValue: 1,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			encoder := &MockEncoder{}
-			if test.EncoderShouldError {
-				encoder.AddError = errors.New("what")
+			metrics, err := extractMetricsFromValue(test.Value)
+			assert.NoError(t, err)
+			assert.Equal(t, test.NumEncodedValues, len(metrics))
+
+			if test.NumEncodedValues > 0 {
+				assert.Equal(t, test.FirstEncodedValue, metrics[0])
 			}
 
-			num, err := extractMetricsFromValue(encoder, test.Value)
-			if test.EncoderShouldError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Len(t, encoder.Inputs, test.NumEncodedValues)
-			assert.Equal(t, test.ExpectedCount, num)
-
-			if test.NumEncodedValues >= 1 {
-				assert.Equal(t, test.FirstEncodedValue, encoder.Inputs[0])
-			}
 		})
 	}
 }
@@ -609,88 +453,48 @@ func TestDocumentExtraction(t *testing.T) {
 		FirstEncodedValue  int64
 	}{
 		{
-			Name:               "EmptyDocument",
-			Document:           bson.NewDocument(),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
+			Name:              "EmptyDocument",
+			Document:          bson.NewDocument(),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "NilDocument",
-			Document:           nil,
-			EncoderShouldError: true,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
+			Name:              "NilDocumentsDocument",
+			Document:          (&bson.Document{IgnoreNilInsert: true}).Append(nil, nil),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "NilDocumentsDocument",
-			Document:           (&bson.Document{IgnoreNilInsert: true}).Append(nil, nil),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
+			Name:              "SingleMetricValue",
+			Document:          bson.NewDocument(bson.EC.Int64("foo", 42)),
+			NumEncodedValues:  1,
+			FirstEncodedValue: 42,
 		},
 		{
-			Name:               "SingleMetricValue",
-			Document:           bson.NewDocument(bson.EC.Int64("foo", 42)),
-			EncoderShouldError: false,
-			NumEncodedValues:   1,
-			FirstEncodedValue:  42,
+			Name:              "MultiMetricValue",
+			Document:          bson.NewDocument(bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)),
+			NumEncodedValues:  2,
+			FirstEncodedValue: 7,
 		},
 		{
-			Name:               "MultiMetricValue",
-			Document:           bson.NewDocument(bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)),
-			EncoderShouldError: false,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  7,
+			Name:              "MultiNonMetricValue",
+			Document:          bson.NewDocument(bson.EC.String("foo", "var"), bson.EC.String("bar", "bar")),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "MultiNonMetricValue",
-			Document:           bson.NewDocument(bson.EC.String("foo", "var"), bson.EC.String("bar", "bar")),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "MixedArrayFirstMetrics",
-			Document:           bson.NewDocument(bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)),
-			EncoderShouldError: false,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  1,
-		},
-		{
-			Name:               "SingleMetricValueBrokenEncoder",
-			Document:           bson.NewDocument(bson.EC.Int64("foo", 42)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MultiMetricValueBrokenEncoder",
-			Document:           bson.NewDocument(bson.EC.Int64("foo", 7), bson.EC.Int32("foo", 72)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MixedArrayFirstMetricsBrokenEncoder",
-			Document:           bson.NewDocument(bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)),
-			EncoderShouldError: true,
+			Name:              "MixedArrayFirstMetrics",
+			Document:          bson.NewDocument(bson.EC.Boolean("zp", true), bson.EC.String("foo", "var"), bson.EC.Int64("bar", 7)),
+			NumEncodedValues:  2,
+			FirstEncodedValue: 1,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			encoder := &MockEncoder{}
-			if test.EncoderShouldError {
-				encoder.AddError = errors.New("what")
-			}
-
-			num, err := extractMetricsFromDocument(encoder, test.Document)
-			if test.EncoderShouldError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, test.NumEncodedValues, num)
-			assert.Len(t, encoder.Inputs, test.NumEncodedValues)
-
-			if test.NumEncodedValues >= 1 {
-				assert.Equal(t, test.FirstEncodedValue, encoder.Inputs[0])
+			metrics, err := extractMetricsFromDocument(test.Document)
+			assert.NoError(t, err)
+			assert.Equal(t, test.NumEncodedValues, len(metrics))
+			if len(metrics) > 0 {
+				assert.Equal(t, test.FirstEncodedValue, metrics[0])
 			}
 		})
 	}
@@ -705,81 +509,43 @@ func TestArrayExtraction(t *testing.T) {
 		FirstEncodedValue  int64
 	}{
 		{
-			Name:               "EmptyArray",
-			Array:              bson.NewArray(),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
+			Name:              "EmptyArray",
+			Array:             bson.NewArray(),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "NilArray",
-			Array:              nil,
-			EncoderShouldError: true,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
+			Name:              "SingleMetricValue",
+			Array:             bson.NewArray(bson.VC.Int64(42)),
+			NumEncodedValues:  1,
+			FirstEncodedValue: 42,
 		},
 		{
-			Name:               "SingleMetricValue",
-			Array:              bson.NewArray(bson.VC.Int64(42)),
-			EncoderShouldError: false,
-			NumEncodedValues:   1,
-			FirstEncodedValue:  42,
+			Name:              "MultiMetricValue",
+			Array:             bson.NewArray(bson.VC.Int64(7), bson.VC.Int32(72)),
+			NumEncodedValues:  2,
+			FirstEncodedValue: 7,
 		},
 		{
-			Name:               "MultiMetricValue",
-			Array:              bson.NewArray(bson.VC.Int64(7), bson.VC.Int32(72)),
-			EncoderShouldError: false,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  7,
+			Name:              "MultiNonMetricValue",
+			Array:             bson.NewArray(bson.VC.String("var"), bson.VC.String("bar")),
+			NumEncodedValues:  0,
+			FirstEncodedValue: 0,
 		},
 		{
-			Name:               "MultiNonMetricValue",
-			Array:              bson.NewArray(bson.VC.String("var"), bson.VC.String("bar")),
-			EncoderShouldError: false,
-			NumEncodedValues:   0,
-			FirstEncodedValue:  0,
-		},
-		{
-			Name:               "MixedArrayFirstMetrics",
-			Array:              bson.NewArray(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
-			EncoderShouldError: false,
-			NumEncodedValues:   2,
-			FirstEncodedValue:  1,
-		},
-		{
-			Name:               "SingleMetricValueBrokenEncoder",
-			Array:              bson.NewArray(bson.VC.Int64(42)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MultiMetricValueBrokenEncoder",
-			Array:              bson.NewArray(bson.VC.Int64(7), bson.VC.Int32(72)),
-			EncoderShouldError: true,
-		},
-		{
-			Name:               "MixedArrayFirstMetricsBrokenEncoder",
-			Array:              bson.NewArray(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
-			EncoderShouldError: true,
+			Name:              "MixedArrayFirstMetrics",
+			Array:             bson.NewArray(bson.VC.Boolean(true), bson.VC.String("var"), bson.VC.Int64(7)),
+			NumEncodedValues:  2,
+			FirstEncodedValue: 1,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			encoder := &MockEncoder{}
-			if test.EncoderShouldError {
-				encoder.AddError = errors.New("what")
-			}
-
-			num, err := extractMetricsFromArray(encoder, test.Array)
-			if test.EncoderShouldError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.Equal(t, test.NumEncodedValues, num)
-			assert.Len(t, encoder.Inputs, test.NumEncodedValues)
+			metrics, err := extractMetricsFromArray(test.Array)
+			assert.NoError(t, err)
+			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
 			if test.NumEncodedValues >= 1 {
-				assert.Equal(t, test.FirstEncodedValue, encoder.Inputs[0])
+				assert.Equal(t, test.FirstEncodedValue, metrics[0])
 			}
 		})
 	}

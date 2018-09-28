@@ -9,11 +9,11 @@ type MockEncoder struct {
 	ReportedSize  int
 }
 
-func (e *MockEncoder) Add(in int64) error {
+func (e *MockEncoder) Encode(in []int64) error {
 	if e.AddError != nil {
 		return e.AddError
 	}
-	e.Inputs = append(e.Inputs, in)
+	e.Inputs = append(e.Inputs, in...)
 	return nil
 }
 func (e *MockEncoder) Resolve() ([]byte, error) { return e.ResolveOutput, e.ResolveError }

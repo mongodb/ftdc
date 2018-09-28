@@ -62,26 +62,27 @@ func (c *basicCollector) Add(doc *bson.Document) error {
 	if c.refrenceDoc == nil {
 		c.refrenceDoc = doc
 		c.startTime = time.Now()
-		num, err := extractMetricsFromDocument(c.encoder, doc)
+		metrics, err := extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.Wrap(err, "problem parsing metrics from reference document")
 		}
-		c.metricsCount = num
+		c.metricsCount = len(metrics)
 		c.sampleCount++
-		return nil
+
+		return errors.WithStack(c.encoder.Encode(metrics))
 	}
 
-	num, err := extractMetricsFromDocument(c.encoder, doc)
+	metrics, err := extractMetricsFromDocument(doc)
 	if err != nil {
 		return errors.Wrap(err, "problem parsing metrics sample")
 	}
 
-	if num != c.metricsCount {
-		return errors.Errorf("problem writing metrics sample, reference has %d metrics, sample has %d", num, c.metricsCount)
+	if len(metrics) != c.metricsCount {
+		return errors.Errorf("problem writing metrics sample, reference has %d metrics, sample has %d", len(metrics), c.metricsCount)
 	}
 
 	c.sampleCount++
-	return nil
+	return errors.WithStack(c.encoder.Encode(metrics))
 }
 
 func (c *basicCollector) Resolve() ([]byte, error) {

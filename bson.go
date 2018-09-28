@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mongodb/grip"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
@@ -139,101 +140,83 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 //
 // Helpers for encoding values from bson documents
 
-func extractMetricsFromDocument(encoder Encoder, doc *bson.Document) (int, error) {
-	var (
-		err   error
-		num   int
-		total int
-	)
-	if doc == nil {
-		return 0, errors.New("cannot make nil Document")
-	}
-
+func extractMetricsFromDocument(doc *bson.Document) ([]int64, error) {
 	iter := doc.Iterator()
 
+	var (
+		err     error
+		data    []int64
+		metrics []int64
+	)
+
+	catcher := grip.NewBasicCatcher()
+
 	for iter.Next() {
-		num, err = extractMetricsFromValue(encoder, iter.Element().Value())
-		if err != nil {
-			return 0, errors.Wrap(err, "problem extracting metrics from value")
-		}
-		total += num
+		data, err = extractMetricsFromValue(iter.Element().Value())
+		catcher.Add(err)
+		metrics = append(metrics, data...)
 	}
 
-	if err := iter.Err(); err != nil {
-		return 0, errors.Wrap(err, "problem parsing sample")
-	}
+	catcher.Add(iter.Err())
 
-	return total, nil
+	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromArray(encoder Encoder, array *bson.Array) (int, error) {
-	if array == nil {
-		return 0, errors.New("cannot pass an empty array")
-	}
-
+func extractMetricsFromArray(array *bson.Array) ([]int64, error) {
 	iter, err := bson.NewArrayIterator(array)
 	if err != nil {
-		return 0, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
 	var (
-		num   int
-		total int
+		data    []int64
+		metrics []int64
 	)
 
+	catcher := grip.NewBasicCatcher()
+
 	for iter.Next() {
-		num, err = extractMetricsFromValue(encoder, iter.Value())
-		if err != nil {
-			return 0, errors.WithStack(err)
-		}
-
-		total += num
+		data, err = extractMetricsFromValue(iter.Value())
+		catcher.Add(err)
+		metrics = append(metrics, data...)
 	}
 
-	if err := iter.Err(); err != nil {
-		return 0, errors.WithStack(err)
-	}
+	catcher.Add(iter.Err())
 
-	return total, nil
+	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromValue(encoder Encoder, val *bson.Value) (int, error) {
+func extractMetricsFromValue(val *bson.Value) ([]int64, error) {
 	switch val.Type() {
 	case bson.TypeObjectID:
-		return 0, nil
+		return nil, nil
 	case bson.TypeString:
-		return 0, nil
+		return nil, nil
 	case bson.TypeDecimal128:
-		return 0, nil
+		return nil, nil
 	case bson.TypeArray:
-		num, err := extractMetricsFromArray(encoder, val.MutableArray())
-		return num, errors.WithStack(err)
+		metrics, err := extractMetricsFromArray(val.MutableArray())
+		return metrics, errors.WithStack(err)
 	case bson.TypeEmbeddedDocument:
-		num, err := extractMetricsFromDocument(encoder, val.MutableDocument())
-		return num, errors.WithStack(err)
+		metrics, err := extractMetricsFromDocument(val.MutableDocument())
+		return metrics, errors.WithStack(err)
 	case bson.TypeBoolean:
 		if val.Boolean() {
-			return 1, errors.WithStack(encoder.Add(1))
+			return []int64{1}, nil
 		}
-		return 1, encoder.Add(0)
+		return []int64{0}, nil
 	case bson.TypeInt32:
-		return 1, errors.WithStack(encoder.Add(int64(val.Int32())))
+		return []int64{int64(val.Int32())}, nil
 	case bson.TypeInt64:
-		return 1, errors.WithStack(encoder.Add(val.Int64()))
+		return []int64{val.Int64()}, nil
 	case bson.TypeDateTime:
-		return 1, errors.WithStack(encoder.Add(val.Time().Unix()))
+		return []int64{val.Time().Unix()}, nil
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 
-		for _, v := range []uint32{t, i} {
-			if err := encoder.Add(int64(v)); err != nil {
-				return 0, errors.WithStack(err)
-			}
-		}
-
-		return 1, nil
+		return []int64{int64(t), int64(i)}, nil
 	default:
-		return 0, nil
+		return nil, nil
 	}
 }
 

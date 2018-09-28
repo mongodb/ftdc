@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mongodb/grip"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -101,9 +102,6 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			var nzeros int64
 			res, nzeros, err = decodeSeries(len(test.dataset), nzeros, buf)
 			grip.Infoln("in:", test.dataset)
-
-			grip.Infoln("while:", res)
-			res = undelta(0, res)
 			grip.Infoln("out:", res)
 
 			assert.NoError(t, err)
@@ -111,7 +109,7 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 
 			if assert.Equal(t, len(test.dataset), len(res)) {
 				for idx := range test.dataset {
-					assert.Equal(t, test.dataset[idx], res[idx], "at idx %d", idx)
+					assert.Equal(t, test.dataset[idx], -1*res[idx], "at idx %d", idx)
 				}
 			}
 		})
@@ -121,11 +119,8 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 func encodeSeries(in []int64) ([]byte, error) {
 	encoder := NewEncoder()
 
-	for _, val := range in {
-		err := encoder.Add(val)
-		if err != nil {
-			return nil, err
-		}
+	if err := encoder.Encode(in); err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	return encoder.Resolve()
