@@ -86,7 +86,7 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 		select {
 		case next, ok := <-iter.pipe:
 			if !ok {
-				continue
+				return false
 			}
 			iter.next = &next
 			return true
