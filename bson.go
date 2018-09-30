@@ -205,6 +205,8 @@ func extractMetricsFromValue(val *bson.Value) ([]int64, error) {
 			return []int64{1}, nil
 		}
 		return []int64{0}, nil
+	case bson.TypeDouble:
+		return []int64{int64(val.Double())}, nil
 	case bson.TypeInt32:
 		return []int64{int64(val.Int32())}, nil
 	case bson.TypeInt64:
@@ -277,6 +279,8 @@ func isMetricsValue(key string, val *bson.Value) ([]string, int) {
 	case bson.TypeEmbeddedDocument:
 		return isMetricsDocument(key, val.MutableDocument())
 	case bson.TypeBoolean:
+		return []string{key}, 1
+	case bson.TypeDouble:
 		return []string{key}, 1
 	case bson.TypeInt32:
 		return []string{key}, 1
