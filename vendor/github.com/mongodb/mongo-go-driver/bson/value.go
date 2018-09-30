@@ -7,13 +7,13 @@
 package bson
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math"
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson/decimal"
+	"github.com/mongodb/mongo-go-driver/bson/internal/llbson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 )
 
@@ -103,6 +103,12 @@ func (v *Value) Interface() interface{} {
 	default:
 		return nil
 	}
+}
+
+// Validate validates the value.
+func (v *Value) Validate() error {
+	_, err := v.validate(false)
+	return err
 }
 
 func (v *Value) validate(sizeOnly bool) (uint32, error) {
@@ -551,6 +557,16 @@ func (v *Value) Binary() (subtype byte, data []byte) {
 	b := make([]byte, l)
 	copy(b, v.data[v.offset+5:int32(v.offset)+5+l])
 	return st, b
+}
+
+// BinaryOK is the same as Binary, except it returns a boolean instead of
+// panicking.
+func (v *Value) BinaryOK() (subtype byte, data []byte, ok bool) {
+	if v == nil || v.offset == 0 || v.data == nil || Type(v.data[v.start]) != TypeBinary {
+		return 0x00, nil, false
+	}
+	st, b := v.Binary()
+	return st, b, true
 }
 
 // ObjectID returns the BSON objectid value the Value represents. It panics if the value is a BSON
@@ -1025,7 +1041,8 @@ func (v *Value) Add(v2 *Value) error {
 	return fmt.Errorf("cannot Add values of types %s and %s yet", v.Type(), v2.Type())
 }
 
-func (v *Value) equal(v2 *Value) bool {
+// Equal will return true if this value is equal to val.
+func (v *Value) Equal(v2 *Value) bool {
 	if v == nil && v2 == nil {
 		return true
 	}
@@ -1034,17 +1051,17 @@ func (v *Value) equal(v2 *Value) bool {
 		return false
 	}
 
-	if v.start != v2.start {
+	if v.data[v.start] != v2.data[v2.start] {
 		return false
 	}
 
-	if v.offset != v2.offset {
-		return false
+	if v.d != nil || v2.d != nil {
+		if v.d == nil || v2.d == nil {
+			return false
+		}
+		return v.d.Equal(v2.d)
 	}
 
-	if v.d != nil && !v.d.Equal(v2.d) {
-		return false
-	}
-
-	return bytes.Equal(v.data, v2.data)
+	t1, t2 := llbson.Type(v.data[v.start]), llbson.Type(v2.data[v2.start])
+	return llbson.EqualValue(t1, t2, v.data[v.offset:], v2.data[v2.offset:])
 }
