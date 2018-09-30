@@ -58,7 +58,7 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 		}
 
 		if err := iter.Err(); err != nil {
-			iter.err = err
+			iter.err = errors.WithStack(err)
 			return false
 		}
 
@@ -87,7 +87,7 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 				return false
 			}
 		}
-		iter.err = iter.chunks.Err()
+		iter.err = errors.WithStack(iter.chunks.Err())
 		iter.chunks = nil
 	}
 	return false

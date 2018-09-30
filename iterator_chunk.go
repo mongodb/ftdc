@@ -94,6 +94,9 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 			iter.err = errors.New("operation canceled")
 			return false
 		case err := <-iter.errs:
+			if err == nil {
+				continue
+			}
 			iter.err = err
 			next, ok := <-iter.pipe
 

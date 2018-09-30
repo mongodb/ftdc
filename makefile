@@ -16,10 +16,18 @@ testArgs += -short
 endif
 ifneq (,$(DISABLE_COVERAGE))
 testArgs += -cover
-endif 
+endif
 ifneq (,$(RACE_DETECTOR))
 testArgs += -race
 endif
+
+
+tools:$(buildDir)/sysinfo-collector $(buildDir)/ftdcdump
+
+$(buildDir)/sysinfo-collector:cmd/sysinfo-collector/sysinfo-collector.go $(srcFiles)
+	go build -o $@ $<
+$(buildDir)/ftdcdump:cmd/ftdcdump/ftdcdump.go $(srcFiles)
+	go build -o $@ $<
 
 compile:
 	go build $(_testPackages)
@@ -38,6 +46,8 @@ $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
 $(buildDir)/cover.html:$(buildDir)/cover.out
 	go tool cover -html=$< -o $@
 .FORCE:
+
+
 
 
 metrics.ftdc:

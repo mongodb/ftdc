@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -9,6 +10,15 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 )
+
+func createEventRecord(count, duration, size, workers int64) *bson.Document {
+	return bson.NewDocument(
+		bson.EC.Int64("count", count),
+		bson.EC.Int64("duration", duration),
+		bson.EC.Int64("size", size),
+		bson.EC.Int64("workers", workers),
+	)
+}
 
 func randStr() string {
 	b := make([]byte, 16)
@@ -53,18 +63,22 @@ func randComplexDocument(numKeys, otherNum int) *bson.Document {
 }
 
 func TestCollectorInterface(t *testing.T) {
-	if testing.Short() {
-		t.Skip("a large test table")
-	}
+	// if testing.Short() {
+	//	t.Skip("a large test table")
+	// }
 
 	t.Parallel()
 	for _, collect := range []struct {
 		name    string
 		factory func() Collector
 	}{
+		// {
+		//	name:    "Basic",
+		//	factory: func() Collector { return NewBasicCollector() },
+		// },
 		{
-			name:    "Basic",
-			factory: func() Collector { return NewBasicCollector() },
+			name:    "Better",
+			factory: func() Collector { return &betterCollector{} },
 		},
 		{
 			name:    "SmallBatch",
@@ -108,7 +122,7 @@ func TestCollectorInterface(t *testing.T) {
 		},
 		{
 			name:    "SampleBasic",
-			factory: func() Collector { return NewSamplingCollector(0, NewBasicCollector()) },
+			factory: func() Collector { return NewSamplingCollector(0, &betterCollector{}) },
 		},
 	} {
 		t.Run(collect.name, func(t *testing.T) {
@@ -275,7 +289,10 @@ func TestCollectorInterface(t *testing.T) {
 						assert.True(t, info.MetricsCount >= test.numStats,
 							"%d >= %d", info.MetricsCount, test.numStats)
 					} else {
-						assert.Equal(t, test.numStats, info.MetricsCount)
+						if !assert.Equal(t, test.numStats, info.MetricsCount) {
+							fmt.Println(test.docs)
+							fmt.Println(info)
+						}
 					}
 
 					out, err := collector.Resolve()

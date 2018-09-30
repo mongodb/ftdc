@@ -9,7 +9,7 @@ import (
 
 type batchCollector struct {
 	maxChunkSize int
-	chunks       []*basicCollector
+	chunks       []*betterCollector
 }
 
 // NewBatchCollector constructs a collector implementation that
@@ -29,8 +29,8 @@ func NewBatchCollector(maxChunkSize int) Collector {
 func newBatchCollector(size int) *batchCollector {
 	return &batchCollector{
 		maxChunkSize: size,
-		chunks: []*basicCollector{
-			newBasicCollector(),
+		chunks: []*betterCollector{
+			&betterCollector{},
 		},
 	}
 }
@@ -47,7 +47,7 @@ func (c *batchCollector) Info() CollectorInfo {
 }
 
 func (c *batchCollector) Reset() {
-	c.chunks = []*basicCollector{newBasicCollector()}
+	c.chunks = []*betterCollector{&betterCollector{}}
 }
 
 func (c *batchCollector) SetMetadata(d *bson.Document) {
@@ -58,7 +58,7 @@ func (c *batchCollector) Add(d *bson.Document) error {
 	last := c.chunks[len(c.chunks)-1]
 
 	if last.Info().PayloadSize >= c.maxChunkSize {
-		last = newBasicCollector()
+		last = &betterCollector{}
 		c.chunks = append(c.chunks, last)
 	}
 
@@ -66,8 +66,7 @@ func (c *batchCollector) Add(d *bson.Document) error {
 }
 
 func (c *batchCollector) Resolve() ([]byte, error) {
-	data := []byte{}
-	buf := bytes.NewBuffer(data)
+	buf := &bytes.Buffer{}
 
 	for _, chunk := range c.chunks {
 		out, err := chunk.Resolve()
@@ -78,5 +77,5 @@ func (c *batchCollector) Resolve() ([]byte, error) {
 		_, _ = buf.Write(out)
 	}
 
-	return data, nil
+	return buf.Bytes(), nil
 }
