@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
-	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/send"
 	"github.com/pkg/errors"
 )
@@ -32,13 +32,11 @@ func main() {
 	}
 	defer f.Close()
 
-	iter := ftdc.ReadChunks(ctx, f)
+	iter := ftdc.ReadMetrics(ctx, f)
 
 	for iter.Next(ctx) {
-		doc := iter.Chunk()
-
-		grip.Infof("%+v", doc)
+		fmt.Println(iter.Document().ToExtJSON(false))
 	}
 
-	grip.EmergencyFatal(message.WrapError(iter.Err(), ":("))
+	grip.EmergencyFatal(iter.Err())
 }
