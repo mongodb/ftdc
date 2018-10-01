@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
+	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/send"
 	"github.com/pkg/errors"
 )
@@ -37,8 +37,8 @@ func main() {
 	for iter.Next(ctx) {
 		doc := iter.Chunk()
 
-		fmt.Println(doc)
+		grip.Infof("%+v", doc)
 	}
 
-	grip.EmergencyFatal(iter.Err())
+	grip.EmergencyFatal(message.WrapError(iter.Err(), ":("))
 }

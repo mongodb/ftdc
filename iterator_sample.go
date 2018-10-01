@@ -20,7 +20,7 @@ func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
 
 	go func() {
 		defer close(out)
-		for i := 0; i < c.nPoints+1; i++ {
+		for i := 0; i < c.nPoints; i++ {
 			doc := bson.NewDocument()
 
 			for _, m := range c.metrics {

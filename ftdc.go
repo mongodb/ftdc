@@ -38,7 +38,7 @@ func (c *Chunk) Expand() []map[string]int64 {
 	deltas := []map[string]int64{}
 
 	// Expand deltas
-	for i := 0; i < c.nPoints+1; i++ {
+	for i := 0; i < c.nPoints; i++ {
 		d := make(map[string]int64)
 
 		for _, m := range c.metrics {

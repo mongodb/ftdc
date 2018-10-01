@@ -6,9 +6,10 @@ import (
 	"compress/zlib"
 	"context"
 	"encoding/binary"
-	"fmt"
 	"io"
 
+	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
@@ -110,8 +111,19 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 				} else {
 					delta, err = binary.ReadVarint(buf)
 					if err != nil {
-						fmt.Println(i, j, v)
-						return errors.WithStack(err)
+						err = errors.Wrap(err, "reached unexpected end of encoded integer")
+						grip.Debug(message.WrapError(err,
+							message.Fields{
+								"key":        metrics[i].Key(),
+								"type":       metrics[i].originalType.String(),
+								"metric":     i,
+								"metric_num": len(metrics),
+								"sample":     j,
+								"sample_num": ndeltas,
+								"zero_count": nzeroes,
+								"action":     "fix parsing error and propogate this error",
+							}))
+						return err
 					}
 					if delta == 0 {
 						nzeroes, err = binary.ReadVarint(buf)
@@ -127,7 +139,7 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		select {
 		case o <- Chunk{
 			metrics:  metrics,
-			nPoints:  ndeltas,
+			nPoints:  ndeltas + 1,
 			metadata: metadata,
 		}:
 		case <-ctx.Done():

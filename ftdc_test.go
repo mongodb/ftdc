@@ -21,9 +21,6 @@ func init() {
 }
 
 func TestReadPathIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping real integration test for runtime")
-	}
 	// t.Parallel()
 
 	grip.Warning("the integration test validates the decoder operations not the decoded values")
@@ -97,10 +94,8 @@ func TestReadPathIntegration(t *testing.T) {
 						assert.Equal(t, doc.Len(), expectedNum)
 					}
 				}
-				assert.Equal(t, numSamples, expectedMetrics)
-
+				assert.Equal(t, expectedMetrics, numSamples)
 			}
-
 		}
 
 		assert.NoError(t, iter.Err())
@@ -116,6 +111,10 @@ func TestReadPathIntegration(t *testing.T) {
 		})
 	})
 	t.Run("Combined", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping real integration test for runtime")
+		}
+
 		iter := ReadMetrics(ctx, bytes.NewBuffer(data))
 		startAt := time.Now()
 		counter := 0

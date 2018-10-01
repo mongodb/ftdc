@@ -100,7 +100,10 @@ func (c *betterCollector) getPayload() ([]byte, error) {
 	}
 
 	payload.Write(encodeSizeValue(uint32(len(c.lastSample))))
-	payload.Write(encodeSizeValue(uint32(c.numSamples)))
+	payload.Write(encodeSizeValue(uint32(c.numSamples) - 1))
+	// the second value is the number of deltas (no reference
+	// document) not the number of data points, but the accounting
+	// for this is weird in other places.
 
 	for _, val := range c.processValues() {
 		payload.Write(encodeValue(val))

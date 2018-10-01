@@ -12,8 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncodingSeriesIntegration(t *testing.T) {
-	t.Skip("pause on hacking this")
+func TestEncoding(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -24,6 +23,18 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 		{
 			name:    "SingleElement",
 			dataset: []int64{1},
+		},
+		{
+			name:    "BasicTwoElementIncrease",
+			dataset: []int64{23, 24},
+		},
+		{
+			name:    "BasicThreeElementIncreaseJump",
+			dataset: []int64{24, 25, 500},
+		},
+		{
+			name:    "Common",
+			dataset: []int64{1, 32, 64, 25, 42, 42, 6, 3},
 		},
 		{
 			name:    "CommonWithZeros",
@@ -74,10 +85,6 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			dataset: []int64{42, 42, 42, 42, 42},
 		},
 		{
-			name:    "Randoms",
-			dataset: []int64{rand.Int63(), rand.Int63(), rand.Int63(), rand.Int63()},
-		},
-		{
 			name:    "SmallRandoms",
 			dataset: []int64{rand.Int63n(100), rand.Int63n(100), rand.Int63n(100), rand.Int63n(100)},
 		},
@@ -114,20 +121,17 @@ func TestEncodingSeriesIntegration(t *testing.T) {
 			require.NoError(t, err)
 			iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 			res := []int64{}
-			idx := 0
 			for iter.Next(ctx) {
-				idx++
-				if idx == 1 {
-					continue
-				}
 				doc := iter.Document()
 				require.NotNil(t, doc)
 				res = append(res, doc.Lookup("foo").Int64())
 			}
-			require.NoError(t, iter.Err())
-			assert.Equal(t, test.dataset, res)
 			grip.Infoln("in:", test.dataset)
 			grip.Infoln("out:", res)
+
+			require.NoError(t, iter.Err())
+			require.Equal(t, len(test.dataset), len(res))
+			assert.Equal(t, test.dataset, res)
 		})
 	}
 }
