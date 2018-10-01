@@ -58,11 +58,14 @@ func TestCollectSystemInfo(t *testing.T) {
 				require.NoError(t, err)
 				defer f.Close()
 				iter := ReadMetrics(ctx, f)
+				counter := 0
 				for iter.Next(ctx) {
+					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
 					assert.True(t, doc.Len() > 100)
 				}
+				assert.True(t, counter > 0)
 				assert.NoError(t, iter.Err())
 			})
 		}

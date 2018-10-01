@@ -89,6 +89,8 @@ type Metric struct {
 	// Used during decoding to expand the delta encoded values. In
 	// a properly decoded value, it should always report
 	startingValue int64
+
+	originalType bson.Type
 }
 
 func (m *Metric) Key() string {

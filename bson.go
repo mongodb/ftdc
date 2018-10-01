@@ -65,6 +65,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       ne.KeyName,
 				startingValue: ne.startingValue,
+				originalType:  ne.originalType,
 			})
 		}
 		return o
@@ -75,6 +76,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 					ParentPath:    path,
 					KeyName:       key,
 					startingValue: 1,
+					originalType:  val.Type(),
 				},
 			}
 		}
@@ -83,6 +85,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: 0,
+				originalType:  val.Type(),
 			},
 		}
 	case bson.TypeDouble:
@@ -91,6 +94,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: int64(val.Double()),
+				originalType:  val.Type(),
 			},
 		}
 	case bson.TypeInt32:
@@ -99,6 +103,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: int64(val.Int32()),
+				originalType:  val.Type(),
 			},
 		}
 	case bson.TypeInt64:
@@ -107,6 +112,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: val.Int64(),
+				originalType:  val.Type(),
 			},
 		}
 	case bson.TypeDateTime:
@@ -115,6 +121,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: val.Time().Unix() * 1000,
+				originalType:  val.Type(),
 			},
 		}
 	case bson.TypeTimestamp:
@@ -124,11 +131,13 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 				ParentPath:    path,
 				KeyName:       key,
 				startingValue: int64(t) * 1000,
+				originalType:  val.Type(),
 			},
 			{
 				ParentPath:    path,
 				KeyName:       key + ".inc",
 				startingValue: int64(i),
+				originalType:  val.Type(),
 			},
 		}
 	default:
