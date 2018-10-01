@@ -86,7 +86,7 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 		select {
 		case next, ok := <-iter.pipe:
 			if !ok {
-				continue
+				return false
 			}
 			iter.next = &next
 			return true
@@ -94,6 +94,9 @@ func (iter *ChunkIterator) Next(ctx context.Context) bool {
 			iter.err = errors.New("operation canceled")
 			return false
 		case err := <-iter.errs:
+			if err == nil {
+				continue
+			}
 			iter.err = err
 			next, ok := <-iter.pipe
 

@@ -9,6 +9,7 @@ import (
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/pkg/errors"
 )
 
@@ -26,7 +27,7 @@ type CollectSysInfoOptions struct {
 func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 	outputCount := 0
 	collectCount := 0
-	collector := NewBatchCollector(opts.ChunkSizeBytes) // NewBasicCollector()
+	collector := NewDynamicCollector(opts.ChunkSizeBytes)
 	collectTimer := time.NewTimer(0)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer collectTimer.Stop()
@@ -51,12 +52,13 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 		}
 
 		grip.Debug(message.Fields{
-			"op":       "writing systeminfo",
-			"samples":  info.SampleCount,
-			"metrics":  info.MetricsCount,
-			"payload":  info.PayloadSize,
-			"file":     fn,
-			"duration": time.Since(startAt).Round(time.Millisecond),
+			"op":          "writing systeminfo",
+			"samples":     info.SampleCount,
+			"metrics":     info.MetricsCount,
+			"payload":     info.PayloadSize,
+			"output_size": len(output),
+			"file":        fn,
+			"duration":    time.Since(startAt).Round(time.Millisecond),
 		})
 
 		collector.Reset()
@@ -75,13 +77,16 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 		case <-collectTimer.C:
 			info := message.CollectSystemInfo().(*message.SystemInfo)
 			info.Base = message.Base{} // avoid collecting data from the base package.
-
-			infoDoc, err := bson.MarshalDocument(info)
+			infobytes, err := bsoncodec.Marshal(info)
 			if err != nil {
-				return errors.Wrap(err, "problem converting sysinfo to bson")
+				return errors.Wrap(err, "problem converting sysinfo to bson (reflect)")
+			}
+			doc, err := bson.ReadDocument(infobytes)
+			if err != nil {
+				return errors.Wrap(err, "problem converting sysinfo to bson (doc)")
 			}
 
-			if err = collector.Add(infoDoc); err != nil {
+			if err = collector.Add(doc); err != nil {
 				return errors.Wrap(err, "problem collecting results")
 			}
 			collectCount++

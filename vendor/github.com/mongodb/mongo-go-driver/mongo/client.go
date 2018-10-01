@@ -10,6 +10,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/connstring"
 	"github.com/mongodb/mongo-go-driver/core/description"
@@ -29,6 +30,8 @@ import (
 
 const defaultLocalThreshold = 15 * time.Millisecond
 
+var defaultRegistry = bsoncodec.NewRegistryBuilder().Build()
+
 // Client performs operations on a given topology.
 type Client struct {
 	id              uuid.UUID
@@ -41,6 +44,8 @@ type Client struct {
 	readPreference  *readpref.ReadPref
 	readConcern     *readconcern.ReadConcern
 	writeConcern    *writeconcern.WriteConcern
+	registry        *bsoncodec.Registry
+	marshaller      BSONAppender
 }
 
 // Connect creates a new Client and then initializes it using the Connect method.
@@ -109,6 +114,22 @@ func (c *Client) Disconnect(ctx context.Context) error {
 	return c.topology.Disconnect(ctx)
 }
 
+// Ping verifies that the client can connect to the topology.
+// If readPreference is nil then will use the client's default read
+// preference.
+func (c *Client) Ping(ctx context.Context, rp *readpref.ReadPref) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if rp == nil {
+		rp = c.readPreference
+	}
+
+	_, err := c.topology.SelectServer(ctx, description.ReadPrefSelector(rp))
+	return err
+}
+
 // StartSession starts a new session.
 func (c *Client) StartSession(opts ...sessionopt.Session) (*Session, error) {
 	if c.topology.SessionPool == nil {
@@ -160,6 +181,7 @@ func newClient(cs connstring.ConnString, opts ...clientopt.Option) (*Client, err
 		topologyOptions: clientOpt.TopologyOptions,
 		connString:      clientOpt.ConnString,
 		localThreshold:  defaultLocalThreshold,
+		registry:        clientOpt.Registry,
 	}
 
 	uuid, err := uuid.New()
@@ -206,6 +228,10 @@ func newClient(cs connstring.ConnString, opts ...clientopt.Option) (*Client, err
 		} else {
 			client.readPreference = readpref.Primary()
 		}
+	}
+
+	if client.registry == nil {
+		client.registry = defaultRegistry
 	}
 	return client, nil
 }
@@ -317,7 +343,7 @@ func (c *Client) ListDatabases(ctx context.Context, filter interface{}, opts ...
 		return ListDatabasesResult{}, err
 	}
 
-	f, err := TransformDocument(filter)
+	f, err := transformDocument(c.registry, filter)
 	if err != nil {
 		return ListDatabasesResult{}, err
 	}

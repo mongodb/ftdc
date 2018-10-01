@@ -29,6 +29,12 @@ func encodeSizeValue(val uint32) []byte {
 	return tmp
 }
 
+func encodeValue(val int64) []byte {
+	tmp := make([]byte, binary.MaxVarintLen64)
+	num := binary.PutVarint(tmp, val)
+	return tmp[:num]
+}
+
 func compressBuffer(input []byte) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	zbuf := zlib.NewWriter(buf)

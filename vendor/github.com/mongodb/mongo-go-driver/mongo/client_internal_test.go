@@ -15,6 +15,7 @@ import (
 	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/tag"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
@@ -37,6 +38,7 @@ func createTestClient(t *testing.T) *Client {
 		connString:     testutil.ConnString(t),
 		readPreference: readpref.Primary(),
 		clock:          &session.ClusterClock{},
+		registry:       defaultRegistry,
 	}
 }
 
@@ -184,7 +186,7 @@ func TestClient_X509Auth(t *testing.T) {
 			DB   string
 		}
 
-		if err := bson.Unmarshal(rdr, &u); err != nil {
+		if err := bsoncodec.Unmarshal(rdr, &u); err != nil {
 			continue
 		}
 
@@ -405,4 +407,29 @@ func TestClient_CausalConsistency(t *testing.T) {
 	require.NotNil(t, sess)
 	require.True(t, sess.Consistent)
 	sess.EndSession(ctx)
+}
+
+func TestClient_Ping_DefaultReadPreference(t *testing.T) {
+	cs := testutil.ConnString(t)
+	c, err := NewClient(cs.String())
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	err = c.Connect(ctx)
+	require.NoError(t, err)
+
+	err = c.Ping(ctx, nil)
+	require.NoError(t, err)
+}
+
+func TestClient_Ping_InvalidHost(t *testing.T) {
+	c, err := NewClientWithOptions("mongodb://nohost:27017", clientopt.ServerSelectionTimeout(1*time.Millisecond))
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	err = c.Connect(ctx)
+	require.NoError(t, err)
+
+	err = c.Ping(ctx, nil)
+	require.NotNil(t, err)
 }
