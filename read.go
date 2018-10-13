@@ -73,7 +73,7 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		// sample. This has the field and we use use it to
 		// create a slice of Metrics for each series. The
 		// deltas are not populated.
-		metrics, err := readBufMetrics(buf)
+		refDoc, metrics, err := readBufMetrics(buf)
 		if err != nil {
 			return errors.Wrap(err, "problem reading metrics")
 		}
@@ -138,9 +138,10 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 		}
 		select {
 		case o <- Chunk{
-			metrics:  metrics,
-			nPoints:  ndeltas + 1,
-			metadata: metadata,
+			metrics:   metrics,
+			nPoints:   ndeltas + 1,
+			metadata:  metadata,
+			reference: refDoc,
 		}:
 		case <-ctx.Done():
 			return nil
@@ -159,11 +160,11 @@ func readBufBSON(buf *bufio.Reader) (*bson.Document, error) {
 	return doc, nil
 }
 
-func readBufMetrics(buf *bufio.Reader) ([]Metric, error) {
+func readBufMetrics(buf *bufio.Reader) (*bson.Document, []Metric, error) {
 	doc, err := readBufBSON(buf)
 	if err != nil {
-		return nil, errors.Wrap(err, "problem reading reference doc")
+		return nil, nil, errors.Wrap(err, "problem reading reference doc")
 	}
 
-	return flattenDocument([]string{}, doc), nil
+	return doc, flattenDocument([]string{}, doc), nil
 }

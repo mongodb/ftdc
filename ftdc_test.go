@@ -115,29 +115,55 @@ func TestReadPathIntegration(t *testing.T) {
 			t.Skip("skipping real integration test for runtime")
 		}
 
-		iter := ReadMetrics(ctx, bytes.NewBuffer(data))
-		startAt := time.Now()
-		counter := 0
-		for iter.Next(ctx) {
-			doc := iter.Document()
-			assert.NotNil(t, doc)
-			counter++
-			if sometimes.Percent(2) {
-				secondChance := sometimes.Percent(1)
-				grip.DebugWhen(secondChance, message.Fields{
-					"seen":     counter,
-					"elapsed":  time.Since(startAt),
-					"metadata": iter.Metadata(),
-				})
-				if secondChance {
-					startAt = time.Now()
+		t.Run("Flattened", func(t *testing.T) {
+			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
+			startAt := time.Now()
+			counter := 0
+			for iter.Next(ctx) {
+				doc := iter.Document()
+				assert.NotNil(t, doc)
+				counter++
+				if counter%(10*1000) == 0 {
+					secondChance := sometimes.Percent(1)
+					grip.DebugWhen(secondChance, message.Fields{
+						"seen":     counter,
+						"elapsed":  time.Since(startAt),
+						"metadata": iter.Metadata(),
+					})
+					if secondChance {
+						startAt = time.Now()
+					}
 				}
+
+				assert.Equal(t, expectedNum, doc.Len())
 			}
+			assert.NoError(t, iter.Err())
+			assert.Equal(t, expectedSamples, counter)
+		})
+		t.Run("Structured", func(t *testing.T) {
+			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
+			startAt := time.Now()
+			counter := 0
+			for iter.Next(ctx) {
+				doc := iter.Document()
+				assert.NotNil(t, doc)
+				counter++
+				if counter%(10*1000) == 0 {
+					secondChance := sometimes.Percent(1)
+					grip.DebugWhen(secondChance, message.Fields{
+						"seen":     counter,
+						"elapsed":  time.Since(startAt),
+						"metadata": iter.Metadata(),
+					})
+					if secondChance {
+						startAt = time.Now()
+					}
+				}
 
-			assert.Equal(t, expectedNum, doc.Len())
-		}
-		assert.NoError(t, iter.Err())
-		assert.Equal(t, expectedSamples, counter)
+				assert.Equal(t, 6, doc.Len())
+			}
+			assert.NoError(t, iter.Err())
+			assert.Equal(t, expectedSamples, counter)
+		})
 	})
-
 }

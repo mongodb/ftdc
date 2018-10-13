@@ -20,10 +20,8 @@ func flattenDocument(path []string, d *bson.Document) []Metric {
 
 	for iter.Next() {
 		e := iter.Element()
-		val := e.Value()
-		key := e.Key()
 
-		o = append(o, metricForType(key, path, val)...)
+		o = append(o, metricForType(e.Key(), path, e.Value())...)
 	}
 
 	return o
@@ -38,8 +36,7 @@ func flattenArray(key string, path []string, a *bson.Array) []Metric {
 	o := []Metric{}
 	idx := 0
 	for iter.Next() {
-		val := iter.Value()
-		o = append(o, metricForType(fmt.Sprintf("%s.%d", key, idx), path, val)...)
+		o = append(o, metricForType(fmt.Sprintf("%s.%d", key, idx), path, iter.Value())...)
 		idx++
 	}
 
@@ -142,6 +139,93 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 		}
 	default:
 		return []Metric{}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////
+//
+// Processores use to return rich (i.e. non-flat) structures from
+// metrics slices
+
+func rehydrateDocument(ref *bson.Document, sample int, metrics []Metric, idx int) (*bson.Document, int) {
+	if ref == nil {
+		return nil, 0
+	}
+	iter := ref.Iterator()
+	doc := &bson.Document{}
+
+	for iter.Next() {
+		refElem := iter.Element()
+
+		var elem *bson.Element
+		elem, idx = rehydrateElement(refElem, sample, metrics, idx)
+		if elem == nil {
+			continue
+		}
+		doc.Append(elem)
+	}
+
+	return doc, idx
+}
+
+func rehydrateElement(ref *bson.Element, sample int, metrics []Metric, idx int) (*bson.Element, int) {
+	switch ref.Value().Type() {
+	case bson.TypeObjectID:
+		return nil, idx
+	case bson.TypeString:
+		return nil, idx
+	case bson.TypeDecimal128:
+		return nil, idx
+	case bson.TypeArray:
+		iter, _ := ref.Value().MutableArray().Iterator()
+		elems := []*bson.Element{}
+
+		for iter.Next() {
+			var item *bson.Element
+			// TODO avoid Interface
+			item, idx = rehydrateElement(bson.EC.Interface("", iter.Value()), sample, metrics, idx)
+			if item == nil {
+				continue
+			}
+
+			elems = append(elems, item)
+		}
+
+		if iter.Err() != nil {
+			return nil, 0
+		}
+
+		out := make([]*bson.Value, len(elems))
+
+		for idx := range elems {
+			out[idx] = elems[idx].Value()
+		}
+
+		return bson.EC.ArrayFromElements(ref.Key(), out...), idx
+	case bson.TypeEmbeddedDocument:
+		var doc *bson.Document
+
+		doc, idx = rehydrateDocument(ref.Value().MutableDocument(), sample, metrics, idx)
+		return bson.EC.SubDocument(ref.Key(), doc), idx
+	case bson.TypeBoolean:
+		value := metrics[idx].Values[sample]
+		if value == 0 {
+			return bson.EC.Boolean(ref.Key(), false), idx + 1
+		}
+		return bson.EC.Boolean(ref.Key(), true), idx + 1
+
+	case bson.TypeDouble:
+		return bson.EC.Double(ref.Key(), float64(metrics[idx].Values[sample])), idx + 1
+	case bson.TypeInt32:
+		return bson.EC.Int32(ref.Key(), int32(metrics[idx].Values[sample])), idx + 1
+	case bson.TypeInt64:
+		return bson.EC.Int64(ref.Key(), metrics[idx].Values[sample]), idx + 1
+	case bson.TypeDateTime:
+		return bson.EC.DateTime(ref.Key(), metrics[idx].Values[sample]), idx + 1
+	case bson.TypeTimestamp:
+		return bson.EC.Timestamp(ref.Key(), uint32(metrics[idx].Values[sample]), uint32(metrics[idx+1].Values[sample])), idx + 2
+	default:
+		return nil, idx
 	}
 }
 
