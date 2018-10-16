@@ -9,9 +9,10 @@ import (
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
 type Chunk struct {
-	metrics  []Metric
-	nPoints  int
-	metadata *bson.Document
+	metrics   []Metric
+	nPoints   int
+	metadata  *bson.Document
+	reference *bson.Document
 }
 
 func (c *Chunk) GetMetadata() *bson.Document {
@@ -58,6 +59,15 @@ func (c *Chunk) Expand() []map[string]int64 {
 //
 // The documents are constructed from the metrics data lazily.
 func (c *Chunk) Iterator(ctx context.Context) Iterator {
+	sctx, cancel := context.WithCancel(ctx)
+	return &sampleIterator{
+		closer:   cancel,
+		stream:   c.streamFlattenedDocuments(sctx),
+		metadata: c.GetMetadata(),
+	}
+}
+
+func (c *Chunk) StructuredIterator(ctx context.Context) Iterator {
 	sctx, cancel := context.WithCancel(ctx)
 	return &sampleIterator{
 		closer:   cancel,

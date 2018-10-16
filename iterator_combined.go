@@ -17,12 +17,25 @@ type Iterator interface {
 }
 
 // ReadMetrics returns a standard document iterator that reads FTDC
-// chunks
+// chunks. The Documents returned by the iterator are flattened.
 func ReadMetrics(ctx context.Context, r io.Reader) Iterator {
 	iterctx, cancel := context.WithCancel(ctx)
 	return &combinedIterator{
-		closer: cancel,
-		chunks: ReadChunks(iterctx, r),
+		closer:  cancel,
+		chunks:  ReadChunks(iterctx, r),
+		flatten: true,
+	}
+}
+
+// ReadStructuredMetrics returns a standard document iterator that reads FTDC
+// chunks. The Documents returned by the iterator retain the structure
+// of the input documents.
+func ReadStructuredMetrics(ctx context.Context, r io.Reader) Iterator {
+	iterctx, cancel := context.WithCancel(ctx)
+	return &combinedIterator{
+		closer:  cancel,
+		chunks:  ReadChunks(iterctx, r),
+		flatten: false,
 	}
 }
 
@@ -32,6 +45,7 @@ type combinedIterator struct {
 	sample   *sampleIterator
 	metadata *bson.Document
 	document *bson.Document
+	flatten  bool
 	err      error
 }
 
@@ -69,7 +83,12 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 		ok := iter.chunks.Next(ctx)
 		if ok {
 			chunk := iter.chunks.Chunk()
-			iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
+			if iter.flatten {
+				iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
+			} else {
+				iter.sample, ok = chunk.StructuredIterator(ctx).(*sampleIterator)
+			}
+
 			if !ok {
 				iter.err = errors.New("programmer error")
 				return false
