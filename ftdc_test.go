@@ -123,16 +123,13 @@ func TestReadPathIntegration(t *testing.T) {
 				doc := iter.Document()
 				assert.NotNil(t, doc)
 				counter++
-				if counter%(10*1000) == 0 {
-					secondChance := sometimes.Percent(1)
-					grip.DebugWhen(secondChance, message.Fields{
+				if counter%10000 == 0 {
+					grip.Debug(message.Fields{
 						"seen":     counter,
 						"elapsed":  time.Since(startAt),
 						"metadata": iter.Metadata(),
 					})
-					if secondChance {
-						startAt = time.Now()
-					}
+					startAt = time.Now()
 				}
 
 				assert.Equal(t, expectedNum, doc.Len())
@@ -148,16 +145,13 @@ func TestReadPathIntegration(t *testing.T) {
 				doc := iter.Document()
 				assert.NotNil(t, doc)
 				counter++
-				if counter%(10*1000) == 0 {
-					secondChance := sometimes.Percent(1)
-					grip.DebugWhen(secondChance, message.Fields{
+				if counter%10000 == 0 {
+					grip.Debug(message.Fields{
 						"seen":     counter,
 						"elapsed":  time.Since(startAt),
 						"metadata": iter.Metadata(),
 					})
-					if secondChance {
-						startAt = time.Now()
-					}
+					startAt = time.Now()
 				}
 
 				assert.Equal(t, 6, doc.Len())
