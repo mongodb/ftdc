@@ -63,7 +63,7 @@ func TestCollectSystemInfo(t *testing.T) {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					assert.True(t, doc.Len() > 100)
+					assert.True(t, doc.Len() > 40)
 				}
 				assert.True(t, counter > 0)
 				assert.NoError(t, iter.Err())
