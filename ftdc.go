@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 )
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
@@ -100,7 +101,7 @@ type Metric struct {
 	// a properly decoded value, it should always report
 	startingValue int64
 
-	originalType bson.Type
+	originalType bsontype.Type
 }
 
 func (m *Metric) Key() string {

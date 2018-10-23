@@ -10,9 +10,18 @@ import (
 	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/result"
 )
+
+// BulkWriteResult holds the result of a bulk write operation.
+type BulkWriteResult struct {
+	InsertedCount int64
+	MatchedCount  int64
+	ModifiedCount int64
+	DeletedCount  int64
+	UpsertedCount int64
+	UpsertedIDs   map[int64]interface{}
+}
 
 // InsertOneResult is a result of an InsertOne operation.
 //
@@ -114,7 +123,7 @@ func (result *UpdateResult) UnmarshalBSON(b []byte) error {
 				var d struct {
 					ID interface{} `bson:"_id"`
 				}
-				err = bsoncodec.Unmarshal(e.Value().ReaderDocument(), &d)
+				err = bson.Unmarshal(e.Value().ReaderDocument(), &d)
 				if err != nil {
 					return err
 				}

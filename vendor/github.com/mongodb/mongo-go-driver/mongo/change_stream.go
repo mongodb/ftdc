@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/session"
@@ -46,10 +45,12 @@ func newChangeStream(ctx context.Context, coll *Collection, pipeline interface{}
 		return nil, err
 	}
 
-	csOpts, sess, err := changestreamopt.BundleChangeStream(opts...).Unbundle(true)
+	csOpts, _, err := changestreamopt.BundleChangeStream(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -193,7 +194,7 @@ func (cs *changeStream) Decode(out interface{}) error {
 		return err
 	}
 
-	return bsoncodec.UnmarshalWithRegistry(cs.coll.registry, br, out)
+	return bson.UnmarshalWithRegistry(cs.coll.registry, br, out)
 }
 
 func (cs *changeStream) DecodeBytes() (bson.Reader, error) {

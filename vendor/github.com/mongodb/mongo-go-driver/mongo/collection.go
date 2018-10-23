@@ -22,6 +22,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/mongo/aggregateopt"
+	"github.com/mongodb/mongo-go-driver/mongo/bulkwriteopt"
 	"github.com/mongodb/mongo-go-driver/mongo/changestreamopt"
 	"github.com/mongodb/mongo-go-driver/mongo/collectionopt"
 	"github.com/mongodb/mongo-go-driver/mongo/countopt"
@@ -144,6 +145,67 @@ func (coll *Collection) Database() *Database {
 	return coll.db
 }
 
+// BulkWrite performs a bulk write operation. A custom context can be supplied to this method or nil to default to
+// context.Background().
+func (coll *Collection) BulkWrite(ctx context.Context, models []WriteModel,
+	opts ...bulkwriteopt.BulkWrite) (*BulkWriteResult, error) {
+
+	if len(models) == 0 {
+		return nil, errors.New("a bulk write must contain at least one write model")
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	bwOpts, sess, err := bulkwriteopt.BundleBulkWrite(opts...).Unbundle()
+	if err != nil {
+		return nil, err
+	}
+
+	dispatchModels := make([]dispatch.WriteModel, len(models))
+	for i, model := range models {
+		dispatchModels[i] = model.convertModel()
+	}
+
+	res, err := dispatch.BulkWrite(
+		ctx,
+		coll.namespace(),
+		dispatchModels,
+		coll.client.topology,
+		coll.writeSelector,
+		coll.client.id,
+		coll.client.topology.SessionPool,
+		coll.client.retryWrites,
+		sess,
+		coll.writeConcern,
+		bwOpts.Ordered,
+		coll.client.clock,
+		bwOpts.BypassDocumentValidation,
+		bwOpts.BypassDocumentValidationSet,
+	)
+
+	if err != nil {
+		if conv, ok := err.(dispatch.BulkWriteException); ok {
+			return &BulkWriteResult{}, BulkWriteException{
+				WriteConcernError: convertWriteConcernError(conv.WriteConcernError),
+				WriteErrors:       convertBulkWriteErrors(conv.WriteErrors),
+			}
+		}
+
+		return &BulkWriteResult{}, err
+	}
+
+	return &BulkWriteResult{
+		InsertedCount: res.InsertedCount,
+		MatchedCount:  res.MatchedCount,
+		ModifiedCount: res.ModifiedCount,
+		DeletedCount:  res.DeletedCount,
+		UpsertedCount: res.UpsertedCount,
+		UpsertedIDs:   res.UpsertedIDs,
+	}, nil
+}
+
 // InsertOne inserts a single document into the collection. A user can supply
 // a custom context to this method, or nil to default to context.Background().
 //
@@ -171,10 +233,12 @@ func (coll *Collection) InsertOne(ctx context.Context, document interface{},
 	}
 
 	// convert options into []option.InsertOptioner and dedup
-	oneOpts, sess, err := insertopt.BundleOne(opts...).Unbundle(true)
+	oneOpts, _, err := insertopt.BundleOne(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -247,10 +311,12 @@ func (coll *Collection) InsertMany(ctx context.Context, documents []interface{},
 	}
 
 	// convert options into []option.InsertOptioner and dedup
-	manyOpts, sess, err := insertopt.BundleMany(opts...).Unbundle(true)
+	manyOpts, _, err := insertopt.BundleMany(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -289,8 +355,20 @@ func (coll *Collection) InsertMany(ctx context.Context, documents []interface{},
 		return nil, err
 	}
 	if len(res.WriteErrors) > 0 || res.WriteConcernError != nil {
-		err = BulkWriteError{
-			WriteErrors:       writeErrorsFromResult(res.WriteErrors),
+		bwErrors := make([]BulkWriteError, 0, len(res.WriteErrors))
+		for _, we := range res.WriteErrors {
+			bwErrors = append(bwErrors, BulkWriteError{
+				WriteError{
+					Index:   we.Index,
+					Code:    we.Code,
+					Message: we.ErrMsg,
+				},
+				nil,
+			})
+		}
+
+		err = BulkWriteException{
+			WriteErrors:       bwErrors,
 			WriteConcernError: convertWriteConcernError(res.WriteConcernError),
 		}
 	}
@@ -321,10 +399,12 @@ func (coll *Collection) DeleteOne(ctx context.Context, filter interface{},
 			bson.EC.Int32("limit", 1)),
 	}
 
-	deleteOpts, sess, err := deleteopt.BundleDelete(opts...).Unbundle(true)
+	deleteOpts, _, err := deleteopt.BundleDelete(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -382,10 +462,12 @@ func (coll *Collection) DeleteMany(ctx context.Context, filter interface{},
 	}
 	deleteDocs := []*bson.Document{bson.NewDocument(bson.EC.SubDocument("q", f), bson.EC.Int32("limit", 0))}
 
-	deleteOpts, sess, err := deleteopt.BundleDelete(opts...).Unbundle(true)
+	deleteOpts, _, err := deleteopt.BundleDelete(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -426,6 +508,7 @@ func (coll *Collection) DeleteMany(ctx context.Context, filter interface{},
 func (coll *Collection) updateOrReplaceOne(ctx context.Context, filter,
 	update *bson.Document, sess *session.Client, opts ...option.UpdateOptioner) (*UpdateResult, error) {
 
+	// TODO: should session be taken from ctx or left as argument?
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -508,10 +591,12 @@ func (coll *Collection) UpdateOne(ctx context.Context, filter interface{}, updat
 		return nil, err
 	}
 
-	updOpts, sess, err := updateopt.BundleUpdate(options...).Unbundle(true)
+	updOpts, _, err := updateopt.BundleUpdate(options...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -556,10 +641,12 @@ func (coll *Collection) UpdateMany(ctx context.Context, filter interface{}, upda
 		),
 	}
 
-	updOpts, sess, err := updateopt.BundleUpdate(opts...).Unbundle(true)
+	updOpts, _, err := updateopt.BundleUpdate(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -636,10 +723,12 @@ func (coll *Collection) ReplaceOne(ctx context.Context, filter interface{},
 		return nil, errors.New("replacement document cannot contains keys beginning with '$")
 	}
 
-	repOpts, sess, err := replaceopt.BundleReplace(opts...).Unbundle(true)
+	repOpts, _, err := replaceopt.BundleReplace(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -675,10 +764,12 @@ func (coll *Collection) Aggregate(ctx context.Context, pipeline interface{},
 	}
 
 	// convert options into []option.Optioner and dedup
-	aggOpts, sess, err := aggregateopt.BundleAggregate(opts...).Unbundle(true)
+	aggOpts, _, err := aggregateopt.BundleAggregate(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -735,10 +826,12 @@ func (coll *Collection) Count(ctx context.Context, filter interface{},
 		return 0, err
 	}
 
-	countOpts, sess, err := countopt.BundleCount(opts...).Unbundle(true)
+	countOpts, _, err := countopt.BundleCount(opts...).Unbundle(true)
 	if err != nil {
 		return 0, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -787,10 +880,12 @@ func (coll *Collection) CountDocuments(ctx context.Context, filter interface{},
 		return 0, err
 	}
 
-	countOpts, sess, err := countopt.BundleCount(opts...).Unbundle(true)
+	countOpts, _, err := countopt.BundleCount(opts...).Unbundle(true)
 	if err != nil {
 		return 0, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -829,10 +924,12 @@ func (coll *Collection) EstimatedDocumentCount(ctx context.Context,
 		ctx = context.Background()
 	}
 
-	countOpts, sess, err := countopt.BundleEstimatedDocumentCount(opts...).Unbundle(true)
+	countOpts, _, err := countopt.BundleEstimatedDocumentCount(opts...).Unbundle(true)
 	if err != nil {
 		return 0, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -886,10 +983,12 @@ func (coll *Collection) Distinct(ctx context.Context, fieldName string, filter i
 		}
 	}
 
-	distinctOpts, sess, err := distinctopt.BundleDistinct(opts...).Unbundle(true)
+	distinctOpts, _, err := distinctopt.BundleDistinct(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -949,10 +1048,12 @@ func (coll *Collection) Find(ctx context.Context, filter interface{},
 		}
 	}
 
-	findOpts, sess, err := findopt.BundleFind(opts...).Unbundle(true)
+	findOpts, _, err := findopt.BundleFind(opts...).Unbundle(true)
 	if err != nil {
 		return nil, err
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -1007,11 +1108,13 @@ func (coll *Collection) FindOne(ctx context.Context, filter interface{},
 		}
 	}
 
-	findOneOpts, sess, err := findopt.BundleOne(opts...).Unbundle(true)
+	findOneOpts, _, err := findopt.BundleOne(opts...).Unbundle(true)
 	if err != nil {
 		return &DocumentResult{err: err}
 	}
 	findOneOpts = append(findOneOpts, findopt.Limit(1).ConvertFindOption())
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -1073,10 +1176,12 @@ func (coll *Collection) FindOneAndDelete(ctx context.Context, filter interface{}
 		}
 	}
 
-	findOpts, sess, err := findopt.BundleDeleteOne(opts...).Unbundle(true)
+	findOpts, _, err := findopt.BundleDeleteOne(opts...).Unbundle(true)
 	if err != nil {
 		return &DocumentResult{err: err}
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -1143,11 +1248,12 @@ func (coll *Collection) FindOneAndReplace(ctx context.Context, filter interface{
 		return &DocumentResult{err: errors.New("replacement document cannot contains keys beginning with '$")}
 	}
 
-	findOpts, sess, err := findopt.BundleReplaceOne(opts...).Unbundle(true)
-
+	findOpts, _, err := findopt.BundleReplaceOne(opts...).Unbundle(true)
 	if err != nil {
 		return &DocumentResult{err: err}
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -1215,10 +1321,12 @@ func (coll *Collection) FindOneAndUpdate(ctx context.Context, filter interface{}
 		return &DocumentResult{err: errors.New("update document must contain key beginning with '$")}
 	}
 
-	findOpts, sess, err := findopt.BundleUpdateOne(opts...).Unbundle(true)
+	findOpts, _, err := findopt.BundleUpdateOne(opts...).Unbundle(true)
 	if err != nil {
 		return &DocumentResult{err: err}
 	}
+
+	sess := sessionFromContext(ctx)
 
 	err = coll.client.ValidSession(sess)
 	if err != nil {
@@ -1275,12 +1383,7 @@ func (coll *Collection) Drop(ctx context.Context, opts ...dropcollopt.DropColl) 
 		ctx = context.Background()
 	}
 
-	var sess *session.Client
-	for _, opt := range opts {
-		if conv, ok := opt.(dropcollopt.DropCollSession); ok {
-			sess = conv.ConvertDropCollSession()
-		}
-	}
+	sess := sessionFromContext(ctx)
 
 	err := coll.client.ValidSession(sess)
 	if err != nil {

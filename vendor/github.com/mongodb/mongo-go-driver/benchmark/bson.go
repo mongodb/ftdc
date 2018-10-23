@@ -23,7 +23,8 @@ func loadSourceDocument(pathParts ...string) (*bson.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	doc, err := bson.ParseExtJSONObject(string(data))
+	doc := bson.NewDocument()
+	err = bson.UnmarshalExtJSON(data, true, &doc)
 	if err != nil {
 		return nil, err
 	}

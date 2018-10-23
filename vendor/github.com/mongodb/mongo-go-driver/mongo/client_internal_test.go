@@ -15,7 +15,6 @@ import (
 	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/tag"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
@@ -38,7 +37,7 @@ func createTestClient(t *testing.T) *Client {
 		connString:     testutil.ConnString(t),
 		readPreference: readpref.Primary(),
 		clock:          &session.ClusterClock{},
-		registry:       defaultRegistry,
+		registry:       bson.DefaultRegistry,
 	}
 }
 
@@ -186,7 +185,7 @@ func TestClient_X509Auth(t *testing.T) {
 			DB   string
 		}
 
-		if err := bsoncodec.Unmarshal(rdr, &u); err != nil {
+		if err := bson.Unmarshal(rdr, &u); err != nil {
 			continue
 		}
 
@@ -390,19 +389,22 @@ func TestClient_CausalConsistency(t *testing.T) {
 	err = c.Connect(ctx)
 	require.NoError(t, err)
 
-	sess, err := c.StartSession(sessionopt.CausalConsistency(true))
+	s, err := c.StartSession(sessionopt.CausalConsistency(true))
+	sess := s.(*sessionImpl)
 	require.NoError(t, err)
 	require.NotNil(t, sess)
 	require.True(t, sess.Consistent)
 	sess.EndSession(ctx)
 
-	sess, err = c.StartSession(sessionopt.CausalConsistency(false))
+	s, err = c.StartSession(sessionopt.CausalConsistency(false))
+	sess = s.(*sessionImpl)
 	require.NoError(t, err)
 	require.NotNil(t, sess)
 	require.False(t, sess.Consistent)
 	sess.EndSession(ctx)
 
-	sess, err = c.StartSession()
+	s, err = c.StartSession()
+	sess = s.(*sessionImpl)
 	require.NoError(t, err)
 	require.NotNil(t, sess)
 	require.True(t, sess.Consistent)

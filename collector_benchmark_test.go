@@ -25,11 +25,9 @@ func BenchmarkCollectorInterface(b *testing.B) {
 							collector.Add(test.docs[n%len(test.docs)])
 						}
 					})
-					var result []byte
 					b.Run("Resolve", func(b *testing.B) {
 						for n := 0; n < b.N; n++ {
-							r, _ := collector.Resolve()
-							result = r
+							collector.Resolve()
 						}
 					})
 				})
