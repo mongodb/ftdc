@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -30,6 +31,9 @@ func BenchmarkCollectorInterface(b *testing.B) {
 						for n := 0; n < b.N; n++ {
 							r, _ := collector.Resolve()
 							result = r
+							if false {
+								fmt.Println(result)
+							}
 						}
 					})
 				})
