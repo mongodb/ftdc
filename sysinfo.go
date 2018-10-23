@@ -9,7 +9,6 @@ import (
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/pkg/errors"
 )
 
@@ -77,7 +76,7 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 		case <-collectTimer.C:
 			info := message.CollectSystemInfo().(*message.SystemInfo)
 			info.Base = message.Base{} // avoid collecting data from the base package.
-			infobytes, err := bsoncodec.Marshal(info)
+			infobytes, err := bson.Marshal(info)
 			if err != nil {
 				return errors.Wrap(err, "problem converting sysinfo to bson (reflect)")
 			}

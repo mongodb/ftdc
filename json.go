@@ -54,7 +54,8 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			defer close(errs)
 
 			for stream.Scan() {
-				doc, err := bson.ParseExtJSONObject(stream.Text())
+				var doc *bson.Document
+				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
 					return
@@ -74,7 +75,8 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			stream := bufio.NewScanner(f)
 
 			for stream.Scan() {
-				doc, err := bson.ParseExtJSONObject(stream.Text())
+				var doc *bson.Document
+				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
 					return
@@ -96,7 +98,8 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			defer tail.Close()
 
 			for line := range tail.Lines() {
-				doc, err := bson.ParseExtJSONObject(line.String())
+				var doc *bson.Document
+				err := bson.UnmarshalExtJSON([]byte(line.String()), false, doc)
 				if err != nil {
 					errs <- err
 					return
