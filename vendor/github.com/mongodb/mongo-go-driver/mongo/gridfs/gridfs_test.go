@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
@@ -83,13 +82,15 @@ func loadInitialFiles(t *testing.T, data dataSection) int32 {
 	for _, v := range data.Files {
 		docBytes, err := v.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error converting raw message to bytes: %s", err)
-		doc, err := bson.ParseExtJSONObject(string(docBytes))
+		doc := bson.NewDocument()
+		err = bson.UnmarshalExtJSON(docBytes, false, &doc)
+		//fmt.Println(doc.LookupElement("_id"))
 		testhelpers.RequireNil(t, err, "error creating file document: %s", err)
 
 		// convert n from int64 to int32
 		if cs, err := doc.LookupErr("chunkSize"); err == nil {
 			doc.Delete("chunkSize")
-			chunkSize = int32(cs.Int64())
+			chunkSize = cs.Int32()
 			doc.Append(bson.EC.Int32("chunkSize", chunkSize))
 		}
 
@@ -99,7 +100,8 @@ func loadInitialFiles(t *testing.T, data dataSection) int32 {
 	for _, v := range data.Chunks {
 		docBytes, err := v.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error converting raw message to bytes: %s", err)
-		doc, err := bson.ParseExtJSONObject(string(docBytes))
+		doc := bson.NewDocument()
+		err = bson.UnmarshalExtJSON(docBytes, false, &doc)
 		testhelpers.RequireNil(t, err, "error creating file document: %s", err)
 
 		// convert data $hex to binary value
@@ -112,13 +114,14 @@ func loadInitialFiles(t *testing.T, data dataSection) int32 {
 		// convert n from int64 to int32
 		if n, err := doc.LookupErr("n"); err == nil {
 			doc.Delete("n")
-			doc.Append(bson.EC.Int32("n", int32(n.Int64())))
+			doc.Append(bson.EC.Int32("n", n.Int32()))
 		}
 
 		chunksDocs = append(chunksDocs, doc)
 	}
 
 	if len(filesDocs) > 0 {
+		//fmt.Println(filesDocs)
 		_, err := files.InsertMany(ctx, filesDocs)
 		testhelpers.RequireNil(t, err, "error inserting into files: %s", err)
 		_, err = expectedFiles.InsertMany(ctx, filesDocs)
@@ -361,7 +364,8 @@ func msgToDoc(t *testing.T, msg json.RawMessage) *bson.Document {
 	rawBytes, err := msg.MarshalJSON()
 	testhelpers.RequireNil(t, err, "error marshalling message: %s", err)
 
-	doc, err := bson.ParseExtJSONObject(string(rawBytes))
+	doc := bson.NewDocument()
+	err = bson.UnmarshalExtJSON(rawBytes, true, &doc)
 	testhelpers.RequireNil(t, err, "error creating BSON doc: %s", err)
 
 	return doc
@@ -377,7 +381,7 @@ func runUploadAssert(t *testing.T, test test, fileID objectid.ObjectID) {
 			docs := make([]interface{}, len(assertData.Documents))
 
 			for i, docInterface := range assertData.Documents {
-				rdr, err := bsoncodec.Marshal(docInterface)
+				rdr, err := bson.Marshal(docInterface)
 				testhelpers.RequireNil(t, err, "error marshaling doc: %s", err)
 				doc, err := bson.ReadDocument(rdr)
 				testhelpers.RequireNil(t, err, "error reading doc: %s", err)
@@ -427,7 +431,7 @@ func parseUploadOptions(args *bson.Document) []UploadOptioner {
 
 			switch elem.Key() {
 			case "chunkSizeBytes":
-				size := int32(val.Int64())
+				size := val.Int32()
 				opts = append(opts, ChunkSizeBytes(size))
 			case "metadata":
 				opts = append(opts, Metadata(val.MutableDocument()))
@@ -516,7 +520,8 @@ func runUpdates(t *testing.T, updates *bson.Array, coll *mongo.Collection) {
 func compareDownloadAssertResult(t *testing.T, assert assertSection, copied int64) {
 	assertResult, err := assert.Result.MarshalJSON() // json.RawMessage
 	testhelpers.RequireNil(t, err, "error marshalling assert result: %s", err)
-	assertDoc, err := bson.ParseExtJSONObject(string(assertResult))
+	assertDoc := bson.NewDocument()
+	err = bson.UnmarshalExtJSON(assertResult, true, &assertDoc)
 	testhelpers.RequireNil(t, err, "error constructing result doc: %s", err)
 
 	if hexStr, err := assertDoc.LookupErr("result", "$hex"); err == nil {
@@ -603,7 +608,8 @@ func runArrangeSection(t *testing.T, test test, coll *mongo.Collection) {
 		msgBytes, err := msg.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error marshalling arrange data for test %s: %s", t.Name(), err)
 
-		msgDoc, err := bson.ParseExtJSONObject(string(msgBytes))
+		msgDoc := bson.NewDocument()
+		err = bson.UnmarshalExtJSON(msgBytes, true, &msgDoc)
 		testhelpers.RequireNil(t, err, "error creating arrange data doc for test %s: %s", t.Name(), err)
 
 		if _, err = msgDoc.LookupErr("delete"); err == nil {
@@ -640,7 +646,7 @@ func parseDownloadByNameOpts(t *testing.T, args *bson.Document) []NameOptioner {
 		optsDoc := optsVal.MutableDocument()
 
 		if revVal, err := optsDoc.LookupErr("revision"); err == nil {
-			opts = append(opts, Revision(int32(revVal.Int64())))
+			opts = append(opts, Revision(revVal.Int32()))
 		}
 	}
 
