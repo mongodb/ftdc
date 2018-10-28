@@ -32,7 +32,7 @@ func TestCollectSystemInfo(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("sysinfo.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			ChunkSizeBytes:     10 * 100,
+			SampleCount:        10,
 			FlushInterval:      2 * time.Second,
 			CollectionInterval: 100 * time.Millisecond,
 		}

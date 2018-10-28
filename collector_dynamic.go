@@ -8,25 +8,25 @@ import (
 )
 
 type dynamicCollector struct {
-	maxChunkSize int
-	chunks       []*batchCollector
-	hahes        []string
-	currentNum   int
+	maxSamples int
+	chunks     []*batchCollector
+	hahes      []string
+	currentNum int
 }
 
 // NewDynamicCollector constructs a Collector that records metrics
-// from documents, creating new chunks when either the size of the
-// metrics payload exceeds the specified max chunk size OR the schema
-// changes.
+// from documents, creating new chunks when either the number of
+// samples collected exceeds the specified max sample count OR
+// the schema changes.
 //
 // There is some overhead associated with detecting schema changes,
 // particularly for documents with more complex schemas, so you may
 // wish to opt for a simpler collector in some cases.
-func NewDynamicCollector(maxChunkSize int) Collector {
+func NewDynamicCollector(maxSamples int) Collector {
 	return &dynamicCollector{
-		maxChunkSize: maxChunkSize,
+		maxSamples: maxSamples,
 		chunks: []*batchCollector{
-			newBatchCollector(maxChunkSize),
+			newBatchCollector(maxSamples),
 		},
 	}
 }
@@ -36,14 +36,13 @@ func (c *dynamicCollector) Info() CollectorInfo {
 	for _, c := range c.chunks {
 		info := c.Info()
 		out.MetricsCount += info.MetricsCount
-		out.PayloadSize += info.PayloadSize
 		out.SampleCount += info.SampleCount
 	}
 	return out
 }
 
 func (c *dynamicCollector) Reset() {
-	c.chunks = []*batchCollector{newBatchCollector(c.maxChunkSize)}
+	c.chunks = []*batchCollector{newBatchCollector(c.maxSamples)}
 	c.hahes = []string{}
 }
 
@@ -74,7 +73,7 @@ func (c *dynamicCollector) Add(doc *bson.Document) error {
 		return errors.WithStack(lastChunk.Add(doc))
 	}
 
-	chunk := newBatchCollector(c.maxChunkSize)
+	chunk := newBatchCollector(c.maxSamples)
 	c.chunks = append(c.chunks, chunk)
 	c.hahes = append(c.hahes, docHash)
 

@@ -21,7 +21,7 @@ import (
 // name.
 type CollectJSONOptions struct {
 	OutputFilePrefix string
-	ChunkSizeBytes   int
+	SampleCount      int
 	FlushInterval    time.Duration
 	InputSource      io.Reader `json:"-"`
 	FileName         string
@@ -129,7 +129,7 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) error {
 	}
 
 	outputCount := 0
-	collector := NewDynamicCollector(opts.ChunkSizeBytes)
+	collector := NewDynamicCollector(opts.SampleCount)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer flushTimer.Stop()
 
@@ -168,7 +168,6 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) error {
 				"op":            "writing ftdc data from stream",
 				"samples":       info.SampleCount,
 				"metrics":       info.MetricsCount,
-				"payload":       info.PayloadSize,
 				"file":          fn,
 				"duration_secs": time.Since(startAt).Seconds(),
 			})

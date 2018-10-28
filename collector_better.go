@@ -54,7 +54,6 @@ func (c *betterCollector) Info() CollectorInfo {
 	return CollectorInfo{
 		MetricsCount: len(c.lastSample),
 		SampleCount:  c.numSamples,
-		PayloadSize:  len(c.lastSample) * c.numSamples, // this is clearly a lie
 	}
 }
 

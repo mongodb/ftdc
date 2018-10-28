@@ -39,5 +39,4 @@ type Collector interface {
 type CollectorInfo struct {
 	MetricsCount int
 	SampleCount  int
-	PayloadSize  int
 }

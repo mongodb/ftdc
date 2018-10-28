@@ -138,9 +138,9 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			ChunkSizeBytes: 10 * 1000,
-			FlushInterval:  100 * time.Millisecond,
-			InputSource:    reader,
+			FlushInterval: 100 * time.Millisecond,
+			SampleCount:   10,
+			InputSource:   reader,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -162,9 +162,9 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			ChunkSizeBytes: 10 * 1000,
-			FlushInterval:  10 * time.Millisecond,
-			InputSource:    reader,
+			FlushInterval: 10 * time.Millisecond,
+			InputSource:   reader,
+			SampleCount:   10,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -182,9 +182,8 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			ChunkSizeBytes: 10 * 1000,
-			FlushInterval:  500 * time.Millisecond,
-			FileName:       fn,
+			FileName:    fn,
+			SampleCount: 10,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -207,10 +206,10 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			ChunkSizeBytes: 10 * 1000,
-			FlushInterval:  500 * time.Millisecond,
-			FileName:       fn,
-			Follow:         true,
+			SampleCount:   10,
+			FlushInterval: 500 * time.Millisecond,
+			FileName:      fn,
+			Follow:        true,
 		}
 
 		err = CollectJSONStream(ctx, opts)

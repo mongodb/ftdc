@@ -16,7 +16,7 @@ import (
 // the CollectSysInfo process.
 type CollectSysInfoOptions struct {
 	OutputFilePrefix   string
-	ChunkSizeBytes     int
+	SampleCount        int
 	FlushInterval      time.Duration
 	CollectionInterval time.Duration
 }
@@ -26,7 +26,7 @@ type CollectSysInfoOptions struct {
 func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 	outputCount := 0
 	collectCount := 0
-	collector := NewDynamicCollector(opts.ChunkSizeBytes)
+	collector := NewDynamicCollector(opts.SampleCount)
 	collectTimer := time.NewTimer(0)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer collectTimer.Stop()
@@ -54,7 +54,6 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 			"op":            "writing systeminfo",
 			"samples":       info.SampleCount,
 			"metrics":       info.MetricsCount,
-			"payload":       info.PayloadSize,
 			"output_size":   len(output),
 			"file":          fn,
 			"duration_secs": time.Since(startAt).Seconds(),
