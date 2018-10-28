@@ -165,12 +165,12 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) error {
 			}
 
 			grip.Debug(message.Fields{
-				"op":       "writing ftdc data from stream",
-				"samples":  info.SampleCount,
-				"metrics":  info.MetricsCount,
-				"payload":  info.PayloadSize,
-				"file":     fn,
-				"duration": time.Since(startAt).Round(time.Millisecond),
+				"op":            "writing ftdc data from stream",
+				"samples":       info.SampleCount,
+				"metrics":       info.MetricsCount,
+				"payload":       info.PayloadSize,
+				"file":          fn,
+				"duration_secs": time.Since(startAt).Seconds(),
 			})
 
 			outputCount++
