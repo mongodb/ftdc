@@ -75,7 +75,7 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 			return flusher()
 		case <-collectTimer.C:
 			info := message.CollectSystemInfo().(*message.SystemInfo)
-			info.Base = message.Base{} // avoid collecting data from the base package.
+			info.Base.Time = time.Now()
 			infobytes, err := bson.Marshal(info)
 			if err != nil {
 				return errors.Wrap(err, "problem converting sysinfo to bson (reflect)")
