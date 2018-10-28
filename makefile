@@ -39,6 +39,10 @@ coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
 coverage-html:$(buildDir)/cover.html
 
+benchmark:
+	go test -v -benchmem -bench=. -run="Benchmark.*" -timeout=20m
+
+
 $(buildDir):$(srcFiles) compile
 	@mkdir -p $@
 $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
@@ -46,7 +50,6 @@ $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
 $(buildDir)/cover.html:$(buildDir)/cover.out
 	go tool cover -html=$< -o $@
 .FORCE:
-
 
 
 
