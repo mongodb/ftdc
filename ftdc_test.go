@@ -6,12 +6,14 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/sometimes"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -160,4 +162,48 @@ func TestReadPathIntegration(t *testing.T) {
 			assert.Equal(t, expectedSamples, counter)
 		})
 	})
+}
+
+func TestRoundtrip(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	collectors := createCollectors()
+	for _, collect := range collectors {
+		t.Run(collect.name, func(t *testing.T) {
+			tests := createTests()
+			for _, test := range tests {
+				t.Run(test.name, func(t *testing.T) {
+					if test.numStats == 0 {
+						t.Skip("does not have stats or has random stats")
+					}
+					if test.randStats && !strings.Contains(collect.name, "dynamic") {
+						t.Skip("non-dynamic collectors cannot handle random stats")
+					}
+					collector := collect.factory()
+					assert.NotPanics(t, func() {
+						collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4))
+					})
+
+					var docs []*bson.Document
+					for _, d := range test.docs {
+						assert.NoError(t, collector.Add(d))
+						docs = append(docs, d)
+					}
+
+					data, err := collector.Resolve()
+					require.NoError(t, err)
+					iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
+
+					docNum := 0
+					for iter.Next(ctx) {
+						require.True(t, docNum < len(docs))
+						roundtripDoc := iter.Document()
+						assert.True(t, roundtripDoc.Equal(docs[docNum]))
+						docNum++
+					}
+				})
+			}
+		})
+	}
 }
