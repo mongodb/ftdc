@@ -165,7 +165,7 @@ func TestReadPathIntegration(t *testing.T) {
 }
 
 func TestRoundtrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	collectors := createCollectors()
@@ -173,13 +173,10 @@ func TestRoundtrip(t *testing.T) {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
 			for _, test := range tests {
+				if test.numStats == 0 || (test.randStats && !strings.Contains(collect.name, "dynamic")) {
+					continue
+				}
 				t.Run(test.name, func(t *testing.T) {
-					if test.numStats == 0 {
-						t.Skip("does not have stats or has random stats")
-					}
-					if test.randStats && !strings.Contains(collect.name, "dynamic") {
-						t.Skip("non-dynamic collectors cannot handle random stats")
-					}
 					collector := collect.factory()
 					assert.NotPanics(t, func() {
 						collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4))
