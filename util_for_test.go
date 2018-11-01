@@ -1,8 +1,10 @@
 package ftdc
 
 import (
+	"context"
 	"encoding/hex"
 	"math/rand"
+	"os"
 
 	"github.com/mongodb/mongo-go-driver/bson"
 )
@@ -40,6 +42,14 @@ func randFlatDocument(numKeys int) *bson.Document {
 		doc.Append(bson.EC.Int64(randStr(), rand.Int63n(int64(numKeys)*1)))
 	}
 
+	return doc
+}
+
+func randFlatDocumentWithFloats(numKeys int) *bson.Document {
+	doc := bson.NewDocument()
+	for i := 0; i < numKeys; i++ {
+		doc.Append(bson.EC.Double(randStr(), rand.Float64()))
+	}
 	return doc
 }
 
@@ -259,6 +269,37 @@ func createTests() []*customTest {
 			randStats: true,
 			numStats:  1000,
 		},
+		{
+			name:      "FTDCDiagnosticFile",
+			docs:      createDocsFromFTDCFile("metrics.ftdc"),
+			randStats: true,
+			numStats:  1,
+		},
+		{
+			name: "Floats",
+			docs: []*bson.Document{
+				randFlatDocumentWithFloats(1),
+			},
+			randStats: true,
+			numStats:  1,
+		},
 	}
 	return tests
+}
+
+func createDocsFromFTDCFile(fileName string) []*bson.Document {
+	var bsonDocs []*bson.Document
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return bsonDocs
+	}
+
+	iter := ReadStructuredMetrics(ctx, file)
+	for iter.Next(ctx) {
+		bsonDocs = append(bsonDocs, iter.Document())
+	}
+	return bsonDocs
 }

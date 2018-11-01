@@ -4,12 +4,22 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"math"
+
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 )
 
-func undelta(value int64, deltas []int64) []int64 {
+func undelta(value int64, metric Metric) []int64 {
+	deltas := metric.Values
 	out := make([]int64, len(deltas))
 	for idx, delta := range deltas {
-		out[idx] = value + delta
+		if metric.originalType == bsontype.Double {
+			deltaAsDouble := math.Float64frombits(uint64(delta))
+			valueAsDouble := math.Float64frombits(uint64(value))
+			out[idx] = int64(math.Float64bits(deltaAsDouble + valueAsDouble))
+		} else {
+			out[idx] = value + delta
+		}
 		value = out[idx]
 	}
 	return out

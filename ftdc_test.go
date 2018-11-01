@@ -173,7 +173,10 @@ func TestRoundtrip(t *testing.T) {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
 			for _, test := range tests {
-				if test.numStats == 0 || (test.randStats && !strings.Contains(collect.name, "dynamic")) {
+				if test.numStats == 0 || (test.randStats && !strings.Contains(collect.name, "Dynamic")) {
+					continue
+				}
+				if test.name != "Floats" {
 					continue
 				}
 				t.Run(test.name, func(t *testing.T) {
