@@ -2,11 +2,13 @@ package ftdc
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/mongodb/grip"
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/pkg/errors"
 )
 
@@ -90,7 +92,7 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 			{
 				ParentPath:    path,
 				KeyName:       key,
-				startingValue: int64(val.Double()),
+				startingValue: int64(math.Float64bits(val.Double())),
 				originalType:  val.Type(),
 			},
 		}
@@ -215,7 +217,7 @@ func rehydrateElement(ref *bson.Element, sample int, metrics []Metric, idx int) 
 		return bson.EC.Boolean(ref.Key(), true), idx + 1
 
 	case bson.TypeDouble:
-		return bson.EC.Double(ref.Key(), float64(metrics[idx].Values[sample])), idx + 1
+		return bson.EC.Double(ref.Key(), math.Float64frombits(uint64(metrics[idx].Values[sample]))), idx + 1
 	case bson.TypeInt32:
 		return bson.EC.Int32(ref.Key(), int32(metrics[idx].Values[sample])), idx + 1
 	case bson.TypeInt64:
@@ -233,13 +235,18 @@ func rehydrateElement(ref *bson.Element, sample int, metrics []Metric, idx int) 
 //
 // Helpers for encoding values from bson documents
 
-func extractMetricsFromDocument(doc *bson.Document) ([]int64, error) {
+type typeVal struct {
+	bsonType bsontype.Type
+	value    int64
+}
+
+func extractMetricsFromDocument(doc *bson.Document) ([]typeVal, error) {
 	iter := doc.Iterator()
 
 	var (
 		err     error
-		data    []int64
-		metrics []int64
+		data    []typeVal
+		metrics []typeVal
 	)
 
 	catcher := grip.NewBasicCatcher()
@@ -255,15 +262,15 @@ func extractMetricsFromDocument(doc *bson.Document) ([]int64, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromArray(array *bson.Array) ([]int64, error) {
+func extractMetricsFromArray(array *bson.Array) ([]typeVal, error) {
 	iter, err := bson.NewArrayIterator(array)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	var (
-		data    []int64
-		metrics []int64
+		data    []typeVal
+		metrics []typeVal
 	)
 
 	catcher := grip.NewBasicCatcher()
@@ -279,7 +286,7 @@ func extractMetricsFromArray(array *bson.Array) ([]int64, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromValue(val *bson.Value) ([]int64, error) {
+func extractMetricsFromValue(val *bson.Value) ([]typeVal, error) {
 	switch val.Type() {
 	case bson.TypeObjectID:
 		return nil, nil
@@ -295,21 +302,23 @@ func extractMetricsFromValue(val *bson.Value) ([]int64, error) {
 		return metrics, errors.WithStack(err)
 	case bson.TypeBoolean:
 		if val.Boolean() {
-			return []int64{1}, nil
+			return []typeVal{typeVal{bsonType: bsontype.Boolean, value: 1}}, nil
 		}
-		return []int64{0}, nil
+		return []typeVal{typeVal{bsonType: bsontype.Boolean, value: 0}}, nil
 	case bson.TypeDouble:
-		return []int64{int64(val.Double())}, nil
+		return []typeVal{typeVal{bsonType: bsontype.Double, value: int64(math.Float64bits(val.Double()))}}, nil
 	case bson.TypeInt32:
-		return []int64{int64(val.Int32())}, nil
+		return []typeVal{typeVal{bsonType: bsontype.Int32, value: int64(val.Int32())}}, nil
 	case bson.TypeInt64:
-		return []int64{val.Int64()}, nil
+		return []typeVal{typeVal{bsonType: bsontype.Int64, value: val.Int64()}}, nil
 	case bson.TypeDateTime:
-		return []int64{val.Time().Unix()}, nil
+		return []typeVal{typeVal{bsonType: bsontype.DateTime, value: val.Time().Unix()}}, nil
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
-
-		return []int64{int64(t), int64(i)}, nil
+		return []typeVal{
+			typeVal{bsonType: bsontype.Timestamp, value: int64(t)},
+			typeVal{bsonType: bsontype.Timestamp, value: int64(i)},
+		}, nil
 	default:
 		return nil, nil
 	}

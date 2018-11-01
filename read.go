@@ -134,7 +134,7 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 				}
 				metrics[i].Values[j] = delta
 			}
-			metrics[i].Values = append([]int64{v.startingValue}, undelta(v.startingValue, metrics[i].Values)...)
+			metrics[i].Values = append([]int64{v.startingValue}, undelta(v.startingValue, metrics[i])...)
 		}
 		select {
 		case o <- Chunk{
