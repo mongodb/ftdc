@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -150,7 +151,7 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "Double",
 			Value:     bson.VC.Double(42.42),
 			OutputLen: 1,
-			Expected:  42,
+			Expected:  int64(math.Float64bits(42.42)),
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
@@ -158,7 +159,7 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "OtherDouble",
 			Value:     bson.VC.Double(42.0),
 			OutputLen: 1,
-			Expected:  42,
+			Expected:  int64(math.Float64bits(42.0)),
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
@@ -437,7 +438,7 @@ func TestExtractingMetrics(t *testing.T) {
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
 			if test.NumEncodedValues > 0 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.Equal(t, test.FirstEncodedValue, metrics[0].value)
 			}
 
 		})
@@ -494,7 +495,7 @@ func TestDocumentExtraction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 			if len(metrics) > 0 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.Equal(t, test.FirstEncodedValue, metrics[0].value)
 			}
 		})
 	}
@@ -545,7 +546,7 @@ func TestArrayExtraction(t *testing.T) {
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
 			if test.NumEncodedValues >= 1 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.Equal(t, test.FirstEncodedValue, metrics[0].value)
 			}
 		})
 	}
