@@ -139,7 +139,7 @@ func TestCollectJSON(t *testing.T) {
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FlushInterval: 100 * time.Millisecond,
-			SampleCount:   10,
+			SampleCount:   1000,
 			InputSource:   reader,
 		}
 
@@ -164,7 +164,7 @@ func TestCollectJSON(t *testing.T) {
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FlushInterval: 10 * time.Millisecond,
 			InputSource:   reader,
-			SampleCount:   10,
+			SampleCount:   100,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -183,7 +183,7 @@ func TestCollectJSON(t *testing.T) {
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FileName:    fn,
-			SampleCount: 10,
+			SampleCount: 100,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -206,7 +206,7 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			SampleCount:   10,
+			SampleCount:   100,
 			FlushInterval: 500 * time.Millisecond,
 			FileName:      fn,
 			Follow:        true,
@@ -220,17 +220,14 @@ func TestCollectJSON(t *testing.T) {
 		inputs := []map[string]interface{}{
 			{
 				"one":   int64(1),
-				"float": 0.42,
 				"other": int64(43),
 			},
 			{
 				"one":   int64(33),
-				"float": 1.0,
 				"other": int64(41),
 			},
 			{
 				"one":   int64(1),
-				"float": 4.2,
 				"other": int64(41),
 			},
 		}
@@ -256,7 +253,7 @@ func TestCollectJSON(t *testing.T) {
 		opts := CollectJSONOptions{
 			OutputFilePrefix: filepath.Join(dir, "roundtrip"),
 			FlushInterval:    time.Second,
-			SampleCount:      5,
+			SampleCount:      50,
 			InputSource:      reader,
 		}
 		ctx := context.Background()
@@ -275,7 +272,7 @@ func TestCollectJSON(t *testing.T) {
 			idx++
 
 			s := iter.Document()
-			assert.Equal(t, 3, s.Len())
+			assert.Equal(t, 2, s.Len())
 			for k, v := range inputs[idx] {
 				out := s.Lookup(k)
 				assert.Equal(t, v, out.Interface())

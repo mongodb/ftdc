@@ -8,7 +8,7 @@ import (
 )
 
 func TestSamplingCollector(t *testing.T) {
-	collector := NewSamplingCollector(time.Millisecond, &betterCollector{})
+	collector := NewSamplingCollector(time.Millisecond, &betterCollector{maxDeltas: 20})
 	for i := 0; i < 10; i++ {
 		assert.NoError(t, collector.Add(randFlatDocument(20)))
 	}

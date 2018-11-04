@@ -83,7 +83,7 @@ func createCollectors() []*customCollector {
 	collectors := []*customCollector{
 		{
 			name:    "Better",
-			factory: func() Collector { return &betterCollector{} },
+			factory: func() Collector { return &betterCollector{maxDeltas: 1000} },
 		},
 		{
 			name:    "SmallBatch",
@@ -102,10 +102,6 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewBatchCollector(10000) },
 		},
 		{
-			name:    "SuperXtraLargeBatch",
-			factory: func() Collector { return NewBatchCollector(100000) },
-		},
-		{
 			name:    "SmallDynamic",
 			factory: func() Collector { return NewDynamicCollector(10) },
 		},
@@ -122,12 +118,8 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewDynamicCollector(10000) },
 		},
 		{
-			name:    "SuperXtraLargeDynamic",
-			factory: func() Collector { return NewDynamicCollector(100000) },
-		},
-		{
 			name:    "SampleBasic",
-			factory: func() Collector { return NewSamplingCollector(0, &betterCollector{}) },
+			factory: func() Collector { return NewSamplingCollector(0, &betterCollector{maxDeltas: 100}) },
 		},
 	}
 	return collectors

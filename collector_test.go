@@ -72,26 +72,14 @@ func TestCollectorInterface(t *testing.T) {
 					"Integers": []*bson.Document{
 						randFlatDocument(5),
 						randFlatDocument(5),
-						// randFlatDocument(5),
-						// randFlatDocument(5),
+						randFlatDocument(5),
+						randFlatDocument(5),
 					},
-					// "Floats": []*bson.Document{
-					// 	randFlatDocumentWithFloats(5),
-					// 	randFlatDocumentWithFloats(5),
-					// 	randFlatDocumentWithFloats(5),
-					// 	randFlatDocumentWithFloats(5),
-					// },
 					"DecendingHandIntegers": []*bson.Document{
 						bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5)),
 						bson.NewDocument(bson.EC.Int64("one", 89), bson.EC.Int64("two", 4)),
-						// bson.NewDocument(bson.EC.Int64("one", 99), bson.EC.Int64("two", 3)),
-						// bson.NewDocument(bson.EC.Int64("one", 101), bson.EC.Int64("two", 2)),
-					},
-					"HandMixed": []*bson.Document{
-						bson.NewDocument(bson.EC.Double("one", 4.33333), bson.EC.Int64("two", 999)),
-						bson.NewDocument(bson.EC.Double("one", 3.88), bson.EC.Int64("two", 410)),
-						// bson.NewDocument(bson.EC.Double("one", 2.4343), bson.EC.Int64("two", 43)),
-						// bson.NewDocument(bson.EC.Double("one", 1.43), bson.EC.Int64("two", 43)),
+						bson.NewDocument(bson.EC.Int64("one", 99), bson.EC.Int64("two", 3)),
+						bson.NewDocument(bson.EC.Int64("one", 101), bson.EC.Int64("two", 2)),
 					},
 				} {
 					t.Run(name, func(t *testing.T) {

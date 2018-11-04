@@ -24,7 +24,9 @@ func newBatchCollector(size int) *batchCollector {
 	return &batchCollector{
 		maxSamples: size,
 		chunks: []*betterCollector{
-			&betterCollector{},
+			{
+				maxDeltas: size,
+			},
 		},
 	}
 }
