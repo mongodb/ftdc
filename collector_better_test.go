@@ -110,28 +110,65 @@ func TestEncoding(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			collector := &betterCollector{}
-			for _, val := range test.dataset {
-				assert.NoError(t, collector.Add(bson.NewDocument(
-					bson.EC.Int64("foo", val),
-				)))
-			}
+			t.Run("SingleValues", func(t *testing.T) {
+				collector := &betterCollector{}
+				for _, val := range test.dataset {
+					assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("foo", val))))
+				}
 
-			payload, err := collector.Resolve()
-			require.NoError(t, err)
-			iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
-			res := []int64{}
-			for iter.Next(ctx) {
-				doc := iter.Document()
-				require.NotNil(t, doc)
-				res = append(res, doc.Lookup("foo").Int64())
-			}
-			grip.Infoln("in:", test.dataset)
-			grip.Infoln("out:", res)
+				payload, err := collector.Resolve()
+				require.NoError(t, err)
+				iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
+				res := []int64{}
+				idx := 0
+				for iter.Next(ctx) {
+					doc := iter.Document()
+					require.NotNil(t, doc)
+					val := doc.Lookup("foo").Int64()
+					res = append(res, val)
+					assert.Equal(t, val, test.dataset[idx])
+					idx++
+				}
+				grip.Infoln("in:", test.dataset)
+				grip.Infoln("out:", res)
 
-			require.NoError(t, iter.Err())
-			require.Equal(t, len(test.dataset), len(res))
-			assert.Equal(t, test.dataset, res)
+				require.NoError(t, iter.Err())
+				require.Equal(t, len(test.dataset), len(res))
+				assert.Equal(t, test.dataset, res)
+
+			})
+			t.Run("MultipleValues", func(t *testing.T) {
+				collector := &betterCollector{}
+
+				for _, val := range test.dataset {
+					assert.NoError(t, collector.Add(bson.NewDocument(
+						bson.EC.Int64("foo", val),
+						bson.EC.Int64("dub", 2*val),
+						bson.EC.Int64("neg", -1*val),
+						bson.EC.Int64("mag", 10*val))))
+				}
+
+				payload, err := collector.Resolve()
+				require.NoError(t, err)
+				iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
+				res := []int64{}
+				for iter.Next(ctx) {
+					doc := iter.Document()
+					require.NotNil(t, doc)
+					val := doc.Lookup("foo").Int64()
+					res = append(res, val)
+					assert.Equal(t, 10*val, doc.Lookup("mag").Int64())
+					assert.Equal(t, -1*val, doc.Lookup("neg").Int64())
+					assert.Equal(t, 2*val, doc.Lookup("dub").Int64())
+				}
+				grip.Infoln("in:", test.dataset)
+				grip.Infoln("out:", res)
+
+				require.NoError(t, iter.Err())
+				require.Equal(t, len(test.dataset), len(res))
+				assert.Equal(t, test.dataset, res)
+
+			})
 		})
 	}
 }
