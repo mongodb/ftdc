@@ -16,7 +16,7 @@ func undelta(value int64, metric Metric) []int64 {
 		if metric.originalType == bsontype.Double {
 			deltaAsDouble := math.Float64frombits(uint64(delta))
 			valueAsDouble := math.Float64frombits(uint64(value))
-			out[idx] = int64(math.Float64bits(deltaAsDouble + valueAsDouble))
+			out[idx] = int64(math.Float64bits(valueAsDouble + deltaAsDouble))
 		} else {
 			out[idx] = value + delta
 		}

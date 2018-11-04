@@ -47,7 +47,8 @@ func randFlatDocument(numKeys int) *bson.Document {
 func randFlatDocumentWithFloats(numKeys int) *bson.Document {
 	doc := bson.NewDocument()
 	for i := 0; i < numKeys; i++ {
-		doc.Append(bson.EC.Double(fmt.Sprint(i), rand.Float64()))
+		doc.Append(bson.EC.Double(fmt.Sprintf("%d_float", i), rand.Float64()))
+		doc.Append(bson.EC.Int64(fmt.Sprintf("%d_long", i), rand.Int63()))
 	}
 	return doc
 }
@@ -268,12 +269,22 @@ func createTests() []*customTest {
 			numStats:  1000,
 		},
 		{
-			name: "Floats",
+			name: "SingleFloats",
 			docs: []*bson.Document{
+				randFlatDocumentWithFloats(1),
 				randFlatDocumentWithFloats(1),
 			},
 			randStats: true,
-			numStats:  1,
+			numStats:  2,
+		},
+		{
+			name: "MultiFloats",
+			docs: []*bson.Document{
+				randFlatDocumentWithFloats(50),
+				randFlatDocumentWithFloats(50),
+			},
+			randStats: true,
+			numStats:  100,
 		},
 	}
 	return tests
