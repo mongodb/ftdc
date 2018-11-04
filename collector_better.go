@@ -47,7 +47,7 @@ func (c *betterCollector) Add(doc *bson.Document) error {
 	for idx := range metrics {
 		if metrics[idx].bsonType == bsontype.Double {
 			current := math.Float64frombits(uint64(metrics[idx].value))
-			last := math.Float64frombits(uint64(metrics[idx].value))
+			last := math.Float64frombits(uint64(c.lastSample[idx].value))
 			c.deltas = append(c.deltas, int64(math.Float64bits(current-last)))
 		} else {
 			c.deltas = append(c.deltas, metrics[idx].value-c.lastSample[idx].value)
