@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/rand"
 
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -37,7 +38,7 @@ func randStr() string {
 func randFlatDocument(numKeys int) *bson.Document {
 	doc := bson.NewDocument()
 	for i := 0; i < numKeys; i++ {
-		doc.Append(bson.EC.Int64(randStr(), rand.Int63n(int64(numKeys)*1)))
+		doc.Append(bson.EC.Int64(fmt.Sprint(i), rand.Int63n(int64(numKeys)*1)))
 	}
 
 	return doc
@@ -46,7 +47,7 @@ func randFlatDocument(numKeys int) *bson.Document {
 func randFlatDocumentWithFloats(numKeys int) *bson.Document {
 	doc := bson.NewDocument()
 	for i := 0; i < numKeys; i++ {
-		doc.Append(bson.EC.Double(randStr(), rand.Float64()))
+		doc.Append(bson.EC.Double(fmt.Sprint(i), rand.Float64()))
 	}
 	return doc
 }
@@ -55,24 +56,23 @@ func randComplexDocument(numKeys, otherNum int) *bson.Document {
 	doc := bson.NewDocument()
 
 	for i := 0; i < numKeys; i++ {
-		doc.Append(bson.EC.Int64(randStr(), rand.Int63n(int64(numKeys)*1)))
+		doc.Append(bson.EC.Int64(fmt.Sprintln(numKeys, otherNum), rand.Int63n(int64(numKeys)*1)))
 
 		if otherNum%5 == 0 {
 			ar := bson.NewArray()
 			for ii := int64(0); i < otherNum; i++ {
 				ar.Append(bson.VC.Int64(rand.Int63n(1 + ii*int64(numKeys))))
 			}
-			doc.Append(bson.EC.Array(randStr(), ar))
+			doc.Append(bson.EC.Array(fmt.Sprintln("first", numKeys, otherNum), ar))
 		}
 
 		if otherNum%3 == 0 {
-			doc.Append(bson.EC.SubDocument(randStr(), randFlatDocument(otherNum)))
+			doc.Append(bson.EC.SubDocument(fmt.Sprintln("second", numKeys, otherNum), randFlatDocument(otherNum)))
 		}
 
 		if otherNum%12 == 0 {
-			doc.Append(bson.EC.SubDocument(randStr(), randComplexDocument(otherNum, 10)))
+			doc.Append(bson.EC.SubDocument(fmt.Sprintln("third", numKeys, otherNum), randComplexDocument(otherNum, 10)))
 		}
-
 	}
 
 	return doc
