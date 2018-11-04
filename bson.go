@@ -287,7 +287,8 @@ func extractMetricsFromArray(array *bson.Array) ([]typeVal, error) {
 }
 
 func extractMetricsFromValue(val *bson.Value) ([]typeVal, error) {
-	switch val.Type() {
+	btype := val.Type()
+	switch btype {
 	case bson.TypeObjectID:
 		return nil, nil
 	case bson.TypeString:
@@ -302,22 +303,22 @@ func extractMetricsFromValue(val *bson.Value) ([]typeVal, error) {
 		return metrics, errors.WithStack(err)
 	case bson.TypeBoolean:
 		if val.Boolean() {
-			return []typeVal{{bsonType: bsontype.Boolean, value: 1}}, nil
+			return []typeVal{{bsonType: btype, value: 1}}, nil
 		}
-		return []typeVal{{bsonType: bsontype.Boolean, value: 0}}, nil
+		return []typeVal{{bsonType: btype, value: 0}}, nil
 	case bson.TypeDouble:
-		return []typeVal{{bsonType: bsontype.Double, value: int64(math.Float64bits(val.Double()))}}, nil
+		return []typeVal{{bsonType: btype, value: int64(math.Float64bits(val.Double()))}}, nil
 	case bson.TypeInt32:
-		return []typeVal{{bsonType: bsontype.Int32, value: int64(val.Int32())}}, nil
+		return []typeVal{{bsonType: btype, value: int64(val.Int32())}}, nil
 	case bson.TypeInt64:
-		return []typeVal{{bsonType: bsontype.Int64, value: val.Int64()}}, nil
+		return []typeVal{{bsonType: btype, value: val.Int64()}}, nil
 	case bson.TypeDateTime:
-		return []typeVal{{bsonType: bsontype.DateTime, value: val.Time().Unix()}}, nil
+		return []typeVal{{bsonType: btype, value: val.Time().Unix()}}, nil
 	case bson.TypeTimestamp:
 		t, i := val.Timestamp()
 		return []typeVal{
-			{bsonType: bsontype.Timestamp, value: int64(t)},
-			{bsonType: bsontype.Timestamp, value: int64(i)},
+			{bsonType: btype, value: int64(t)},
+			{bsonType: btype, value: int64(i)},
 		}, nil
 	default:
 		return nil, nil
