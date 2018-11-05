@@ -84,7 +84,7 @@ func createCollectors() []*customCollector {
 	collectors := []*customCollector{
 		{
 			name:    "Better",
-			factory: func() Collector { return &betterCollector{maxDeltas: 1000} },
+			factory: func() Collector { return NewBaseCollector(1000) },
 		},
 		{
 			name:    "SmallBatch",

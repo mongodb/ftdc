@@ -22,7 +22,7 @@ func TestCollectorInterface(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// t.Parallel()
+	t.Parallel()
 	collectors := createCollectors()
 	for _, collect := range collectors {
 		t.Run(collect.name, func(t *testing.T) {
@@ -43,7 +43,6 @@ func TestCollectorInterface(t *testing.T) {
 					}
 					info = collector.Info()
 
-					assert.Equal(t, len(test.docs), info.SampleCount)
 					if test.randStats {
 						assert.True(t, info.MetricsCount >= test.numStats,
 							"%d >= %d", info.MetricsCount, test.numStats)
@@ -323,6 +322,7 @@ func TestStreamingEncoding(t *testing.T) {
 func TestFixedEncoding(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	t.Parallel()
 
 	for _, impl := range []struct {
 		name    string

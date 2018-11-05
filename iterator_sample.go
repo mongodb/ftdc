@@ -16,7 +16,7 @@ type sampleIterator struct {
 }
 
 func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document)
+	out := make(chan *bson.Document, 1000)
 
 	go func() {
 		defer close(out)
@@ -41,7 +41,7 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Docum
 }
 
 func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document)
+	out := make(chan *bson.Document, 1000)
 
 	go func() {
 		defer close(out)

@@ -97,7 +97,6 @@ func (c *betterCollector) Resolve() ([]byte, error) {
 
 	buf := bytes.NewBuffer([]byte{})
 	if c.metadata != nil {
-		// Start by encoding the reference document
 		_, err := bson.NewDocument(
 			bson.EC.Time("_id", c.startedAt),
 			bson.EC.Int32("type", 0),
