@@ -165,7 +165,7 @@ func TestReadPathIntegration(t *testing.T) {
 	})
 }
 
-func TestRoundtrip(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

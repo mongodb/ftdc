@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -120,6 +121,18 @@ func createCollectors() []*customCollector {
 		{
 			name:    "SampleBasic",
 			factory: func() Collector { return NewSamplingCollector(0, &betterCollector{maxDeltas: 100}) },
+		},
+		{
+			name:    "SmallStreaming",
+			factory: func() Collector { return NewStreamingCollector(10, &bytes.Buffer{}) },
+		},
+		{
+			name:    "MediumStreaming",
+			factory: func() Collector { return NewStreamingCollector(1000, &bytes.Buffer{}) },
+		},
+		{
+			name:    "LargeStreaming",
+			factory: func() Collector { return NewStreamingCollector(10000, &bytes.Buffer{}) },
 		},
 	}
 	return collectors

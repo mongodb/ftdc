@@ -67,6 +67,13 @@ func TestEncoding(t *testing.T) {
 					dataset: []int64{25, 50, 75, 100, 75, 50, 25, 0},
 				},
 				{
+					name: "ClimbAndDecendTwice",
+					dataset: []int64{
+						25, 50, 75, 100, 75, 50, 25, 0,
+						25, 50, 75, 100, 75, 50, 25, 0,
+					},
+				},
+				{
 					name:    "RegularGaps",
 					dataset: []int64{25, 50, 75, 100},
 				},
