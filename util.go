@@ -17,15 +17,6 @@ func undelta(value int64, deltas []int64) []int64 {
 	return out
 }
 
-func delta(prev []int64, metrics []int64) []int64 {
-	out := make([]int64, len(metrics))
-	for idx := range metrics {
-		out[idx] = metrics[idx] - prev[idx]
-	}
-
-	return out
-}
-
 func encodeSizeValue(val uint32) []byte {
 	tmp := make([]byte, 4)
 

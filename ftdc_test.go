@@ -3,7 +3,6 @@ package ftdc
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -119,8 +118,8 @@ func TestReadPathIntegration(t *testing.T) {
 		}
 
 		t.Run("Flattened", func(t *testing.T) {
-			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
 			startAt := time.Now()
+			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
 			for iter.Next(ctx) {
 				doc := iter.Document()
@@ -141,8 +140,8 @@ func TestReadPathIntegration(t *testing.T) {
 			assert.Equal(t, expectedSamples, counter)
 		})
 		t.Run("Structured", func(t *testing.T) {
-			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 			startAt := time.Now()
+			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
 			for iter.Next(ctx) {
 				doc := iter.Document()
@@ -207,114 +206,4 @@ func TestRoundTrip(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestDeltaTransforms(t *testing.T) {
-	input := [][]int64{
-		{1, 2, 3, 4, 5, 6},
-		{100, 200, 300, 400, 500, 600},
-		{1, 42, 1, 42, 1, 42},
-		{3, -1, 200, -47, 300, 301},
-		{6, 5, 4, 3, 2, 1},
-		{0, 1, 2, 3, 4, 5},
-		{5, 4, 3, 2, 1, 0},
-		{50, 40, 30, 20, 10, 0},
-		{31, 42, 53, 64, 75, 86},
-		{100, 100, 100, 200, 200, 200},
-		{100, 0, 200, 0, 300, 0},
-		{0, 100, 0, 200, 0, 300},
-	}
-
-	t.Run("IsolatedExtract", func(t *testing.T) {
-		for _, vals := range input {
-			var deltas []int64
-			var last int64
-			for idx, in := range vals {
-				if idx == 0 {
-					last = in
-					continue
-				}
-				deltas = append(deltas, in-last)
-				last = in
-			}
-
-			assert.Equal(t, vals, undelta(vals[0], deltas))
-		}
-	})
-	t.Run("IsolatedCompress", func(t *testing.T) {
-		for _, test := range []struct {
-			name     string
-			previous []int64
-			sample   []int64
-			expected []int64
-		}{
-			{
-				name:     "Empty",
-				expected: []int64{},
-			},
-			{
-				name:     "IncreasingFromEmpty",
-				previous: []int64{0, 0, 0, 0, 0, 0},
-				sample:   []int64{1, 2, 3, 4, 5, 6},
-				expected: []int64{1, 2, 3, 4, 5, 6},
-			},
-			{
-				name:     "NumberTwo",
-				previous: []int64{100, 200, 300, 400, 500, 600},
-				sample:   []int64{50, 50, 50, 50, 50, 50},
-				expected: []int64{-50, -150, -250, -350, -450, -550},
-			},
-			{
-				name:     "NumberOne",
-				previous: []int64{100, 200, 300, 400, 500, 600},
-				sample:   []int64{1, 2, 3, 4, 5, 6},
-				expected: []int64{-99, -198, -297, -396, -495, -594},
-			},
-		} {
-			t.Run(test.name, func(t *testing.T) {
-				out := delta(test.previous, test.sample)
-				assert.Equal(t, test.expected, out)
-			})
-		}
-	})
-	t.Run("RoundTrip", func(t *testing.T) {
-		t.Run("Empty", func(t *testing.T) {
-			t.Skip("rt broken")
-			previous := []int64{0, 0, 0, 0, 0, 0}
-
-			for idx, vals := range input {
-				t.Run(fmt.Sprintf("Number%d", idx), func(t *testing.T) {
-					out := delta(previous, vals)
-					rt := undelta(vals[0], out[1:])
-					if !assert.Equal(t, vals, rt) {
-						fmt.Println("<<", vals)
-						fmt.Println(">>", rt)
-					}
-				})
-			}
-		})
-	})
-	t.Run("RoundTripMixed", func(t *testing.T) {
-		t.Skip("rt broken")
-		ops := [][]int{{0, 1}, {2, 3}, {4, 5}, {6, 7}, {8, 9}, {10, 11}}
-		require.True(t, len(input)%2 == 0)
-		require.Len(t, ops, len(input)/2)
-
-		for idx, op := range ops {
-			t.Run(fmt.Sprintf("Number%d", idx+1), func(t *testing.T) {
-				require.Len(t, op, 2)
-				require.Equal(t, len(input[op[0]]), len(input[op[1]]))
-
-				out := delta(input[op[0]], input[op[1]])
-				water := undelta(out[0], out[1:])
-				fmt.Println(">>", input[op[0]])
-				fmt.Println(">>", input[op[1]])
-				fmt.Println("<<", out)
-				fmt.Println("<<", water)
-
-				require.Equal(t, len(input[op[0]]), len(out))
-				assert.Equal(t, input[op[0]], water)
-			})
-		}
-	})
 }
