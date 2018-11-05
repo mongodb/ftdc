@@ -51,7 +51,7 @@ func (c *betterCollector) Add(doc *bson.Document) error {
 	if c.reference == nil {
 		c.startedAt = time.Now()
 		c.reference = doc
-		sample, err := extractMetricsFromDocument(doc)
+		metrics, err := extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.WithStack(err)
 		}
