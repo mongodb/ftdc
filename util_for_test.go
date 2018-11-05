@@ -134,6 +134,18 @@ func createCollectors() []*customCollector {
 			name:    "LargeStreaming",
 			factory: func() Collector { return NewStreamingCollector(10000, &bytes.Buffer{}) },
 		},
+		{
+			name:    "SmallStreamingDynamic",
+			factory: func() Collector { return NewStreamingDynamicCollector(10, &bytes.Buffer{}) },
+		},
+		{
+			name:    "MediumStreamingDynamic",
+			factory: func() Collector { return NewStreamingDynamicCollector(1000, &bytes.Buffer{}) },
+		},
+		{
+			name:    "LargeStreamingDynamic",
+			factory: func() Collector { return NewStreamingDynamicCollector(10000, &bytes.Buffer{}) },
+		},
 	}
 	return collectors
 }
@@ -293,4 +305,145 @@ func createTests() []*customTest {
 		},
 	}
 	return tests
+}
+
+type encodingTests struct {
+	name    string
+	dataset []int64
+}
+
+func createEncodingTests() []encodingTests {
+	return []encodingTests{
+		{
+			name:    "SingleElement",
+			dataset: []int64{1},
+		},
+		{
+			name:    "BasicTwoElementIncrease",
+			dataset: []int64{23, 24},
+		},
+		{
+			name:    "BasicThreeElementIncrease",
+			dataset: []int64{24, 25, 26},
+		},
+		{
+			name:    "BasicTwoElementDecrease",
+			dataset: []int64{26, 25},
+		},
+		{
+			name:    "BasicThreeElementDecrease",
+			dataset: []int64{24, 23, 22},
+		},
+		{
+			name:    "BasicFourElementDecrease",
+			dataset: []int64{24, 23, 22, 21},
+		},
+		{
+			name:    "IncByTens",
+			dataset: []int64{20, 30, 40, 50, 60, 70},
+		},
+		{
+			name:    "DecByTens",
+			dataset: []int64{100, 90, 80, 70, 60, 50},
+		},
+		{
+			name:    "ClimbAndDecend",
+			dataset: []int64{25, 50, 75, 100, 75, 50, 25, 0},
+		},
+		{
+			name: "ClimbAndDecendTwice",
+			dataset: []int64{
+				25, 50, 75, 100, 75, 50, 25, 0,
+				25, 50, 75, 100, 75, 50, 25, 0,
+			},
+		},
+		{
+			name:    "RegularGaps",
+			dataset: []int64{25, 50, 75, 100},
+		},
+		{
+			name:    "RegularGapsDec",
+			dataset: []int64{100, 75, 50, 25, 0},
+		},
+		{
+			name:    "ThreeElementIncreaseJump",
+			dataset: []int64{24, 25, 100},
+		},
+		{
+			name:    "Common",
+			dataset: []int64{1, 32, 64, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "CommonWithZeros",
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "CommonEndsWithZero",
+			dataset: []int64{32, 1, 0, 0, 25, 42, 42, 6, 3, 0},
+		},
+		{
+			name:    "CommonWithOutZeros",
+			dataset: []int64{32, 1, 25, 42, 42, 6, 3},
+		},
+		{
+			name:    "SingleZero",
+			dataset: []int64{0},
+		},
+		{
+			name:    "SeriesStartsWithNegatives",
+			dataset: []int64{-1, -2, -43, -72, -100, 200, 0, 0, 0},
+		},
+		{
+			name:    "SingleNegativeOne",
+			dataset: []int64{-1},
+		},
+		{
+			name:    "SingleNegativeRandSmall",
+			dataset: []int64{-rand.Int63n(10)},
+		},
+		{
+			name:    "SingleNegativeRandLarge",
+			dataset: []int64{-rand.Int63()},
+		},
+		{
+			name:    "OnlyZeros",
+			dataset: []int64{0, 0, 0, 0},
+		},
+		{
+			name:    "AllOnes",
+			dataset: []int64{1, 1, 1, 1, 1, 1},
+		},
+		{
+			name:    "AllNegativeOnes",
+			dataset: []int64{-1, -1, -1, -1, -1, -1},
+		},
+		{
+			name:    "AllFortyTwo",
+			dataset: []int64{42, 42, 42, 42, 42},
+		},
+		{
+			name:    "SmallRandoms",
+			dataset: []int64{rand.Int63n(100), rand.Int63n(100), rand.Int63n(100), rand.Int63n(100)},
+		},
+		{
+			name:    "SmallIncreases",
+			dataset: []int64{1, 2, 3, 4, 5, 6, 7},
+		},
+		{
+			name:    "SmallIncreaseStall",
+			dataset: []int64{1, 2, 2, 2, 2, 3},
+		},
+		{
+			name:    "SmallDecreases",
+			dataset: []int64{10, 9, 8, 7, 6, 5, 4, 3, 2},
+		},
+		{
+			name:    "SmallDecreasesStall",
+			dataset: []int64{10, 9, 9, 9, 9},
+		},
+		{
+			name:    "SmallRandSomeNegatives",
+			dataset: []int64{rand.Int63n(100), -1 * rand.Int63n(100), rand.Int63n(100), -1 * rand.Int63n(100)},
+		},
+	}
 }

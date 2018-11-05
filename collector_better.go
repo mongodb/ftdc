@@ -29,7 +29,13 @@ func NewBaseCollector(maxSize int) Collector {
 }
 
 func (c *betterCollector) SetMetadata(doc *bson.Document) { c.metadata = doc }
-func (c *betterCollector) Reset()                         { *c = betterCollector{maxDeltas: c.maxDeltas} }
+func (c *betterCollector) Reset() {
+	c.reference = nil
+	c.lastSample = nil
+	c.deltas = nil
+	c.numSamples = 0
+}
+
 func (c *betterCollector) Info() CollectorInfo {
 	var num int
 	if c.reference != nil {
@@ -64,14 +70,15 @@ func (c *betterCollector) Add(doc *bson.Document) error {
 	}
 
 	if len(metrics) != len(c.lastSample) {
-		return errors.New("unexpected schema change detected")
+		return errors.Errorf("unexpected schema change detected for sample %d: [current=%d vs previous=%d]",
+			c.numSamples+1, len(metrics), len(c.lastSample),
+		)
 	}
 
 	for idx := range metrics {
 		c.deltas[getOffset(c.maxDeltas, c.numSamples, idx)] = metrics[idx] - c.lastSample[idx]
 	}
 
-	c.lastSample = nil
 	c.numSamples++
 	c.lastSample = metrics
 

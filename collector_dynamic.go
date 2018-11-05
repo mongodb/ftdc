@@ -69,6 +69,7 @@ func (c *dynamicCollector) Add(doc *bson.Document) error {
 	lastHash := c.hahes[lastIdx]
 
 	docHash, num := metricsHash(doc)
+
 	if lastHash == docHash && c.currentNum == num {
 		return errors.WithStack(lastChunk.Add(doc))
 	}
