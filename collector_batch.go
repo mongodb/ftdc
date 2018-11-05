@@ -24,7 +24,9 @@ func newBatchCollector(size int) *batchCollector {
 	return &batchCollector{
 		maxSamples: size,
 		chunks: []*betterCollector{
-			&betterCollector{},
+			{
+				maxDeltas: size,
+			},
 		},
 	}
 }
@@ -40,7 +42,7 @@ func (c *batchCollector) Info() CollectorInfo {
 }
 
 func (c *batchCollector) Reset() {
-	c.chunks = []*betterCollector{&betterCollector{}}
+	c.chunks = []*betterCollector{&betterCollector{maxDeltas: c.maxSamples}}
 }
 
 func (c *batchCollector) SetMetadata(d *bson.Document) {
@@ -51,7 +53,7 @@ func (c *batchCollector) Add(d *bson.Document) error {
 	last := c.chunks[len(c.chunks)-1]
 
 	if last.Info().SampleCount >= c.maxSamples {
-		last = &betterCollector{}
+		last = &betterCollector{maxDeltas: c.maxSamples}
 		c.chunks = append(c.chunks, last)
 	}
 

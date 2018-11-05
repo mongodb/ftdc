@@ -2,37 +2,66 @@ package ftdc
 
 import (
 	"bytes"
-	"math"
 	"time"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/pkg/errors"
 )
 
-// this is an attempt to do the right thing for the collector, porting
-// directly from the server implementation
 type betterCollector struct {
-	reference  *bson.Document
 	metadata   *bson.Document
-	deltas     []int64
-	lastSample []typeVal
+	reference  *bson.Document
 	startedAt  time.Time
+	lastSample []int64
+	deltas     []int64
 	numSamples int
+	maxDeltas  int
+}
+
+// NewBasicCollector provides a basic FTDC data collector that mirrors
+// the server's implementation. The Add method will error if you
+// attempt to add more than the specified number of records (plus one,
+// as the reference/schema document doesn't count).
+func NewBaseCollector(maxSize int) Collector {
+	return &betterCollector{
+		maxDeltas: maxSize,
+	}
 }
 
 func (c *betterCollector) SetMetadata(doc *bson.Document) { c.metadata = doc }
+func (c *betterCollector) Reset() {
+	c.reference = nil
+	c.lastSample = nil
+	c.deltas = nil
+	c.numSamples = 0
+}
+
+func (c *betterCollector) Info() CollectorInfo {
+	var num int
+	if c.reference != nil {
+		num++
+	}
+	return CollectorInfo{
+		SampleCount:  num + c.numSamples,
+		MetricsCount: len(c.lastSample),
+	}
+}
+
 func (c *betterCollector) Add(doc *bson.Document) error {
 	if c.reference == nil {
 		c.startedAt = time.Now()
 		c.reference = doc
-		sample, err := extractMetricsFromDocument(doc)
+		metrics, err := extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 		c.lastSample = sample
-		c.numSamples++
+		c.deltas = make([]int64, c.maxDeltas*len(c.lastSample))
 		return nil
+	}
+
+	if c.numSamples >= c.maxDeltas {
+		return errors.New("collector is overfull")
 	}
 
 	metrics, err := extractMetricsFromDocument(doc)
@@ -41,31 +70,20 @@ func (c *betterCollector) Add(doc *bson.Document) error {
 	}
 
 	if len(metrics) != len(c.lastSample) {
-		return errors.New("unexpected schema change detected")
+		return errors.Errorf("unexpected schema change detected for sample %d: [current=%d vs previous=%d]",
+			c.numSamples+1, len(metrics), len(c.lastSample),
+		)
 	}
 
 	for idx := range metrics {
-		if metrics[idx].bsonType == bsontype.Double {
-			current := math.Float64frombits(uint64(metrics[idx].value))
-			last := math.Float64frombits(uint64(c.lastSample[idx].value))
-			c.deltas = append(c.deltas, int64(math.Float64bits(current-last)))
-		} else {
-			c.deltas = append(c.deltas, metrics[idx].value-c.lastSample[idx].value)
-		}
+		c.deltas[getOffset(c.maxDeltas, c.numSamples, idx)] = metrics[idx] - c.lastSample[idx]
 	}
 
-	c.lastSample = metrics
 	c.numSamples++
+	c.lastSample = metrics
+
 	return nil
 }
-func (c *betterCollector) Info() CollectorInfo {
-	return CollectorInfo{
-		MetricsCount: len(c.lastSample),
-		SampleCount:  c.numSamples,
-	}
-}
-
-func (c *betterCollector) Reset() { *c = betterCollector{} }
 
 func (c *betterCollector) Resolve() ([]byte, error) {
 	if c.reference == nil {
@@ -79,7 +97,6 @@ func (c *betterCollector) Resolve() ([]byte, error) {
 
 	buf := bytes.NewBuffer([]byte{})
 	if c.metadata != nil {
-		// Start by encoding the reference document
 		_, err := bson.NewDocument(
 			bson.EC.Time("_id", c.startedAt),
 			bson.EC.Int32("type", 0),
@@ -107,13 +124,35 @@ func (c *betterCollector) getPayload() ([]byte, error) {
 	}
 
 	payload.Write(encodeSizeValue(uint32(len(c.lastSample))))
-	payload.Write(encodeSizeValue(uint32(c.numSamples) - 1))
-	// the second value is the number of deltas (no reference
-	// document) not the number of data points, but the accounting
-	// for this is weird in other places.
+	payload.Write(encodeSizeValue(uint32(c.numSamples)))
+	zeroCount := int64(0)
+	for i := 0; i < len(c.lastSample); i++ {
+		for j := 0; j < c.numSamples; j++ {
+			delta := c.deltas[getOffset(c.maxDeltas, j, i)]
 
-	for _, val := range c.processValues() {
-		payload.Write(encodeValue(val))
+			if delta == 0 {
+				zeroCount++
+				continue
+			}
+
+			if zeroCount > 0 {
+				payload.Write(encodeValue(0))
+				payload.Write(encodeValue(zeroCount - 1))
+				zeroCount = 0
+			}
+
+			payload.Write(encodeValue(delta))
+		}
+
+		if i == len(c.lastSample)-1 && zeroCount > 0 {
+			payload.Write(encodeValue(0))
+			payload.Write(encodeValue(zeroCount - 1))
+		}
+	}
+
+	if zeroCount > 0 {
+		payload.Write(encodeValue(0))
+		payload.Write(encodeValue(zeroCount - 1))
 	}
 
 	data, err := compressBuffer(payload.Bytes())
@@ -122,29 +161,4 @@ func (c *betterCollector) getPayload() ([]byte, error) {
 	}
 
 	return data, nil
-}
-
-func (c *betterCollector) processValues() []int64 {
-	out := []int64{}
-
-	zeroCount := int64(0)
-	for _, delta := range c.deltas {
-		if delta == 0 {
-			zeroCount++
-			continue
-		}
-
-		if zeroCount > 0 {
-			out = append(out, 0, zeroCount-1)
-			zeroCount = 0
-		}
-
-		out = append(out, delta)
-	}
-
-	if zeroCount > 0 {
-		out = append(out, 0, zeroCount-1)
-	}
-
-	return out
 }

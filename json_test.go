@@ -112,7 +112,7 @@ func TestCollectJSON(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping real integration test for runtime")
 	}
-	// t.Parallel()
+	t.Parallel()
 
 	dir, err := ioutil.TempDir("build", "ftdc-")
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestCollectJSON(t *testing.T) {
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FlushInterval: 100 * time.Millisecond,
-			SampleCount:   10,
+			SampleCount:   1000,
 			InputSource:   reader,
 		}
 
@@ -164,7 +164,7 @@ func TestCollectJSON(t *testing.T) {
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FlushInterval: 10 * time.Millisecond,
 			InputSource:   reader,
-			SampleCount:   10,
+			SampleCount:   100,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -183,7 +183,7 @@ func TestCollectJSON(t *testing.T) {
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			FileName:    fn,
-			SampleCount: 10,
+			SampleCount: 100,
 		}
 
 		err = CollectJSONStream(ctx, opts)
@@ -206,7 +206,7 @@ func TestCollectJSON(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("json.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			SampleCount:   10,
+			SampleCount:   100,
 			FlushInterval: 500 * time.Millisecond,
 			FileName:      fn,
 			Follow:        true,
@@ -215,5 +215,70 @@ func TestCollectJSON(t *testing.T) {
 		err = CollectJSONStream(ctx, opts)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "operation aborted")
+	})
+	t.Run("RoundTrip", func(t *testing.T) {
+		inputs := []map[string]interface{}{
+			{
+				"one":   int64(1),
+				"other": int64(43),
+			},
+			{
+				"one":   int64(33),
+				"other": int64(41),
+			},
+			{
+				"one":   int64(1),
+				"other": int64(41),
+			},
+		}
+
+		var (
+			doc  []byte
+			docs [][]byte
+		)
+
+		for _, in := range inputs {
+			doc, err = json.Marshal(in)
+			require.NoError(t, err)
+			docs = append(docs, doc)
+		}
+		require.Len(t, docs, 3)
+
+		buf := &bytes.Buffer{}
+
+		require.NoError(t, writeStream(docs, buf))
+
+		reader := bytes.NewReader(buf.Bytes())
+
+		opts := CollectJSONOptions{
+			OutputFilePrefix: filepath.Join(dir, "roundtrip"),
+			FlushInterval:    time.Second,
+			SampleCount:      50,
+			InputSource:      reader,
+		}
+		ctx := context.Background()
+
+		err = CollectJSONStream(ctx, opts)
+		assert.NoError(t, err)
+		_, err := os.Stat(filepath.Join(dir, "roundtrip.0"))
+		require.False(t, os.IsNotExist(err))
+
+		fn, err := os.Open(filepath.Join(dir, "roundtrip.0"))
+		require.NoError(t, err)
+
+		iter := ReadMetrics(ctx, fn)
+		idx := -1
+		for iter.Next(ctx) {
+			idx++
+
+			s := iter.Document()
+			assert.Equal(t, 2, s.Len())
+			for k, v := range inputs[idx] {
+				out := s.Lookup(k)
+				assert.Equal(t, v, out.Interface())
+			}
+		}
+		require.NoError(t, iter.Err())
+		assert.Equal(t, 2, idx) // zero indexed
 	})
 }

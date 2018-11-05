@@ -12,7 +12,6 @@ import (
 
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
-	"github.com/mongodb/grip/sometimes"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,9 @@ func init() {
 }
 
 func TestReadPathIntegration(t *testing.T) {
-	// t.Parallel()
+	if testing.Short() {
+		t.Skip("skipping real integration test for runtime")
+	}
 
 	grip.Warning("the integration test validates the decoder operations not the decoded values")
 
@@ -37,7 +38,7 @@ func TestReadPathIntegration(t *testing.T) {
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
 	defer file.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
 	defer cancel()
 	data, err := ioutil.ReadAll(file)
 	require.NoError(t, err)
@@ -62,7 +63,7 @@ func TestReadPathIntegration(t *testing.T) {
 				hasSeries++
 				passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
 
-				grip.DebugWhen(!passed || sometimes.Percent(1), message.Fields{
+				grip.DebugWhen(!passed || counter%100 == 0, message.Fields{
 					"checkPassed": passed,
 					"key":         metric.Key(),
 					"id":          metric.KeyName,
@@ -77,7 +78,7 @@ func TestReadPathIntegration(t *testing.T) {
 
 			// check to see if our public accesors for the data
 			// perform as expected
-			if sometimes.Percent(2) {
+			if counter%100 == 0 {
 				data := c.Expand()
 				assert.Len(t, data, expectedMetrics)
 
@@ -113,13 +114,11 @@ func TestReadPathIntegration(t *testing.T) {
 		})
 	})
 	t.Run("Combined", func(t *testing.T) {
-		if testing.Short() {
-			t.Skip("skipping real integration test for runtime")
-		}
-
 		t.Run("Flattened", func(t *testing.T) {
-			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
+			t.Parallel()
+
 			startAt := time.Now()
+			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
 			for iter.Next(ctx) {
 				doc := iter.Document()
@@ -127,6 +126,7 @@ func TestReadPathIntegration(t *testing.T) {
 				counter++
 				if counter%10000 == 0 {
 					grip.Debug(message.Fields{
+						"flavor":   "FLAT",
 						"seen":     counter,
 						"elapsed":  time.Since(startAt),
 						"metadata": iter.Metadata(),
@@ -140,8 +140,10 @@ func TestReadPathIntegration(t *testing.T) {
 			assert.Equal(t, expectedSamples, counter)
 		})
 		t.Run("Structured", func(t *testing.T) {
-			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
+			t.Parallel()
+
 			startAt := time.Now()
+			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
 			for iter.Next(ctx) {
 				doc := iter.Document()
@@ -149,6 +151,7 @@ func TestReadPathIntegration(t *testing.T) {
 				counter++
 				if counter%10000 == 0 {
 					grip.Debug(message.Fields{
+						"flavor":   "STRC",
 						"seen":     counter,
 						"elapsed":  time.Since(startAt),
 						"metadata": iter.Metadata(),
@@ -164,7 +167,8 @@ func TestReadPathIntegration(t *testing.T) {
 	})
 }
 
-func TestRoundtrip(t *testing.T) {
+func TestRoundTrip(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 

@@ -15,7 +15,8 @@ func TestChunkIterator(t *testing.T) {
 		t.Skip("skipping real integration test for runtime")
 	}
 
-	// t.Parallel()
+	t.Parallel()
+
 	t.Run("CanceledContexts", func(t *testing.T) {
 		file, err := os.Open("metrics.ftdc")
 		require.NoError(t, err)

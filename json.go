@@ -133,6 +133,40 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) error {
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer flushTimer.Stop()
 
+	flusher := func() error {
+		startAt := time.Now()
+		fn := fmt.Sprintf("%s.%d", opts.OutputFilePrefix, outputCount)
+		info := collector.Info()
+
+		if info.SampleCount == 0 {
+			flushTimer.Reset(opts.FlushInterval)
+			return nil
+		}
+
+		output, err := collector.Resolve()
+		if err != nil {
+			return errors.Wrap(err, "problem resolving ftdc data")
+		}
+
+		if err = ioutil.WriteFile(fn, output, 0600); err != nil {
+			return errors.Wrapf(err, "problem writing data to file %s", fn)
+		}
+
+		grip.Debug(message.Fields{
+			"op":            "writing ftdc data from stream",
+			"samples":       info.SampleCount,
+			"metrics":       info.MetricsCount,
+			"file":          fn,
+			"duration_secs": time.Since(startAt).Seconds(),
+		})
+
+		outputCount++
+		collector.Reset()
+		flushTimer.Reset(opts.FlushInterval)
+
+		return nil
+	}
+
 	docs, errs := opts.getSource()
 
 	for {
@@ -140,41 +174,16 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) error {
 		case <-ctx.Done():
 			return errors.New("operation aborted")
 		case err := <-errs:
+			if err == nil || errors.Cause(err) == io.EOF {
+				return errors.Wrap(flusher(), "problem flushing results at the end of the file")
+			}
 			return errors.WithStack(err)
 		case doc := <-docs:
 			if err := collector.Add(doc); err != nil {
 				return errors.Wrap(err, "problem collecting results")
 			}
 		case <-flushTimer.C:
-			startAt := time.Now()
-			fn := fmt.Sprintf("%s.%d", opts.OutputFilePrefix, outputCount)
-			info := collector.Info()
-
-			if info.SampleCount == 0 {
-				flushTimer.Reset(opts.FlushInterval)
-				continue
-			}
-
-			output, err := collector.Resolve()
-			if err != nil {
-				return errors.Wrap(err, "problem resolving ftdc data")
-			}
-
-			if err = ioutil.WriteFile(fn, output, 0600); err != nil {
-				return errors.Wrapf(err, "problem writing data to file %s", fn)
-			}
-
-			grip.Debug(message.Fields{
-				"op":            "writing ftdc data from stream",
-				"samples":       info.SampleCount,
-				"metrics":       info.MetricsCount,
-				"file":          fn,
-				"duration_secs": time.Since(startAt).Seconds(),
-			})
-
-			outputCount++
-			collector.Reset()
-			flushTimer.Reset(opts.FlushInterval)
+			return errors.Wrap(flusher(), "problem flushing results at the end of the file")
 		}
 	}
 }
