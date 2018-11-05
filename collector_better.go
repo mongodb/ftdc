@@ -55,7 +55,7 @@ func (c *betterCollector) Add(doc *bson.Document) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		c.lastSample = sample
+		c.lastSample = metrics
 		c.deltas = make([]int64, c.maxDeltas*len(c.lastSample))
 		return nil
 	}
