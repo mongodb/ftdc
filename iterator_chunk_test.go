@@ -11,10 +11,6 @@ import (
 )
 
 func TestChunkIterator(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping real integration test for runtime")
-	}
-
 	t.Parallel()
 
 	t.Run("CanceledContexts", func(t *testing.T) {

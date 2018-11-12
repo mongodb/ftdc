@@ -55,6 +55,9 @@ func (c *streamingCollector) Add(d *bson.Document) error {
 // particularly useful in the context of streaming collectors, which
 // flush data periodically and may have cached data.
 func FlushCollector(c Collector, writer io.Writer) error {
+	if writer == nil {
+		return errors.New("ivalid writer")
+	}
 	if c.Info().SampleCount == 0 {
 		return nil
 	}

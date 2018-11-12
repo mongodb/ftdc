@@ -14,10 +14,6 @@ import (
 )
 
 func TestCollectSystemInfo(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping real integration test for runtime")
-	}
-
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("build", "ftdc-")

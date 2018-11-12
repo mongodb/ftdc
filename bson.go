@@ -258,7 +258,7 @@ func extractMetricsFromDocument(doc *bson.Document) ([]int64, error) {
 func extractMetricsFromArray(array *bson.Array) ([]int64, error) {
 	iter, err := bson.NewArrayIterator(array)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return 0, errors.WithStack(err)
 	}
 
 	var (

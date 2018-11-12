@@ -430,14 +430,34 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     2,
 			FirstEncodedValue: 1,
 		},
+		{
+			Name:              "DoubleNoTruncate",
+			Value:             bson.VC.Double(40.0),
+			NumEncodedValues:  1,
+			ExpectedCount:     1,
+			FirstEncodedValue: 40,
+		},
+		{
+			Name:              "DoubleTruncate",
+			Value:             bson.VC.Double(40.20),
+			NumEncodedValues:  1,
+			ExpectedCount:     1,
+			FirstEncodedValue: 40,
+		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			metrics, err := extractMetricsFromValue(test.Value)
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
+			keys, num := isMetricsValue("keyname", test.Value)
 			if test.NumEncodedValues > 0 {
 				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.True(t, len(keys) >= 1)
+				assert.True(t, strings.HasPrefix(keys[0], "keyname"))
+			} else {
+				assert.Len(t, keys, 0)
+				assert.Zero(t, num)
 			}
 
 		})
@@ -720,6 +740,155 @@ func TestMetricsHashValue(t *testing.T) {
 			keys, num := isMetricsValue("key", test.value)
 			assert.Equal(t, test.expectedNum, num)
 			assert.Equal(t, test.keyElems, len(keys))
+		})
+	}
+}
+
+func TestMetricsToElement(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		ref        *bson.Element
+		metrics    []Metric
+		expected   *bson.Element
+		outNum     int
+		isDocument bool
+	}{
+		{
+			name: "ObjectID",
+			ref:  bson.EC.ObjectID("foo", objectid.New()),
+		},
+		{
+			name: "String",
+			ref:  bson.EC.String("foo", "bar"),
+		},
+		{
+			name: "Regex",
+			ref:  bson.EC.Regex("foo", "bar", "bar"),
+		},
+		{
+			name: "Decimal128",
+			ref:  bson.EC.Decimal128("foo", decimal.NewDecimal128(1, 2)),
+		},
+		{
+			name: "Double",
+			ref:  bson.EC.Double("foo", 4.42),
+			metrics: []Metric{
+				{Values: []int64{4}},
+			},
+			expected: bson.EC.Double("foo", 4.0),
+			outNum:   1,
+		},
+		{
+			name: "Short",
+			ref:  bson.EC.Int32("foo", 4),
+			metrics: []Metric{
+				{Values: []int64{37}},
+			},
+			expected: bson.EC.Int32("foo", 37),
+			outNum:   1,
+		},
+		{
+
+			name: "FalseBool",
+			ref:  bson.EC.Boolean("foo", true),
+			metrics: []Metric{
+				{Values: []int64{0}},
+			},
+			expected: bson.EC.Boolean("foo", false),
+			outNum:   1,
+		},
+		{
+
+			name: "TrueBool",
+			ref:  bson.EC.Boolean("foo", false),
+			metrics: []Metric{
+				{Values: []int64{1}},
+			},
+			expected: bson.EC.Boolean("foo", true),
+			outNum:   1,
+		},
+		{
+
+			name: "SuperTrueBool",
+			ref:  bson.EC.Boolean("foo", false),
+			metrics: []Metric{
+				{Values: []int64{100}},
+			},
+			expected: bson.EC.Boolean("foo", true),
+			outNum:   1,
+		},
+		{
+
+			name:       "EmptyDocument",
+			ref:        bson.EC.SubDocument("foo", bson.NewDocument()),
+			expected:   bson.EC.SubDocument("foo", bson.NewDocument()),
+			isDocument: true,
+		},
+		{
+
+			name: "DateTimeFromTime",
+			ref:  bson.EC.Time("foo", time.Now()),
+			metrics: []Metric{
+				{Values: []int64{1000}},
+			},
+			expected: bson.EC.DateTime("foo", 1000),
+			outNum:   1,
+		},
+		{
+
+			name: "DateTime",
+			ref:  bson.EC.DateTime("foo", 19999),
+			metrics: []Metric{
+				{Values: []int64{1000}},
+			},
+			expected: bson.EC.DateTime("foo", 1000),
+			outNum:   1,
+		},
+		{
+
+			name: "TimeStamp",
+			ref:  bson.EC.Timestamp("foo", 19999, 100),
+			metrics: []Metric{
+				{Values: []int64{1000}},
+				{Values: []int64{1000}},
+			},
+			expected: bson.EC.Timestamp("foo", 1000, 1000),
+			outNum:   2,
+		},
+		{
+			name:     "ArrayEmpty",
+			ref:      bson.EC.ArrayFromElements("foo", bson.VC.String("foo"), bson.VC.String("bar")),
+			expected: bson.EC.Array("foo", bson.NewArray()),
+		},
+		{
+			name: "ArraySingle",
+			metrics: []Metric{
+				{Values: []int64{1}},
+			},
+			ref:      bson.EC.ArrayFromElements("foo", bson.VC.Boolean(true)),
+			expected: bson.EC.Array("foo", bson.NewArray(bson.VC.Boolean(true))),
+			outNum:   1,
+		},
+		{
+			name: "ArrayMulti",
+			metrics: []Metric{
+				{Values: []int64{1}},
+				{Values: []int64{77}},
+			},
+			ref:      bson.EC.ArrayFromElements("foo", bson.VC.Boolean(true), bson.VC.Int32(33)),
+			expected: bson.EC.Array("foo", bson.NewArray(bson.VC.Boolean(true), bson.VC.Int32(77))),
+			outNum:   2,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			elem, num := rehydrateElement(test.ref, 0, test.metrics, 0)
+			assert.Equal(t, test.outNum, num)
+			if !test.isDocument {
+				assert.Equal(t, test.expected, elem)
+			} else {
+				assert.True(t, test.expected.Value().MutableDocument().Equal(elem.Value().MutableDocument()))
+			}
+
 		})
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,10 +16,6 @@ import (
 )
 
 func TestCollectorInterface(t *testing.T) {
-	if testing.Short() {
-		t.Skip("a large test table")
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -27,7 +24,12 @@ func TestCollectorInterface(t *testing.T) {
 	for _, collect := range collectors {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
+
 			for _, test := range tests {
+				if testing.Short() {
+					continue
+				}
+
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 
@@ -67,6 +69,12 @@ func TestCollectorInterface(t *testing.T) {
 					assert.Zero(t, info)
 				})
 			}
+			t.Run("ResolveWhenNil", func(t *testing.T) {
+				collector := collect.factory()
+				out, err := collector.Resolve()
+				assert.Nil(t, out)
+				assert.Error(t, err)
+			})
 			t.Run("RoundTrip", func(t *testing.T) {
 				for name, docs := range map[string][]*bson.Document{
 					"Integers": []*bson.Document{
@@ -115,7 +123,6 @@ func TestCollectorInterface(t *testing.T) {
 
 					})
 				}
-
 			})
 		})
 	}
@@ -311,10 +318,8 @@ func TestStreamingEncoding(t *testing.T) {
 						require.Equal(t, len(test.dataset), len(res), "%v -> %v", test.dataset, res)
 						require.Equal(t, len(test.dataset), len(res))
 					})
-
 				})
 			}
-
 		})
 	}
 }
@@ -410,6 +415,63 @@ func TestFixedEncoding(t *testing.T) {
 					})
 				})
 			}
+			t.Run("SizeMismatch", func(t *testing.T) {
+				collector := impl.factory()
+				assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5))))
+				assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5))))
+
+				if strings.Contains(impl.name, "Dynamic") {
+					assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43))))
+				} else {
+					assert.Error(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43))))
+				}
+			})
 		})
 	}
+}
+
+func TestCollectorSizeCap(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		factory func() Collector
+	}{
+		{
+			name:    "Better",
+			factory: func() Collector { return &betterCollector{maxDeltas: 1} },
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			collector := test.factory()
+			assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5))))
+			assert.NoError(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5))))
+			assert.Error(t, collector.Add(bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5))))
+		})
+	}
+}
+
+func TestWriter(t *testing.T) {
+	t.Run("NilDocuments", func(t *testing.T) {
+		collector := NewWriterCollector(2, &noopWriter{})
+		_, err := collector.Write(nil)
+		assert.Error(t, err)
+	})
+	t.Run("RealDocument", func(t *testing.T) {
+		collector := NewWriterCollector(2, &noopWriter{})
+		doc, err := bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5)).MarshalBSON()
+		require.NoError(t, err)
+		_, err = collector.Write(doc)
+		assert.NoError(t, err)
+	})
+	t.Run("CloseNoError", func(t *testing.T) {
+		collector := NewWriterCollector(2, &noopWriter{})
+		assert.NoError(t, collector.Close())
+	})
+	t.Run("CloseError", func(t *testing.T) {
+		collector := NewWriterCollector(2, &errWriter{})
+		doc, err := bson.NewDocument(bson.EC.Int64("one", 43), bson.EC.Int64("two", 5)).MarshalBSON()
+		require.NoError(t, err)
+		_, err = collector.Write(doc)
+		require.NoError(t, err)
+		assert.Error(t, collector.Close())
+	})
 }

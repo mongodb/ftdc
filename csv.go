@@ -146,6 +146,9 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 		return errors.Wrap(err, "problem reading chunks")
 	}
 
+	if writer == nil {
+		return nil
+	}
 	if err := writer.Close(); err != nil {
 		return errors.Wrap(err, "problem writing files to disk")
 

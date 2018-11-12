@@ -22,12 +22,6 @@ func init() {
 }
 
 func TestReadPathIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping real integration test for runtime")
-	}
-
-	grip.Warning("the integration test validates the decoder operations not the decoded values")
-
 	const (
 		expectedNum     = 1064
 		expectedChunks  = 544
@@ -35,6 +29,7 @@ func TestReadPathIntegration(t *testing.T) {
 		expectedSamples = expectedMetrics * expectedChunks
 	)
 
+	t.Parallel()
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
 	defer file.Close()
@@ -114,6 +109,10 @@ func TestReadPathIntegration(t *testing.T) {
 		})
 	})
 	t.Run("Combined", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping real integration test for runtime")
+		}
+
 		t.Run("Flattened", func(t *testing.T) {
 			t.Parallel()
 
