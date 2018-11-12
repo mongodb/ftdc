@@ -14,7 +14,7 @@ import (
 //
 // Helpers for parsing the timeseries data from a metrics payload
 
-func flattenDocument(path []string, d *bson.Document) []Metric {
+func metricForDocument(path []string, d *bson.Document) []Metric {
 	iter := d.Iterator()
 	o := []Metric{}
 
@@ -27,7 +27,7 @@ func flattenDocument(path []string, d *bson.Document) []Metric {
 	return o
 }
 
-func flattenArray(key string, path []string, a *bson.Array) []Metric {
+func metricForArray(key string, path []string, a *bson.Array) []Metric {
 	if a == nil {
 		return []Metric{}
 	}
@@ -52,12 +52,12 @@ func metricForType(key string, path []string, val *bson.Value) []Metric {
 	case bson.TypeDecimal128:
 		return []Metric{}
 	case bson.TypeArray:
-		return flattenArray(key, path, val.MutableArray())
+		return metricForArray(key, path, val.MutableArray())
 	case bson.TypeEmbeddedDocument:
 		path = append(path, key)
 
 		o := []Metric{}
-		for _, ne := range flattenDocument(path, val.MutableDocument()) {
+		for _, ne := range metricForDocument(path, val.MutableDocument()) {
 			o = append(o, Metric{
 				ParentPath:    path,
 				KeyName:       ne.KeyName,

@@ -152,5 +152,5 @@ func readBufMetrics(buf *bufio.Reader) (*bson.Document, []Metric, error) {
 		return nil, nil, errors.Wrap(err, "problem reading reference doc")
 	}
 
-	return doc, flattenDocument([]string{}, doc), nil
+	return doc, metricForDocument([]string{}, doc), nil
 }

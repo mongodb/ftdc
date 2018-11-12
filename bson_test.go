@@ -11,19 +11,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFlattenArray(t *testing.T) {
+func TestFlattenArrafly(t *testing.T) {
 	t.Run("NilArray", func(t *testing.T) {
-		out := flattenArray("", nil, nil)
+		out := metricForArray("", nil, nil)
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})
 	t.Run("EmptyArray", func(t *testing.T) {
-		out := flattenArray("", nil, bson.NewArray())
+		out := metricForArray("", nil, bson.NewArray())
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})
 	t.Run("TwoElements", func(t *testing.T) {
-		m := flattenArray("foo", nil, bson.NewArray(bson.VC.Boolean(true), bson.VC.Boolean(false)))
+		m := metricForArray("foo", nil, bson.NewArray(bson.VC.Boolean(true), bson.VC.Boolean(false)))
 		assert.NotNil(t, m)
 		assert.Len(t, m, 2)
 
@@ -33,7 +33,7 @@ func TestFlattenArray(t *testing.T) {
 		assert.Equal(t, int64(0), m[1].startingValue)
 	})
 	t.Run("TwoElementsWithSkippedValue", func(t *testing.T) {
-		m := flattenArray("foo", nil, bson.NewArray(bson.VC.String("foo"), bson.VC.Boolean(false)))
+		m := metricForArray("foo", nil, bson.NewArray(bson.VC.String("foo"), bson.VC.Boolean(false)))
 		assert.NotNil(t, m)
 		assert.Len(t, m, 1)
 
@@ -41,7 +41,7 @@ func TestFlattenArray(t *testing.T) {
 		assert.Equal(t, int64(0), m[0].startingValue)
 	})
 	t.Run("ArrayWithOnlyStrings", func(t *testing.T) {
-		out := flattenArray("foo", nil, bson.NewArray(bson.VC.String("foo"), bson.VC.String("bar")))
+		out := metricForArray("foo", nil, bson.NewArray(bson.VC.String("foo"), bson.VC.String("bar")))
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})

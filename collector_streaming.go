@@ -99,8 +99,6 @@ func (c *streamingDynamicCollector) Reset() {
 }
 
 func (c *streamingDynamicCollector) Add(d *bson.Document) error {
-	// defer func() { grip.Debug(c.Info()) }()
-
 	docHash, num := metricsHash(d)
 	if c.hash == "" {
 		c.hash = docHash
