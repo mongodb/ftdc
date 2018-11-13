@@ -454,6 +454,7 @@ func TestWriter(t *testing.T) {
 		collector := NewWriterCollector(2, &noopWriter{})
 		_, err := collector.Write(nil)
 		assert.Error(t, err)
+		assert.NoError(t, collector.Close())
 	})
 	t.Run("RealDocument", func(t *testing.T) {
 		collector := NewWriterCollector(2, &noopWriter{})
@@ -461,6 +462,7 @@ func TestWriter(t *testing.T) {
 		require.NoError(t, err)
 		_, err = collector.Write(doc)
 		assert.NoError(t, err)
+		assert.NoError(t, collector.Close())
 	})
 	t.Run("CloseNoError", func(t *testing.T) {
 		collector := NewWriterCollector(2, &noopWriter{})

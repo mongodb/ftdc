@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFlattenArrafly(t *testing.T) {
+func TestFlattenArray(t *testing.T) {
 	t.Run("NilArray", func(t *testing.T) {
 		out := metricForArray("", nil, nil)
 		assert.NotNil(t, out)

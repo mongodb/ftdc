@@ -94,7 +94,7 @@ type Metric struct {
 	// Values is an array of each value collected for this metric.
 	// During decoding, this attribute stores delta-encoded
 	// values, but those are expanded during decoding and should
-	// never be visible toser.
+	// never be visible to user.
 	Values []int64
 
 	// Used during decoding to expand the delta encoded values. In
