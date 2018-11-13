@@ -46,10 +46,10 @@ type ChunkIterator struct {
 func ReadChunks(ctx context.Context, r io.Reader) *ChunkIterator {
 	iter := &ChunkIterator{
 		catcher: grip.NewBasicCatcher(),
-		pipe:    make(chan *Chunk, 100),
+		pipe:    make(chan *Chunk, 2),
 	}
 
-	ipc := make(chan *bson.Document, 100)
+	ipc := make(chan *bson.Document)
 	ctx, iter.cancel = context.WithCancel(ctx)
 
 	go func() {

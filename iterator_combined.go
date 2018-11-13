@@ -25,7 +25,7 @@ func ReadMetrics(ctx context.Context, r io.Reader) Iterator {
 		closer:  cancel,
 		chunks:  ReadChunks(iterctx, r),
 		flatten: true,
-		pipe:    make(chan *bson.Document, 1000),
+		pipe:    make(chan *bson.Document, 100),
 		catcher: grip.NewBasicCatcher(),
 	}
 	go iter.worker(iterctx)
@@ -42,7 +42,7 @@ func ReadStructuredMetrics(ctx context.Context, r io.Reader) Iterator {
 		closer:  cancel,
 		chunks:  ReadChunks(iterctx, r),
 		flatten: false,
-		pipe:    make(chan *bson.Document, 1000),
+		pipe:    make(chan *bson.Document, 100),
 		catcher: grip.NewBasicCatcher(),
 	}
 

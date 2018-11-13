@@ -21,144 +21,176 @@ func init() {
 	grip.SetName("ftdc")
 }
 
-func TestReadPathIntegrationServerStatus(t *testing.T) {
-	const (
-		expectedNum     = 1064
-		expectedChunks  = 544
-		expectedMetrics = 300
-		expectedSamples = expectedMetrics * expectedChunks
-	)
-
-	file, err := os.Open("metrics.ftdc")
-	require.NoError(t, err)
-	defer file.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
-	defer cancel()
-	data, err := ioutil.ReadAll(file)
-	require.NoError(t, err)
-
-	t.Run("Original", func(t *testing.T) {
-		iter := ReadChunks(ctx, bytes.NewBuffer(data))
-
-		counter := 0
-		num := 0
-		hasSeries := 0
-
-		for iter.Next() {
-			c := iter.Chunk()
-			counter++
-			if num == 0 {
-				num = len(c.metrics)
-				require.Equal(t, expectedNum, num)
+func TestReadPathIntegration(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		path            string
+		skipSlow        bool
+		skipAll         bool
+		expectedNum     int
+		expectedChunks  int
+		expectedMetrics int
+		reportInterval  int
+		docLen          int
+	}{
+		{
+			name:            "PerfMock",
+			path:            "perf_metrics.ftdc",
+			docLen:          4,
+			expectedNum:     10,
+			expectedChunks:  10,
+			expectedMetrics: 100000,
+			reportInterval:  100000,
+		},
+		{
+			name:            "ServerStatus",
+			path:            "metrics.ftdc",
+			skipSlow:        true,
+			docLen:          6,
+			expectedNum:     1064,
+			expectedChunks:  544,
+			expectedMetrics: 300,
+			reportInterval:  10000,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.skipAll && testing.Short() {
+				t.Skip("skipping all read integration tests")
 			}
 
-			metric := c.metrics[rand.Intn(num)]
-			if len(metric.Values) > 0 {
-				hasSeries++
-				passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
+			file, err := os.Open(test.path)
+			require.NoError(t, err)
+			defer file.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
+			defer cancel()
+			data, err := ioutil.ReadAll(file)
+			require.NoError(t, err)
 
-				grip.DebugWhen(!passed, message.Fields{
-					"checkPassed": passed,
-					"key":         metric.Key(),
-					"id":          metric.KeyName,
-					"parents":     metric.ParentPath,
-					"starting":    metric.startingValue,
-					"first":       metric.Values[0],
-					"last":        metric.Values[len(metric.Values)-1],
-				})
+			expectedSamples := test.expectedChunks * test.expectedMetrics
 
-				assert.Len(t, metric.Values, expectedMetrics)
-			}
+			t.Run("Original", func(t *testing.T) {
+				iter := ReadChunks(ctx, bytes.NewBuffer(data))
 
-			// check to see if our public accesors for the data
-			// perform as expected
-			if counter%100 == 0 {
-				data := c.Expand()
-				assert.Len(t, data, expectedMetrics)
+				counter := 0
+				num := 0
+				hasSeries := 0
 
-				for _, v := range c.Map() {
-					assert.Len(t, v.Values, expectedMetrics)
-					assert.Equal(t, v.startingValue, v.Values[0], "key=%s", metric.Key())
-				}
+				for iter.Next() {
+					c := iter.Chunk()
+					counter++
+					if num == 0 {
+						num = len(c.metrics)
+						require.Equal(t, test.expectedNum, num)
+					}
 
-				numSamples := 0
-				samples := c.Iterator(ctx)
-				for samples.Next() {
-					doc := samples.Document()
+					metric := c.metrics[rand.Intn(num)]
+					if len(metric.Values) > 0 {
+						hasSeries++
+						passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
 
-					numSamples++
-					if assert.NotNil(t, doc) {
-						assert.Equal(t, doc.Len(), expectedNum)
+						grip.DebugWhen(!passed, message.Fields{
+							"checkPassed": passed,
+							"key":         metric.Key(),
+							"id":          metric.KeyName,
+							"parents":     metric.ParentPath,
+							"starting":    metric.startingValue,
+							"first":       metric.Values[0],
+							"last":        metric.Values[len(metric.Values)-1],
+						})
+
+						assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
+					}
+
+					// check to see if our public accesors for the data
+					// perform as expected
+					if counter%100 == 0 {
+						data := c.Expand()
+						assert.Len(t, data, test.expectedMetrics)
+
+						for _, v := range c.Map() {
+							assert.Len(t, v.Values, test.expectedMetrics)
+							assert.Equal(t, v.startingValue, v.Values[0], "key=%s", metric.Key())
+						}
+
+						numSamples := 0
+						samples := c.Iterator(ctx)
+						for samples.Next() {
+							doc := samples.Document()
+
+							numSamples++
+							if assert.NotNil(t, doc) {
+								assert.Equal(t, doc.Len(), test.expectedNum)
+							}
+						}
+						assert.Equal(t, test.expectedMetrics, numSamples)
 					}
 				}
-				assert.Equal(t, expectedMetrics, numSamples)
-			}
-		}
 
-		assert.NoError(t, iter.Err())
+				assert.NoError(t, iter.Err())
 
-		// this might change if we change the data file that we read
-		assert.Equal(t, expectedNum, num)
-		assert.Equal(t, expectedChunks, counter)
-		assert.Equal(t, counter, hasSeries)
+				// this might change if we change the data file that we read
+				assert.Equal(t, test.expectedNum, num)
+				assert.Equal(t, test.expectedChunks, counter)
+				assert.Equal(t, counter, hasSeries)
 
-		grip.Notice(message.Fields{
-			"series": num,
-			"iters":  counter,
-		})
-	})
-	t.Run("Combined", func(t *testing.T) {
-		if testing.Short() {
-			t.Skip("skipping real integration test for runtime")
-		}
-
-		t.Run("Structured", func(t *testing.T) {
-			startAt := time.Now()
-			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
-			counter := 0
-			for iter.Next() {
-				doc := iter.Document()
-				assert.NotNil(t, doc)
-				counter++
-				if counter%10000 == 0 {
-					grip.Debug(message.Fields{
-						"flavor":   "STRC",
-						"seen":     counter,
-						"elapsed":  time.Since(startAt),
-						"metadata": iter.Metadata(),
-					})
-					startAt = time.Now()
+				grip.Notice(message.Fields{
+					"series": num,
+					"iters":  counter,
+				})
+			})
+			t.Run("Combined", func(t *testing.T) {
+				if test.skipSlow && testing.Short() {
+					t.Skip("skipping slow read integration tests")
 				}
+				t.Run("Structured", func(t *testing.T) {
+					startAt := time.Now()
+					iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
+					counter := 0
+					for iter.Next() {
+						doc := iter.Document()
+						require.NotNil(t, doc)
+						counter++
+						if counter%test.reportInterval == 0 {
+							grip.Debug(message.Fields{
+								"flavor":   "STRC",
+								"seen":     counter,
+								"elapsed":  time.Since(startAt),
+								"metadata": iter.Metadata(),
+							})
+							startAt = time.Now()
+						}
 
-				assert.Equal(t, 6, doc.Len())
-			}
-			assert.NoError(t, iter.Err())
-			assert.Equal(t, expectedSamples, counter)
-		})
-		t.Run("Flattened", func(t *testing.T) {
-			startAt := time.Now()
-			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
-			counter := 0
-			for iter.Next() {
-				doc := iter.Document()
-				assert.NotNil(t, doc)
-				counter++
-				if counter%10000 == 0 {
-					grip.Debug(message.Fields{
-						"flavor":   "FLAT",
-						"seen":     counter,
-						"elapsed":  time.Since(startAt),
-						"metadata": iter.Metadata(),
-					})
-					startAt = time.Now()
-				}
+						require.Equal(t, test.docLen, doc.Len())
+					}
+					assert.NoError(t, iter.Err())
+					assert.Equal(t, expectedSamples, counter)
+				})
+				t.Run("Flattened", func(t *testing.T) {
+					startAt := time.Now()
+					iter := ReadMetrics(ctx, bytes.NewBuffer(data))
+					counter := 0
+					for iter.Next() {
+						doc := iter.Document()
+						require.NotNil(t, doc)
+						counter++
+						if counter%test.reportInterval == 0 {
+							grip.Debug(message.Fields{
+								"flavor":   "FLAT",
+								"seen":     counter,
+								"elapsed":  time.Since(startAt),
+								"metadata": iter.Metadata(),
+							})
+							startAt = time.Now()
+						}
 
-				assert.Equal(t, expectedNum, doc.Len())
-			}
-			assert.NoError(t, iter.Err())
-			assert.Equal(t, expectedSamples, counter)
+						require.Equal(t, test.expectedNum, doc.Len())
+					}
+					assert.NoError(t, iter.Err())
+					assert.Equal(t, expectedSamples, counter)
+				})
+			})
 		})
-	})
+	}
 }
 
 func TestRoundTrip(t *testing.T) {
