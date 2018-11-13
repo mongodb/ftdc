@@ -32,7 +32,7 @@ func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bson.Document) 
 	}
 }
 
-func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) error {
+func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- *Chunk) error {
 	defer close(o)
 
 	var metadata *bson.Document
@@ -123,7 +123,7 @@ func readChunks(ctx context.Context, ch <-chan *bson.Document, o chan<- Chunk) e
 			metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
 		}
 		select {
-		case o <- Chunk{
+		case o <- &Chunk{
 			metrics:   metrics,
 			nPoints:   ndeltas + 1, // this accounts for the reference document
 			metadata:  metadata,

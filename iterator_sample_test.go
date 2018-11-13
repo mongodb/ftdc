@@ -30,14 +30,11 @@ func TestSampleIterator(t *testing.T) {
 
 	})
 	t.Run("CanceledContext", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
-
 		iter := &sampleIterator{
 			stream: make(chan *bson.Document, 0),
 		}
 
-		assert.False(t, iter.Next(ctx))
+		assert.False(t, iter.Next())
 	})
 	t.Run("CloserOperations", func(t *testing.T) {
 		iter := &sampleIterator{}

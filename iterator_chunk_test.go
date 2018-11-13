@@ -22,7 +22,7 @@ func TestChunkIterator(t *testing.T) {
 		cancel()
 
 		iter := ReadChunks(ctx, file)
-		assert.False(t, iter.Next(ctx))
+		assert.False(t, iter.Next())
 
 		assert.NoError(t, readDiagnostic(ctx, file, make(chan *bson.Document)))
 	})

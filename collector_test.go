@@ -106,7 +106,7 @@ func TestCollectorInterface(t *testing.T) {
 
 						iter := ReadStructuredMetrics(ctx, buf)
 						idx := -1
-						for iter.Next(ctx) {
+						for iter.Next() {
 							idx++
 							t.Run(fmt.Sprintf("DocumentNumber_%d", idx), func(t *testing.T) {
 								s := iter.Document()
@@ -165,7 +165,7 @@ func TestStreamingEncoding(t *testing.T) {
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
 						idx := 0
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()
@@ -201,7 +201,7 @@ func TestStreamingEncoding(t *testing.T) {
 
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()
@@ -250,7 +250,7 @@ func TestStreamingEncoding(t *testing.T) {
 
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()
@@ -301,7 +301,7 @@ func TestStreamingEncoding(t *testing.T) {
 
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()
@@ -360,7 +360,7 @@ func TestFixedEncoding(t *testing.T) {
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
 						idx := 0
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()
@@ -395,7 +395,7 @@ func TestFixedEncoding(t *testing.T) {
 						require.NoError(t, err)
 						iter := ReadMetrics(ctx, bytes.NewBuffer(payload))
 						res := []int64{}
-						for iter.Next(ctx) {
+						for iter.Next() {
 							doc := iter.Document()
 							require.NotNil(t, doc)
 							val := doc.Lookup("foo").Int64()

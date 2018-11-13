@@ -21,7 +21,7 @@ func init() {
 	grip.SetName("ftdc")
 }
 
-func TestReadPathIntegration(t *testing.T) {
+func TestReadPathIntegrationServerStatus(t *testing.T) {
 	const (
 		expectedNum     = 1064
 		expectedChunks  = 544
@@ -29,7 +29,6 @@ func TestReadPathIntegration(t *testing.T) {
 		expectedSamples = expectedMetrics * expectedChunks
 	)
 
-	t.Parallel()
 	file, err := os.Open("metrics.ftdc")
 	require.NoError(t, err)
 	defer file.Close()
@@ -45,7 +44,7 @@ func TestReadPathIntegration(t *testing.T) {
 		num := 0
 		hasSeries := 0
 
-		for iter.Next(ctx) {
+		for iter.Next() {
 			c := iter.Chunk()
 			counter++
 			if num == 0 {
@@ -84,7 +83,7 @@ func TestReadPathIntegration(t *testing.T) {
 
 				numSamples := 0
 				samples := c.Iterator(ctx)
-				for samples.Next(ctx) {
+				for samples.Next() {
 					doc := samples.Document()
 
 					numSamples++
@@ -113,34 +112,11 @@ func TestReadPathIntegration(t *testing.T) {
 			t.Skip("skipping real integration test for runtime")
 		}
 
-		t.Run("Flattened", func(t *testing.T) {
-			startAt := time.Now()
-			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
-			counter := 0
-			for iter.Next(ctx) {
-				doc := iter.Document()
-				assert.NotNil(t, doc)
-				counter++
-				if counter%10000 == 0 {
-					grip.Debug(message.Fields{
-						"flavor":   "FLAT",
-						"seen":     counter,
-						"elapsed":  time.Since(startAt),
-						"metadata": iter.Metadata(),
-					})
-					startAt = time.Now()
-				}
-
-				assert.Equal(t, expectedNum, doc.Len())
-			}
-			assert.NoError(t, iter.Err())
-			assert.Equal(t, expectedSamples, counter)
-		})
 		t.Run("Structured", func(t *testing.T) {
 			startAt := time.Now()
 			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
-			for iter.Next(ctx) {
+			for iter.Next() {
 				doc := iter.Document()
 				assert.NotNil(t, doc)
 				counter++
@@ -155,6 +131,29 @@ func TestReadPathIntegration(t *testing.T) {
 				}
 
 				assert.Equal(t, 6, doc.Len())
+			}
+			assert.NoError(t, iter.Err())
+			assert.Equal(t, expectedSamples, counter)
+		})
+		t.Run("Flattened", func(t *testing.T) {
+			startAt := time.Now()
+			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
+			counter := 0
+			for iter.Next() {
+				doc := iter.Document()
+				assert.NotNil(t, doc)
+				counter++
+				if counter%10000 == 0 {
+					grip.Debug(message.Fields{
+						"flavor":   "FLAT",
+						"seen":     counter,
+						"elapsed":  time.Since(startAt),
+						"metadata": iter.Metadata(),
+					})
+					startAt = time.Now()
+				}
+
+				assert.Equal(t, expectedNum, doc.Len())
 			}
 			assert.NoError(t, iter.Err())
 			assert.Equal(t, expectedSamples, counter)
@@ -195,7 +194,7 @@ func TestRoundTrip(t *testing.T) {
 					iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 
 					docNum := 0
-					for iter.Next(ctx) {
+					for iter.Next() {
 						require.True(t, docNum < len(docs))
 						roundtripDoc := iter.Document()
 						assert.True(t, roundtripDoc.Equal(docs[docNum]))

@@ -2,9 +2,9 @@ package ftdc
 
 import (
 	"context"
-	"errors"
 	"io"
 
+	"github.com/mongodb/grip"
 	"github.com/mongodb/mongo-go-driver/bson"
 )
 
@@ -33,42 +33,31 @@ import (
 // You shoule check the Err() method when iterator is complete to see
 // if there were any issues encountered when decoding chunks.
 type ChunkIterator struct {
-	errs   chan error
-	pipe   chan Chunk
-	err    error
-	next   *Chunk
-	cancel context.CancelFunc
-	closed bool
-	count  int
+	pipe    chan *Chunk
+	next    *Chunk
+	cancel  context.CancelFunc
+	closed  bool
+	catcher grip.Catcher
+	count   int
 }
 
 // ReadChunks creates a ChunkIterator from an underlying FTDC data
 // source.
 func ReadChunks(ctx context.Context, r io.Reader) *ChunkIterator {
 	iter := &ChunkIterator{
-		errs: make(chan error),
-		pipe: make(chan Chunk, 10),
+		catcher: grip.NewBasicCatcher(),
+		pipe:    make(chan *Chunk, 100),
 	}
 
-	ipc := make(chan *bson.Document, 10)
+	ipc := make(chan *bson.Document, 100)
 	ctx, iter.cancel = context.WithCancel(ctx)
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case iter.errs <- readDiagnostic(ctx, r, ipc):
-			return
-		}
+		iter.catcher.Add(readDiagnostic(ctx, r, ipc))
 	}()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			return
-		case iter.errs <- readChunks(ctx, ipc, iter.pipe):
-			return
-		}
+		iter.catcher.Add(readChunks(ctx, ipc, iter.pipe))
 	}()
 
 	return iter
@@ -77,51 +66,21 @@ func ReadChunks(ctx context.Context, r io.Reader) *ChunkIterator {
 // Next advances the iterator and returns true if the iterator has a
 // chunk that is unprocessed. Use the Chunk() method to access the
 // iterator.
-func (iter *ChunkIterator) Next(ctx context.Context) bool {
-	if iter.closed {
-		return iter.hasChunk()
+func (iter *ChunkIterator) Next() bool {
+	next, ok := <-iter.pipe
+	if !ok {
+		return false
 	}
 
-	for {
-		select {
-		case next, ok := <-iter.pipe:
-			if !ok {
-				return false
-			}
-			iter.next = &next
-			return true
-		case <-ctx.Done():
-			iter.err = errors.New("operation canceled")
-			return false
-		case err := <-iter.errs:
-			if err == nil {
-				continue
-			}
-			iter.err = err
-			next, ok := <-iter.pipe
-
-			if ok && err == nil {
-				iter.next = &next
-				iter.Close()
-				return true
-			}
-
-			return false
-		}
-	}
-}
-
-func (iter *ChunkIterator) hasChunk() bool {
-	return iter.next != nil
+	iter.next = next
+	return true
 }
 
 // Chunk returns a copy of the chunk processed by the iterator. You
 // must call Chunk no more than once per iteration. Additional
 // accesses to Chunk will panic.
-func (iter *ChunkIterator) Chunk() Chunk {
-	ret := *iter.next
-	iter.next = nil
-	return ret
+func (iter *ChunkIterator) Chunk() *Chunk {
+	return iter.next
 }
 
 // Close releases resources of the iterator. Use this method to
@@ -132,4 +91,4 @@ func (iter *ChunkIterator) Close() { iter.cancel(); iter.closed = true }
 
 // Err returns a non-nil error if the iterator encountered any errors
 // during iteration.
-func (iter *ChunkIterator) Err() error { return iter.err }
+func (iter *ChunkIterator) Err() error { return iter.catcher.Resolve() }

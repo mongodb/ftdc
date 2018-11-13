@@ -10,7 +10,7 @@ import (
 )
 
 type Iterator interface {
-	Next(context.Context) bool
+	Next() bool
 	Document() *bson.Document
 	Metadata() *bson.Document
 	Err() error
@@ -25,10 +25,10 @@ func ReadMetrics(ctx context.Context, r io.Reader) Iterator {
 		closer:  cancel,
 		chunks:  ReadChunks(iterctx, r),
 		flatten: true,
-		pipe:    make(chan *bson.Document, 100),
+		pipe:    make(chan *bson.Document, 1000),
 		catcher: grip.NewBasicCatcher(),
 	}
-	go iter.worker(iterctx)
+	go iter.pipes(iterctx)
 
 	return iter
 }
@@ -42,11 +42,11 @@ func ReadStructuredMetrics(ctx context.Context, r io.Reader) Iterator {
 		closer:  cancel,
 		chunks:  ReadChunks(iterctx, r),
 		flatten: false,
-		pipe:    make(chan *bson.Document, 100),
+		pipe:    make(chan *bson.Document, 1000),
 		catcher: grip.NewBasicCatcher(),
 	}
 
-	go iter.worker(iterctx)
+	go iter.pipes(iterctx)
 	return iter
 }
 
@@ -76,7 +76,7 @@ func (iter *combinedIterator) Err() error               { return iter.catcher.Re
 func (iter *combinedIterator) Metadata() *bson.Document { return iter.metadata }
 func (iter *combinedIterator) Document() *bson.Document { return iter.document }
 
-func (iter *combinedIterator) Next(ctx context.Context) bool {
+func (iter *combinedIterator) Next() bool {
 	doc, ok := <-iter.pipe
 	if !ok {
 		return false
@@ -88,51 +88,81 @@ func (iter *combinedIterator) Next(ctx context.Context) bool {
 
 func (iter *combinedIterator) worker(ctx context.Context) {
 	defer close(iter.pipe)
-	for {
-		if iter.sample != nil {
-			if out := iter.sample.Next(ctx); out {
-				iter.pipe <- iter.sample.Document()
+	var ok bool
+
+	for iter.chunks.Next() {
+		chunk := iter.chunks.Chunk()
+
+		if iter.flatten {
+			iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
+		} else {
+			iter.sample, ok = chunk.StructuredIterator(ctx).(*sampleIterator)
+		}
+		if !ok {
+			iter.catcher.Add(errors.New("programmer error"))
+			return
+		}
+		if iter.metadata != nil {
+			iter.metadata = chunk.GetMetadata()
+		}
+
+		for iter.sample.Next() {
+			select {
+
+			case iter.pipe <- iter.sample.Document():
 				continue
+			case <-ctx.Done():
+				iter.catcher.Add(errors.New("operation aborted"))
+				return
 			}
 
-			if err := iter.Err(); err != nil {
-				iter.catcher.Add(err)
-				break
-			}
-
-			iter.sample = nil
 		}
+		iter.catcher.Add(iter.sample.Err())
+	}
+	iter.catcher.Add(iter.chunks.Err())
+}
 
-		if iter.chunks != nil {
-			ok := iter.chunks.Next(ctx)
-			if ok {
-				chunk := iter.chunks.Chunk()
-				if iter.flatten {
-					iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
-				} else {
-					iter.sample, ok = chunk.StructuredIterator(ctx).(*sampleIterator)
-				}
+func (iter *combinedIterator) pipes(ctx context.Context) {
+	defer close(iter.pipe)
+	var ok bool
 
-				if !ok {
-					iter.catcher.Add(errors.New("programmer error"))
-				}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case chunk := <-iter.chunks.pipe:
+			if iter.flatten {
+				iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
+			} else {
+				iter.sample, ok = chunk.StructuredIterator(ctx).(*sampleIterator)
+			}
 
+			if !ok {
+				iter.catcher.Add(errors.New("programmer error"))
+				return
+			}
+
+			if iter.metadata != nil {
 				iter.metadata = chunk.GetMetadata()
+			}
 
-				if out := iter.sample.Next(ctx); out {
-					iter.pipe <- iter.sample.Document()
-					continue
-				}
-
-				iter.sample = nil
-				if err := iter.sample.Err(); err != nil {
-					iter.catcher.Add(err)
-					break
+		sampleIter:
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case doc := <-iter.sample.stream:
+					if doc == nil {
+						break sampleIter
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case iter.pipe <- doc:
+						continue
+					}
 				}
 			}
-			iter.catcher.Add(errors.WithStack(iter.chunks.Err()))
-			iter.chunks = nil
 		}
-		break
 	}
 }

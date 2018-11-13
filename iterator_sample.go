@@ -16,11 +16,12 @@ type sampleIterator struct {
 }
 
 func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document, 1000)
+	out := make(chan *bson.Document, 100)
 
 	go func() {
 		defer close(out)
 		for i := 0; i < c.nPoints; i++ {
+
 			doc := bson.NewDocument()
 
 			for _, m := range c.metrics {
@@ -34,14 +35,13 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Docum
 				return
 			}
 		}
-
 	}()
 
 	return out
 }
 
 func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document, 1000)
+	out := make(chan *bson.Document, 100)
 
 	go func() {
 		defer close(out)
@@ -73,18 +73,12 @@ func (iter *sampleIterator) Document() *bson.Document { return iter.sample }
 
 // Next advances the iterator one document. Returns true when there is
 // a document, and false otherwise.
-func (iter *sampleIterator) Next(ctx context.Context) bool {
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		case doc := <-iter.stream:
-			if doc == nil {
-				return false
-			}
-
-			iter.sample = doc
-			return true
-		}
+func (iter *sampleIterator) Next() bool {
+	doc, ok := <-iter.stream
+	if !ok {
+		return false
 	}
+
+	iter.sample = doc
+	return true
 }

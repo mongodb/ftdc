@@ -265,7 +265,7 @@ func TestCollectJSON(t *testing.T) {
 
 		iter := ReadMetrics(ctx, fn)
 		idx := -1
-		for iter.Next(ctx) {
+		for iter.Next() {
 			idx++
 
 			s := iter.Document()

@@ -40,7 +40,7 @@ func (c *Chunk) getRecord(i int) []string {
 func WriteCSV(ctx context.Context, iter *ChunkIterator, writer io.Writer) error {
 	var numFields int
 	csvw := csv.NewWriter(writer)
-	for iter.Next(ctx) {
+	for iter.Next() {
 		chunk := iter.Chunk()
 		if numFields == 0 {
 			fieldNames := chunk.getFieldNames()
@@ -93,7 +93,7 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 		fileCount int
 		csvw      *csv.Writer
 	)
-	for iter.Next(ctx) {
+	for iter.Next() {
 		if writer == nil {
 			writer, err = getCSVFile(prefix, fileCount)
 			if err != nil {

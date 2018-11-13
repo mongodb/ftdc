@@ -55,7 +55,7 @@ func TestCollectSystemInfo(t *testing.T) {
 				defer f.Close()
 				iter := ReadMetrics(ctx, f)
 				counter := 0
-				for iter.Next(ctx) {
+				for iter.Next() {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
