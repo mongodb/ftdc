@@ -28,7 +28,7 @@ func ReadMetrics(ctx context.Context, r io.Reader) Iterator {
 		pipe:    make(chan *bson.Document, 1000),
 		catcher: grip.NewBasicCatcher(),
 	}
-	go iter.pipes(iterctx)
+	go iter.worker(iterctx)
 
 	return iter
 }
@@ -46,7 +46,7 @@ func ReadStructuredMetrics(ctx context.Context, r io.Reader) Iterator {
 		catcher: grip.NewBasicCatcher(),
 	}
 
-	go iter.pipes(iterctx)
+	go iter.worker(iterctx)
 	return iter
 }
 
@@ -120,49 +120,4 @@ func (iter *combinedIterator) worker(ctx context.Context) {
 		iter.catcher.Add(iter.sample.Err())
 	}
 	iter.catcher.Add(iter.chunks.Err())
-}
-
-func (iter *combinedIterator) pipes(ctx context.Context) {
-	defer close(iter.pipe)
-	var ok bool
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case chunk := <-iter.chunks.pipe:
-			if iter.flatten {
-				iter.sample, ok = chunk.Iterator(ctx).(*sampleIterator)
-			} else {
-				iter.sample, ok = chunk.StructuredIterator(ctx).(*sampleIterator)
-			}
-
-			if !ok {
-				iter.catcher.Add(errors.New("programmer error"))
-				return
-			}
-
-			if iter.metadata != nil {
-				iter.metadata = chunk.GetMetadata()
-			}
-
-		sampleIter:
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case doc := <-iter.sample.stream:
-					if doc == nil {
-						break sampleIter
-					}
-					select {
-					case <-ctx.Done():
-						return
-					case iter.pipe <- doc:
-						continue
-					}
-				}
-			}
-		}
-	}
 }

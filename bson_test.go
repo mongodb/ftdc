@@ -212,9 +212,9 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DatetimeLarge",
-			Value:     bson.EC.Time("", now.Round(time.Second)).Value(),
+			Value:     bson.EC.Time("", now).Value(),
 			OutputLen: 1,
-			Expected:  now.Round(time.Second).UnixNano() / int64(time.Millisecond),
+			Expected:  epochMs(now),
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
@@ -343,13 +343,6 @@ func TestExtractingMetrics(t *testing.T) {
 			NumEncodedValues:  1,
 		},
 		{
-			Name:              "DateTime",
-			Value:             bson.EC.Time("", now.Round(time.Second)).Value(),
-			ExpectedCount:     1,
-			FirstEncodedValue: now.Round(time.Second).Unix(),
-			NumEncodedValues:  1,
-		},
-		{
 			Name:              "TimestampZero",
 			Value:             bson.VC.Timestamp(0, 0),
 			ExpectedCount:     1,
@@ -443,6 +436,13 @@ func TestExtractingMetrics(t *testing.T) {
 			NumEncodedValues:  1,
 			ExpectedCount:     1,
 			FirstEncodedValue: 40,
+		},
+		{
+			Name:              "DateTime",
+			Value:             bson.EC.Time("", now).Value(),
+			ExpectedCount:     1,
+			FirstEncodedValue: epochMs(now),
+			NumEncodedValues:  1,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
