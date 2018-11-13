@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,13 +27,6 @@ func TestSampleIterator(t *testing.T) {
 			break
 		}
 
-	})
-	t.Run("CanceledContext", func(t *testing.T) {
-		iter := &sampleIterator{
-			stream: make(chan *bson.Document, 0),
-		}
-
-		assert.False(t, iter.Next())
 	})
 	t.Run("CloserOperations", func(t *testing.T) {
 		iter := &sampleIterator{}
