@@ -55,6 +55,9 @@ func (c *streamingCollector) Add(d *bson.Document) error {
 // particularly useful in the context of streaming collectors, which
 // flush data periodically and may have cached data.
 func FlushCollector(c Collector, writer io.Writer) error {
+	if writer == nil {
+		return errors.New("invalid writer")
+	}
 	if c.Info().SampleCount == 0 {
 		return nil
 	}
@@ -99,8 +102,6 @@ func (c *streamingDynamicCollector) Reset() {
 }
 
 func (c *streamingDynamicCollector) Add(d *bson.Document) error {
-	// defer func() { grip.Debug(c.Info()) }()
-
 	docHash, num := metricsHash(d)
 	if c.hash == "" {
 		c.hash = docHash
