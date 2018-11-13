@@ -13,8 +13,9 @@ import (
 )
 
 type customCollector struct {
-	name    string
-	factory func() Collector
+	name      string
+	factory   func() Collector
+	skipBench bool
 }
 
 type customTest struct {
@@ -22,6 +23,7 @@ type customTest struct {
 	docs      []*bson.Document
 	numStats  int
 	randStats bool
+	skipBench bool
 }
 
 func createEventRecord(count, duration, size, workers int64) *bson.Document {
@@ -129,24 +131,29 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewBaseCollector(1000) },
 		},
 		{
-			name:    "SmallBatch",
-			factory: func() Collector { return NewBatchCollector(10) },
+			name:      "SmallBatch",
+			factory:   func() Collector { return NewBatchCollector(10) },
+			skipBench: true,
 		},
 		{
-			name:    "MediumBatch",
-			factory: func() Collector { return NewBatchCollector(100) },
+			name:      "MediumBatch",
+			factory:   func() Collector { return NewBatchCollector(100) },
+			skipBench: true,
 		},
 		{
-			name:    "LargeBatch",
-			factory: func() Collector { return NewBatchCollector(1000) },
+			name:      "LargeBatch",
+			factory:   func() Collector { return NewBatchCollector(1000) },
+			skipBench: true,
 		},
 		{
-			name:    "XtraLargeBatch",
-			factory: func() Collector { return NewBatchCollector(10000) },
+			name:      "XtraLargeBatch",
+			factory:   func() Collector { return NewBatchCollector(10000) },
+			skipBench: true,
 		},
 		{
-			name:    "SmallDynamic",
-			factory: func() Collector { return NewDynamicCollector(10) },
+			name:      "SmallDynamic",
+			factory:   func() Collector { return NewDynamicCollector(10) },
+			skipBench: true,
 		},
 		{
 			name:    "MediumDynamic",
@@ -161,12 +168,14 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewDynamicCollector(10000) },
 		},
 		{
-			name:    "SampleBasic",
-			factory: func() Collector { return NewSamplingCollector(0, &betterCollector{maxDeltas: 100}) },
+			name:      "SampleBasic",
+			factory:   func() Collector { return NewSamplingCollector(0, &betterCollector{maxDeltas: 100}) },
+			skipBench: true,
 		},
 		{
-			name:    "SmallStreaming",
-			factory: func() Collector { return NewStreamingCollector(10, &bytes.Buffer{}) },
+			name:      "SmallStreaming",
+			factory:   func() Collector { return NewStreamingCollector(10, &bytes.Buffer{}) },
+			skipBench: true,
 		},
 		{
 			name:    "MediumStreaming",
@@ -177,8 +186,9 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewStreamingCollector(10000, &bytes.Buffer{}) },
 		},
 		{
-			name:    "SmallStreamingDynamic",
-			factory: func() Collector { return NewStreamingDynamicCollector(10, &bytes.Buffer{}) },
+			name:      "SmallStreamingDynamic",
+			factory:   func() Collector { return NewStreamingDynamicCollector(10, &bytes.Buffer{}) },
+			skipBench: true,
 		},
 		{
 			name:    "MediumStreamingDynamic",
@@ -199,34 +209,39 @@ func createTests() []*customTest {
 			docs: []*bson.Document{
 				bson.NewDocument(bson.EC.String("foo", "bar")),
 			},
+			skipBench: true,
 		},
 		{
 			name: "OneDocumentOneStat",
 			docs: []*bson.Document{
 				bson.NewDocument(bson.EC.Int32("foo", 42)),
 			},
-			numStats: 1,
+			skipBench: true,
+			numStats:  1,
 		},
 		{
 			name: "OneSmallFlat",
 			docs: []*bson.Document{
 				randFlatDocument(12),
 			},
-			numStats: 12,
+			numStats:  12,
+			skipBench: true,
 		},
 		{
 			name: "OneLargeFlat",
 			docs: []*bson.Document{
 				randFlatDocument(360),
 			},
-			numStats: 360,
+			numStats:  360,
+			skipBench: true,
 		},
 		{
 			name: "OneHugeFlat",
 			docs: []*bson.Document{
 				randFlatDocument(36000),
 			},
-			numStats: 36000,
+			numStats:  36000,
+			skipBench: true,
 		},
 		{
 			name: "SeveralDocNoStats",
@@ -236,6 +251,7 @@ func createTests() []*customTest {
 				bson.NewDocument(bson.EC.String("foo", "bar")),
 				bson.NewDocument(bson.EC.String("foo", "bar")),
 			},
+			skipBench: true,
 		},
 		{
 			name: "SeveralDocumentOneStat",
@@ -288,6 +304,7 @@ func createTests() []*customTest {
 			},
 			randStats: true,
 			numStats:  11,
+			skipBench: true,
 		},
 		{
 			name: "OneLargeRandomComplexDocument",
@@ -295,6 +312,7 @@ func createTests() []*customTest {
 				randComplexDocument(100, 100),
 			},
 			randStats: true,
+			skipBench: true,
 			numStats:  101,
 		},
 		{
@@ -314,6 +332,7 @@ func createTests() []*customTest {
 			},
 			randStats: true,
 			numStats:  1000,
+			skipBench: true,
 		},
 		{
 			name: "SeveralHugeRandomComplexDocument",
