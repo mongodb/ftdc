@@ -58,7 +58,7 @@ func TestReadPathIntegration(t *testing.T) {
 				hasSeries++
 				passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
 
-				grip.DebugWhen(!passed || counter%100 == 0, message.Fields{
+				grip.DebugWhen(!passed, message.Fields{
 					"checkPassed": passed,
 					"key":         metric.Key(),
 					"id":          metric.KeyName,
@@ -114,8 +114,6 @@ func TestReadPathIntegration(t *testing.T) {
 		}
 
 		t.Run("Flattened", func(t *testing.T) {
-			t.Parallel()
-
 			startAt := time.Now()
 			iter := ReadMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
@@ -139,8 +137,6 @@ func TestReadPathIntegration(t *testing.T) {
 			assert.Equal(t, expectedSamples, counter)
 		})
 		t.Run("Structured", func(t *testing.T) {
-			t.Parallel()
-
 			startAt := time.Now()
 			iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 			counter := 0
