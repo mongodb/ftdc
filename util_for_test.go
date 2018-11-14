@@ -164,8 +164,9 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewDynamicCollector(1000) },
 		},
 		{
-			name:    "XtraLargeDynamic",
-			factory: func() Collector { return NewDynamicCollector(10000) },
+			name:      "XtraLargeDynamic",
+			factory:   func() Collector { return NewDynamicCollector(10000) },
+			skipBench: true,
 		},
 		{
 			name:      "SampleBasic",
@@ -202,8 +203,8 @@ func createCollectors() []*customCollector {
 	return collectors
 }
 
-func createTests() []*customTest {
-	tests := []*customTest{
+func createTests() []customTest {
+	return []customTest{
 		{
 			name: "OneDocNoStats",
 			docs: []*bson.Document{
@@ -262,15 +263,22 @@ func createTests() []*customTest {
 				bson.NewDocument(bson.EC.Int32("foo", 42)),
 				bson.NewDocument(bson.EC.Int32("foo", 42)),
 			},
-			numStats: 1,
+			numStats:  1,
+			skipBench: true,
 		},
 		{
 			name: "SeveralSmallFlat",
 			docs: []*bson.Document{
-				randFlatDocument(12),
-				randFlatDocument(12),
-				randFlatDocument(12),
-				randFlatDocument(12),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
+				randFlatDocument(10),
 			},
 			randStats: true,
 			numStats:  12,
@@ -278,6 +286,12 @@ func createTests() []*customTest {
 		{
 			name: "SeveralLargeFlat",
 			docs: []*bson.Document{
+				randFlatDocument(200),
+				randFlatDocument(200),
+				randFlatDocument(200),
+				randFlatDocument(200),
+				randFlatDocument(200),
+				randFlatDocument(200),
 				randFlatDocument(200),
 				randFlatDocument(200),
 				randFlatDocument(200),
@@ -295,10 +309,11 @@ func createTests() []*customTest {
 				randFlatDocument(2000),
 			},
 			randStats: true,
+			skipBench: true,
 			numStats:  2000,
 		},
 		{
-			name: "OneSmallRandomComplexDocument",
+			name: "OneSmallComplex",
 			docs: []*bson.Document{
 				randComplexDocument(4, 10),
 			},
@@ -307,7 +322,7 @@ func createTests() []*customTest {
 			skipBench: true,
 		},
 		{
-			name: "OneLargeRandomComplexDocument",
+			name: "OneLargeComplex",
 			docs: []*bson.Document{
 				randComplexDocument(100, 100),
 			},
@@ -316,8 +331,15 @@ func createTests() []*customTest {
 			numStats:  101,
 		},
 		{
-			name: "SeveralSmallRandomComplexDocument",
+			name: "SeveralSmallComplex",
 			docs: []*bson.Document{
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
+				randComplexDocument(4, 100),
 				randComplexDocument(4, 100),
 				randComplexDocument(4, 100),
 				randComplexDocument(4, 100),
@@ -326,7 +348,7 @@ func createTests() []*customTest {
 			randStats: true,
 		},
 		{
-			name: "OneHugeRandomComplexDocument",
+			name: "OneHugeComplex",
 			docs: []*bson.Document{
 				randComplexDocument(10000, 10000),
 			},
@@ -335,7 +357,7 @@ func createTests() []*customTest {
 			skipBench: true,
 		},
 		{
-			name: "SeveralHugeRandomComplexDocument",
+			name: "SeveralHugeComplex",
 			docs: []*bson.Document{
 				randComplexDocument(10000, 10000),
 				randComplexDocument(10000, 10000),
@@ -344,6 +366,7 @@ func createTests() []*customTest {
 				randComplexDocument(10000, 10000),
 			},
 			randStats: true,
+			skipBench: true,
 			numStats:  1000,
 		},
 		{
@@ -352,6 +375,7 @@ func createTests() []*customTest {
 				randFlatDocumentWithFloats(1),
 				randFlatDocumentWithFloats(1),
 			},
+			skipBench: true,
 			randStats: true,
 			numStats:  2,
 		},
@@ -362,10 +386,10 @@ func createTests() []*customTest {
 				randFlatDocumentWithFloats(50),
 			},
 			randStats: true,
+			skipBench: true,
 			numStats:  100,
 		},
 	}
-	return tests
 }
 
 type encodingTests struct {
