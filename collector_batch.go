@@ -3,7 +3,6 @@ package ftdc
 import (
 	"bytes"
 
-	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
@@ -45,19 +44,23 @@ func (c *batchCollector) Reset() {
 	c.chunks = []*betterCollector{&betterCollector{maxDeltas: c.maxSamples}}
 }
 
-func (c *batchCollector) SetMetadata(d *bsonx.Document) {
-	c.chunks[0].SetMetadata(d)
+func (c *batchCollector) SetMetadata(in interface{}) error {
+	return errors.WithStack(c.chunks[0].SetMetadata(in))
 }
 
-func (c *batchCollector) Add(d *bsonx.Document) error {
-	last := c.chunks[len(c.chunks)-1]
+func (c *batchCollector) Add(in interface{}) error {
+	doc, err := readDocument(in)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
+	last := c.chunks[len(c.chunks)-1]
 	if last.Info().SampleCount >= c.maxSamples {
 		last = &betterCollector{maxDeltas: c.maxSamples}
 		c.chunks = append(c.chunks, last)
 	}
 
-	return errors.WithStack(last.Add(d))
+	return errors.WithStack(last.Add(doc))
 }
 
 func (c *batchCollector) Resolve() ([]byte, error) {

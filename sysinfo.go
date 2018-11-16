@@ -6,10 +6,8 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
 
@@ -76,11 +74,8 @@ func CollectSysInfo(ctx context.Context, opts CollectSysInfoOptions) error {
 		case <-collectTimer.C:
 			info := message.CollectSystemInfo().(*message.SystemInfo)
 			info.Base.Time = time.Now()
-			infobytes, err := bson.Marshal(info)
-			if err != nil {
-				return errors.Wrap(err, "problem converting sysinfo to bson (reflect)")
-			}
-			doc, err := bsonx.ReadDocument(infobytes)
+
+			doc, err := readDocument(info)
 			if err != nil {
 				return errors.Wrap(err, "problem converting sysinfo to bson (doc)")
 			}

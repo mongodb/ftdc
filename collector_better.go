@@ -28,7 +28,14 @@ func NewBaseCollector(maxSize int) Collector {
 	}
 }
 
-func (c *betterCollector) SetMetadata(doc *bsonx.Document) { c.metadata = doc }
+func (c *betterCollector) SetMetadata(in interface{}) error {
+	doc, err := readDocument(in)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	c.metadata = doc
+	return nil
+}
 func (c *betterCollector) Reset() {
 	c.reference = nil
 	c.lastSample = nil
@@ -47,7 +54,12 @@ func (c *betterCollector) Info() CollectorInfo {
 	}
 }
 
-func (c *betterCollector) Add(doc *bsonx.Document) error {
+func (c *betterCollector) Add(in interface{}) error {
+	doc, err := readDocument(in)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	if c.reference == nil {
 		c.startedAt = time.Now()
 		c.reference = doc

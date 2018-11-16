@@ -8,8 +8,32 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
+
+func readDocument(in interface{}) (*bsonx.Document, error) {
+	switch doc := in.(type) {
+	case *bsonx.Document:
+		return doc, nil
+	case []byte:
+		return bsonx.ReadDocument(doc)
+	case bson.Marshaler:
+		data, err := doc.MarshalBSON()
+		if err != nil {
+			return nil, errors.Wrap(err, "problem with unmarshaler")
+		}
+		return bsonx.ReadDocument(data)
+	case map[string]interface{}, map[string]int, map[string]int64, map[string]string:
+		return nil, errors.New("cannot use a map type as an ftdc value")
+	default:
+		data, err := bson.Marshal(in)
+		if err != nil {
+			return nil, errors.Wrap(err, "problem with fallback marshaling")
+		}
+		return bsonx.ReadDocument(data)
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////
 //

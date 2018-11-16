@@ -8,7 +8,10 @@ import (
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/mongodb/grip/message"
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFlattenArray(t *testing.T) {
@@ -45,6 +48,161 @@ func TestFlattenArray(t *testing.T) {
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})
+}
+
+func TestReadDocument(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		in          interface{}
+		shouldError bool
+		len         int
+	}{
+		{
+			name:        "EmptyBytes",
+			in:          []byte{},
+			shouldError: true,
+			len:         0,
+		},
+		{
+			name:        "Nil",
+			in:          nil,
+			shouldError: true,
+			len:         0,
+		},
+		{
+			name: "NewDocument",
+			in:   bsonx.NewDocument(),
+			len:  0,
+		},
+		{
+			name:        "NewReader",
+			in:          bsonx.Reader{},
+			shouldError: true,
+			len:         0,
+		},
+		{
+			name: "EmptyStruct",
+			in:   struct{}{},
+			len:  0,
+		},
+		{
+			name: "DocumentOneValue",
+			in:   bsonx.NewDocument(bsonx.EC.ObjectID("_id", objectid.New())),
+			len:  1,
+		},
+		{
+			name: "StructWithValuesAndTags",
+			in: struct {
+				Name    string    `bson:"name"`
+				Time    time.Time `bson:"time"`
+				Counter int64     `bson:"counter"`
+			}{
+				Name:    "foo",
+				Time:    time.Now(),
+				Counter: 42,
+			},
+			len: 3,
+		},
+		{
+			name: "StructWithValues",
+			in: struct {
+				Name    string
+				Time    time.Time
+				Counter int64
+			}{
+				Name:    "foo",
+				Time:    time.Now(),
+				Counter: 42,
+			},
+			len: 3,
+		},
+		{
+			name: "Reader",
+			in: func() bsonx.Reader {
+				out, err := bsonx.NewDocument(
+					bsonx.EC.String("foo", "bar"),
+					bsonx.EC.Int64("baz", 33)).MarshalBSON()
+				require.NoError(t, err)
+				return bsonx.Reader(out)
+			}(),
+			len: 2,
+		},
+		{
+			name: "Raw",
+			in: func() bson.Raw {
+				out, err := bsonx.NewDocument(
+					bsonx.EC.String("foo", "bar"),
+					bsonx.EC.Boolean("wat", false),
+					bsonx.EC.Time("ts", time.Now()),
+					bsonx.EC.Int64("baz", 33)).MarshalBSON()
+				require.NoError(t, err)
+				return bson.Raw(out)
+			}(),
+			len: 4,
+		},
+		{
+			name:        "MarshalerError",
+			in:          &marshaler{},
+			shouldError: true,
+		},
+		{
+			name: "MarshalerEmtpy",
+			in: &marshaler{
+				bsonx.NewDocument(),
+			},
+		},
+		{
+			name: "MarshalerValue",
+			in: &marshaler{
+				bsonx.NewDocument(bsonx.EC.String("foo", "bat")),
+			},
+			len: 1,
+		},
+		{
+			name:        "BSONMap",
+			in:          bson.M{},
+			shouldError: true,
+		},
+		{
+			name:        "BSONMapPopulated",
+			in:          bson.M{"foo": "bar"},
+			shouldError: true,
+		},
+		{
+			name:        "MessageFieldsMap",
+			in:          message.Fields{},
+			shouldError: true,
+		},
+		{
+			name:        "MessageFieldsMapPopulated",
+			in:          message.Fields{"foo": "bar"},
+			shouldError: true,
+		},
+		{
+			name:        "Map",
+			in:          map[string]interface{}{},
+			shouldError: true,
+		},
+		{
+			name:        "MapPopulated",
+			in:          map[string]interface{}{"foo": "bar"},
+			shouldError: true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			doc, err := readDocument(test.in)
+			if test.shouldError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if doc != nil {
+				assert.Equal(t, test.len, doc.Len())
+			}
+		})
+	}
+
 }
 
 func TestBSONValueToMetric(t *testing.T) {

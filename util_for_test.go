@@ -546,3 +546,14 @@ type errWriter struct {
 
 func (n *errWriter) Write(in []byte) (int, error) { return 0, errors.New("foo") }
 func (n *errWriter) Close() error                 { return errors.New("close") }
+
+type marshaler struct {
+	doc *bsonx.Document
+}
+
+func (m *marshaler) MarshalBSON() ([]byte, error) {
+	if m.doc == nil {
+		return nil, errors.New("empty")
+	}
+	return m.doc.MarshalBSON()
+}
