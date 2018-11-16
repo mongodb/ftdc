@@ -1,8 +1,9 @@
 buildDir := build
-srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*")
+srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*" -path "./bsonx*")
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
+bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-_testPackages := ./
+_testPackages := ./ 
 
 testArgs := -v
 ifneq (,$(RUN_TEST))
@@ -37,7 +38,7 @@ test:metrics.ftdc perf_metrics.ftdc
 	@grep -s -q -e "^PASS" $(buildDir)/test.ftdc.out
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
-coverage-html:$(buildDir)/cover.html
+coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
 
 benchmark:
 	go test -v -benchmem -bench=. -run="Benchmark.*" -timeout=20m
@@ -46,9 +47,22 @@ benchmark:
 $(buildDir):$(srcFiles) compile
 	@mkdir -p $@
 $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
-	go test $(testArgs) -covermode=count -coverprofile $@ -cover $(_testPackages)
+	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./
 $(buildDir)/cover.html:$(buildDir)/cover.out
 	go tool cover -html=$< -o $@
+
+test-bsonx:
+	@mkdir -p $(buildDir)
+	go test $(testArgs) ./bsonx | tee $(buildDir)/test.bsonx.out
+	@grep -s -q -e "^PASS" $(buildDir)/test.bsonx.out
+coverage-bsonx:$(buildDir)/cover.bsonx.out
+	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
+coverage-bsonx-html:$(buildDir)/cover.bsonx.html
+$(buildDir)/cover.bsonx.out:$(buildDir) $(bsonxFiles) .FORCE
+	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./bsonx
+$(buildDir)/cover.bsonx.html:$(buildDir)/cover.bsonx.out
+	go tool cover -html=$< -o $@
+
 .FORCE:
 
 
