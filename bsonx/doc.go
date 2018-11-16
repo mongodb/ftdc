@@ -38,4 +38,4 @@
 // of an io.Writer. This is useful if some additional manipulation is required
 // after encoding a document. This type supports the same encoding behavior as
 // the Encoder type.
-package bson
+package bsonx

@@ -16,8 +16,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/parser/ast"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/parser/ast"
 )
 
 func TestBSONParser(t *testing.T) {

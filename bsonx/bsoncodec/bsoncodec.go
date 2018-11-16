@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
+	"github.com/mongodb/ftdc/bsonx/bsonrw"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 // Marshaler is an interface implemented by types that can marshal themselves

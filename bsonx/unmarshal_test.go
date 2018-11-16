@@ -1,11 +1,11 @@
-package bson
+package bsonx
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/ftdc/bsonx/bsoncodec"
 )
 
 func TestUnmarshal(t *testing.T) {

@@ -13,8 +13,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/parser/ast"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/parser/ast"
 )
 
 // ErrCorruptDocument is returned when the parser reaches a corrupt point

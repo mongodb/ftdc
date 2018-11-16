@@ -1,12 +1,12 @@
-package bson
+package bsonx
 
 import (
 	"errors"
 	"reflect"
 	"sync"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
-	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
+	"github.com/mongodb/ftdc/bsonx/bsoncodec"
+	"github.com/mongodb/ftdc/bsonx/bsonrw"
 )
 
 // This pool is used to keep the allocations of Encoders down. This is only used for the Marshal*

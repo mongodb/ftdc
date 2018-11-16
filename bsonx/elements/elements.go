@@ -21,7 +21,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
+	"github.com/mongodb/ftdc/bsonx/decimal"
 )
 
 // ErrTooSmall indicates that slice provided to encode into is not large enough to fit the data.

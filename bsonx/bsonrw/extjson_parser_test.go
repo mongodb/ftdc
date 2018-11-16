@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 var (

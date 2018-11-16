@@ -10,9 +10,9 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/objectid"
 )
 
 var _ ValueReader = (*valueReader)(nil)

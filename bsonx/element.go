@@ -4,68 +4,19 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package bson
+package bsonx
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"strconv"
 
-	"github.com/go-stack/stack"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
-	"github.com/mongodb/mongo-go-driver/bson/elements"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/mongodb/ftdc/bsonx/elements"
 )
 
 const validateMaxDepthDefault = 2048
-
-// ErrTooSmall indicates that a slice provided to write into is not large enough to fit the data.
-type ErrTooSmall struct {
-	Stack stack.CallStack
-}
-
-// NewErrTooSmall creates a new ErrTooSmall with the given message and the current stack.
-func NewErrTooSmall() ErrTooSmall {
-	return ErrTooSmall{Stack: stack.Trace().TrimRuntime()}
-}
-
-// Error implements the error interface.
-func (e ErrTooSmall) Error() string {
-	return "too small"
-}
-
-// ErrorStack returns a string representing the stack at the point where the error occurred.
-func (e ErrTooSmall) ErrorStack() string {
-	s := bytes.NewBufferString("too small: [")
-
-	for i, call := range e.Stack {
-		if i != 0 {
-			s.WriteString(", ")
-		}
-
-		// go vet doesn't like %k even though it's part of stack's API, so we move the format
-		// string so it doesn't complain. (We also can't make it a constant, or go vet still
-		// complains.)
-		callFormat := "%k.%n %v"
-
-		s.WriteString(fmt.Sprintf(callFormat, call, call, call))
-	}
-
-	s.WriteRune(']')
-
-	return s.String()
-}
-
-// Equals checks that err2 also is an ErrTooSmall.
-func (e ErrTooSmall) Equals(err2 error) bool {
-	switch err2.(type) {
-	case ErrTooSmall:
-		return true
-	default:
-		return false
-	}
-}
 
 // ErrUninitializedElement is returned whenever any method is invoked on an uninitialized Element.
 var ErrUninitializedElement = errors.New("bson/ast/compact: Method call on uninitialized Element")

@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncore"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/ftdc/bsonx/bsoncore"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/objectid"
 )
 
 func TestCopier(t *testing.T) {

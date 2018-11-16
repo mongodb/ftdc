@@ -4,7 +4,7 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package bson
+package bsonx
 
 import (
 	"encoding/binary"
@@ -13,10 +13,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncore"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/ftdc/bsonx/bsoncore"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/objectid"
 )
 
 // Value represents a BSON value. It can be obtained as part of a bson.Element or created for use

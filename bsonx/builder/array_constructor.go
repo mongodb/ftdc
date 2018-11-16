@@ -9,8 +9,8 @@ package builder
 import (
 	"strconv"
 
-	"github.com/mongodb/mongo-go-driver/bson/decimal"
-	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/mongodb/ftdc/bsonx/objectid"
 )
 
 // ArrayElementer is the interface implemented by types that can serialize

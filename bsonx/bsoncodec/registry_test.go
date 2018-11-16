@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
+	"github.com/mongodb/ftdc/bsonx/bsonrw"
 )
 
 func TestRegistry(t *testing.T) {

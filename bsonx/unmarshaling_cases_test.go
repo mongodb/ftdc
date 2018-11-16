@@ -1,9 +1,9 @@
-package bson
+package bsonx
 
 import (
 	"reflect"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/ftdc/bsonx/bsoncodec"
 )
 
 type unmarshalingTestCase struct {

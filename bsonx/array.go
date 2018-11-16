@@ -4,7 +4,7 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package bson
+package bsonx
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/mongodb/mongo-go-driver/bson/elements"
+	"github.com/mongodb/ftdc/bsonx/elements"
 )
 
 // Array represents an array in BSON. The methods of this type are more

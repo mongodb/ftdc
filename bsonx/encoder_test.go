@@ -1,4 +1,4 @@
-package bson
+package bsonx
 
 import (
 	"bytes"
@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
-	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
-	"github.com/mongodb/mongo-go-driver/bson/bsonrw/bsonrwtest"
+	"github.com/mongodb/ftdc/bsonx/bsoncodec"
+	"github.com/mongodb/ftdc/bsonx/bsonrw"
+	"github.com/mongodb/ftdc/bsonx/bsonrw/bsonrwtest"
 )
 
 func TestBasicEncode(t *testing.T) {

@@ -4,7 +4,7 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package bson
+package bsonx
 
 // node is a compact representation of an element within a BSON document.
 // The first 4 bytes are where the element starts in an underlying []byte. The
