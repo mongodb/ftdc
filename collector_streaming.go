@@ -3,7 +3,7 @@ package ftdc
 import (
 	"io"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
@@ -35,7 +35,7 @@ func newStreamingCollector(maxSamples int, writer io.Writer) *streamingCollector
 }
 
 func (c *streamingCollector) Reset() { c.count = 0; c.betterCollector.Reset() }
-func (c *streamingCollector) Add(d *bson.Document) error {
+func (c *streamingCollector) Add(d *bsonx.Document) error {
 	if err := c.betterCollector.Add(d); err != nil {
 		return errors.Wrapf(err, "adding sample #%d", c.count+1)
 	}
@@ -101,7 +101,7 @@ func (c *streamingDynamicCollector) Reset() {
 	c.hash = ""
 }
 
-func (c *streamingDynamicCollector) Add(d *bson.Document) error {
+func (c *streamingDynamicCollector) Add(d *bsonx.Document) error {
 	docHash, num := metricsHash(d)
 	if c.hash == "" {
 		c.hash = docHash

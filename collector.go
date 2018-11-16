@@ -1,8 +1,6 @@
 package ftdc
 
-import (
-	"github.com/mongodb/mongo-go-driver/bson"
-)
+import "github.com/mongodb/ftdc/bsonx"
 
 // Collector describes the interface for collecting and constructing
 // FTDC data series. Implementations may have different efficiencies
@@ -11,13 +9,13 @@ type Collector interface {
 	// SetMetadata sets the metadata document for the collector or
 	// chunk. This document is optional. Pass a nil to unset it,
 	// or a different document to override a previous operation.
-	SetMetadata(*bson.Document)
+	SetMetadata(*bsonx.Document)
 
 	// Add extracts metrics from a document and appends it to the
 	// current collector. These documents MUST all be
 	// identical. Returns an error if there is a problem parsing
 	// the document or if the number of statistics collected changes.
-	Add(*bson.Document) error
+	Add(*bsonx.Document) error
 
 	// Resolve renders the existing documents and outputs the full
 	// FTDC chunk as a byte slice to be written out to storage.

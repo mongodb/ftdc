@@ -3,7 +3,7 @@ package ftdc
 import (
 	"bytes"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
@@ -46,11 +46,11 @@ func (c *dynamicCollector) Reset() {
 	c.hahes = []string{}
 }
 
-func (c *dynamicCollector) SetMetadata(d *bson.Document) {
+func (c *dynamicCollector) SetMetadata(d *bsonx.Document) {
 	c.chunks[0].SetMetadata(d)
 }
 
-func (c *dynamicCollector) Add(doc *bson.Document) error {
+func (c *dynamicCollector) Add(doc *bsonx.Document) error {
 	if len(c.hahes) == 0 {
 		docHash, num := metricsHash(doc)
 		c.hahes = append(c.hahes, docHash)

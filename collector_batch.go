@@ -3,7 +3,7 @@ package ftdc
 import (
 	"bytes"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
@@ -45,11 +45,11 @@ func (c *batchCollector) Reset() {
 	c.chunks = []*betterCollector{&betterCollector{maxDeltas: c.maxSamples}}
 }
 
-func (c *batchCollector) SetMetadata(d *bson.Document) {
+func (c *batchCollector) SetMetadata(d *bsonx.Document) {
 	c.chunks[0].SetMetadata(d)
 }
 
-func (c *batchCollector) Add(d *bson.Document) error {
+func (c *batchCollector) Add(d *bsonx.Document) error {
 	last := c.chunks[len(c.chunks)-1]
 
 	if last.Info().SampleCount >= c.maxSamples {
