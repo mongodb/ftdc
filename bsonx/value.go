@@ -13,7 +13,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx/bsoncore"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/objectid"
@@ -1077,7 +1076,7 @@ func (v *Value) Equal(v2 *Value) bool {
 		return false
 	}
 
-	return bsoncore.EqualValue(bsontype.Type(t1), bsontype.Type(t2), data1, data2)
+	return checkEqualVal(bsontype.Type(t1), bsontype.Type(t2), data1, data2)
 }
 
 func (v *Value) docToBytes(t bsontype.Type) ([]byte, error) {
@@ -1095,11 +1094,11 @@ func (v *Value) docToBytes(t bsontype.Type) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		code, _, ok := bsoncore.ReadJavaScript(v.data[v.offset+4:])
+		code, _, ok := readJavaScriptValue(v.data[v.offset+4:])
 		if !ok {
 			return nil, errors.New("invalid code component")
 		}
-		return bsoncore.AppendCodeWithScope(nil, code, scope), nil
+		return appendCodeWithScope(nil, code, scope), nil
 	default:
 		return v.data[v.offset:], nil
 	}
