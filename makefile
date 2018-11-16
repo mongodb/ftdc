@@ -23,13 +23,6 @@ testArgs += -race
 endif
 
 
-tools:$(buildDir)/sysinfo-collector $(buildDir)/ftdcdump
-
-$(buildDir)/sysinfo-collector:cmd/sysinfo-collector/sysinfo-collector.go $(srcFiles)
-	go build -o $@ $<
-$(buildDir)/ftdcdump:cmd/ftdcdump/ftdcdump.go $(srcFiles)
-	go build -o $@ $<
-
 compile:
 	go build $(_testPackages)
 test:metrics.ftdc perf_metrics.ftdc
