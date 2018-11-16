@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bson
 
 import (
@@ -16,7 +22,7 @@ func TestBasicDecode(t *testing.T) {
 	for _, tc := range unmarshalingTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := reflect.New(tc.sType).Interface()
-			vr := bsonrw.NewBSONValueReader(tc.data)
+			vr := bsonrw.NewBSONDocumentReader(tc.data)
 			reg := DefaultRegistry
 			decoder, err := reg.LookupDecoder(reflect.TypeOf(got))
 			noerr(t, err)
@@ -35,7 +41,7 @@ func TestDecoderv2(t *testing.T) {
 		for _, tc := range unmarshalingTestCases {
 			t.Run(tc.name, func(t *testing.T) {
 				got := reflect.New(tc.sType).Interface()
-				vr := bsonrw.NewBSONValueReader(tc.data)
+				vr := bsonrw.NewBSONDocumentReader(tc.data)
 				var reg *bsoncodec.Registry
 				if tc.reg != nil {
 					reg = tc.reg
@@ -55,7 +61,7 @@ func TestDecoderv2(t *testing.T) {
 		t.Run("lookup error", func(t *testing.T) {
 			type certainlydoesntexistelsewhereihope func(string, string) string
 			cdeih := func(string, string) string { return "certainlydoesntexistelsewhereihope" }
-			dec, err := NewDecoder(DefaultRegistry, bsonrw.NewBSONValueReader([]byte{}))
+			dec, err := NewDecoder(DefaultRegistry, bsonrw.NewBSONDocumentReader([]byte{}))
 			noerr(t, err)
 			want := bsoncodec.ErrNoDecoder{Type: reflect.TypeOf(cdeih)}
 			got := dec.Decode(&cdeih)
@@ -125,7 +131,7 @@ func TestDecoderv2(t *testing.T) {
 			}
 		})
 		t.Run("success", func(t *testing.T) {
-			got, err := NewDecoder(DefaultRegistry, bsonrw.NewBSONValueReader([]byte{}))
+			got, err := NewDecoder(DefaultRegistry, bsonrw.NewBSONDocumentReader([]byte{}))
 			noerr(t, err)
 			if got == nil {
 				t.Errorf("Was expecting a non-nil Decoder, but got <nil>")
@@ -133,7 +139,7 @@ func TestDecoderv2(t *testing.T) {
 		})
 	})
 	t.Run("Reset", func(t *testing.T) {
-		vr1, vr2 := bsonrw.NewBSONValueReader([]byte{}), bsonrw.NewBSONValueReader([]byte{})
+		vr1, vr2 := bsonrw.NewBSONDocumentReader([]byte{}), bsonrw.NewBSONDocumentReader([]byte{})
 		dec, err := NewDecoder(DefaultRegistry, vr1)
 		noerr(t, err)
 		if dec.vr != vr1 {
@@ -147,7 +153,7 @@ func TestDecoderv2(t *testing.T) {
 	})
 	t.Run("SetRegistry", func(t *testing.T) {
 		reg1, reg2 := DefaultRegistry, NewRegistryBuilder().Build()
-		dec, err := NewDecoder(reg1, bsonrw.NewBSONValueReader([]byte{}))
+		dec, err := NewDecoder(reg1, bsonrw.NewBSONDocumentReader([]byte{}))
 		noerr(t, err)
 		if dec.r != reg1 {
 			t.Errorf("Decoder should use the Registry provided. got %v; want %v", dec.r, reg1)

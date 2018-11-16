@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bsonrw
 
 import (
@@ -80,15 +86,29 @@ type valueReader struct {
 	frame int64
 }
 
-// NewBSONValueReader returns a ValueReader using b for the underlying BSON
-// representation.
+// NewBSONDocumentReader returns a ValueReader using b for the underlying BSON
+// representation. Parameter b must be a BSON Document.
 //
 // TODO(skriptble): There's a lack of symmetry between the reader and writer, since the reader takes
 // a []byte while the writer takes an io.Writer. We should have two versions of each, one that takes
 // a []byte and one that takes an io.Reader or io.Writer. The []byte version will need to return a
 // thing that can return the finished []byte since it might be reallocated when appended to.
-func NewBSONValueReader(b []byte) ValueReader {
+func NewBSONDocumentReader(b []byte) ValueReader {
 	return newValueReader(b)
+}
+
+// NewBSONValueReader returns a ValueReader that starts in the Value mode instead of in top
+// level document mode. This enables the creation of a ValueReader for a single BSON value.
+func NewBSONValueReader(t bsontype.Type, val []byte) ValueReader {
+	stack := make([]vrState, 1, 5)
+	stack[0] = vrState{
+		mode:  mValue,
+		vType: t,
+	}
+	return &valueReader{
+		d:     val,
+		stack: stack,
+	}
 }
 
 func newValueReader(b []byte) *valueReader {

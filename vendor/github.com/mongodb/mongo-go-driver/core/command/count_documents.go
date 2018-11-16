@@ -12,11 +12,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // CountDocuments represents the CountDocuments command.
@@ -24,8 +24,8 @@ import (
 // The countDocuments command counts how many documents in a collection match the given query.
 type CountDocuments struct {
 	NS          Namespace
-	Pipeline    *bson.Array
-	Opts        []option.CountOptioner
+	Pipeline    bsonx.Arr
+	Opts        []bsonx.Elem
 	ReadPref    *readpref.ReadPref
 	ReadConcern *readconcern.ReadConcern
 	Clock       *session.ClusterClock
@@ -40,27 +40,10 @@ func (c *CountDocuments) Encode(desc description.SelectedServer) (wiremessage.Wi
 	if err := c.NS.Validate(); err != nil {
 		return nil, err
 	}
-	command := bson.NewDocument()
-	command.Append(bson.EC.String("aggregate", c.NS.Collection), bson.EC.Array("pipeline", c.Pipeline))
+	command := bsonx.Doc{{"aggregate", bsonx.String(c.NS.Collection)}, {"pipeline", bsonx.Array(c.Pipeline)}}
 
-	cursor := bson.NewDocument()
-	command.Append(bson.EC.SubDocument("cursor", cursor))
-	for _, opt := range c.Opts {
-		if opt == nil {
-			continue
-		}
-		//because we already have these options in the pipeline
-		switch opt.(type) {
-		case option.OptSkip:
-			continue
-		case option.OptLimit:
-			continue
-		}
-		err := opt.Option(command)
-		if err != nil {
-			return nil, err
-		}
-	}
+	command = append(command, bsonx.Elem{"cursor", bsonx.Document(bsonx.Doc{})})
+	command = append(command, c.Opts...)
 
 	return (&Read{DB: c.NS.DB, ReadPref: c.ReadPref, Command: command}).Encode(desc)
 }
@@ -79,7 +62,7 @@ func (c *CountDocuments) Decode(ctx context.Context, desc description.SelectedSe
 		return c
 	}
 
-	var doc *bson.Document
+	var doc bsonx.Doc
 	if cur.Next(ctx) {
 		err = cur.Decode(&doc)
 		if err != nil {
@@ -87,11 +70,12 @@ func (c *CountDocuments) Decode(ctx context.Context, desc description.SelectedSe
 			return c
 		}
 		val, err := doc.LookupErr("n")
-		switch {
-		case err == bson.ErrElementNotFound:
+		switch err.(type) {
+		case bsonx.KeyNotFound:
 			c.err = errors.New("Invalid response from server, no 'n' field")
 			return c
-		case err != nil:
+		case nil:
+		default:
 			c.err = err
 			return c
 		}

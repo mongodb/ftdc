@@ -11,10 +11,10 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ListDatabases represents the listDatabases command.
@@ -22,8 +22,8 @@ import (
 // The listDatabases command lists the databases in a MongoDB deployment.
 type ListDatabases struct {
 	Clock   *session.ClusterClock
-	Filter  *bson.Document
-	Opts    []option.ListDatabasesOptioner
+	Filter  bsonx.Doc
+	Opts    []bsonx.Elem
 	Session *session.Client
 
 	result result.ListDatabases
@@ -40,21 +40,12 @@ func (ld *ListDatabases) Encode(desc description.SelectedServer) (wiremessage.Wi
 }
 
 func (ld *ListDatabases) encode(desc description.SelectedServer) (*Read, error) {
-	cmd := bson.NewDocument(bson.EC.Int32("listDatabases", 1))
+	cmd := bsonx.Doc{{"listDatabases", bsonx.Int32(1)}}
 
 	if ld.Filter != nil {
-		cmd.Append(bson.EC.SubDocument("filter", ld.Filter))
+		cmd = append(cmd, bsonx.Elem{"filter", bsonx.Document(ld.Filter)})
 	}
-
-	for _, opt := range ld.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
-	}
+	cmd = append(cmd, ld.Opts...)
 
 	return &Read{
 		Clock:   ld.Clock,
@@ -75,7 +66,7 @@ func (ld *ListDatabases) Decode(desc description.SelectedServer, wm wiremessage.
 	return ld.decode(desc, rdr)
 }
 
-func (ld *ListDatabases) decode(desc description.SelectedServer, rdr bson.Reader) *ListDatabases {
+func (ld *ListDatabases) decode(desc description.SelectedServer, rdr bson.Raw) *ListDatabases {
 	ld.err = bson.Unmarshal(rdr, &ld.result)
 	return ld
 }

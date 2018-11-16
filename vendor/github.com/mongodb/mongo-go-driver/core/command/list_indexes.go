@@ -11,19 +11,20 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ListIndexes represents the listIndexes command.
 //
 // The listIndexes command lists the indexes for a namespace.
 type ListIndexes struct {
-	Clock   *session.ClusterClock
-	NS      Namespace
-	Opts    []option.ListIndexesOptioner
-	Session *session.Client
+	Clock      *session.ClusterClock
+	NS         Namespace
+	CursorOpts []bsonx.Elem
+	Opts       []bsonx.Elem
+	Session    *session.Client
 
 	result Cursor
 	err    error
@@ -39,17 +40,8 @@ func (li *ListIndexes) Encode(desc description.SelectedServer) (wiremessage.Wire
 }
 
 func (li *ListIndexes) encode(desc description.SelectedServer) (*Read, error) {
-	cmd := bson.NewDocument(bson.EC.String("listIndexes", li.NS.Collection))
-
-	for _, opt := range li.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
-	}
+	cmd := bsonx.Doc{{"listIndexes", bsonx.String(li.NS.Collection)}}
+	cmd = append(cmd, li.Opts...)
 
 	return &Read{
 		Clock:   li.Clock,
@@ -75,20 +67,11 @@ func (li *ListIndexes) Decode(desc description.SelectedServer, cb CursorBuilder,
 	return li.decode(desc, cb, rdr)
 }
 
-func (li *ListIndexes) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Reader) *ListIndexes {
-	opts := make([]option.CursorOptioner, 0)
-	for _, opt := range li.Opts {
-		curOpt, ok := opt.(option.CursorOptioner)
-		if !ok {
-			continue
-		}
-		opts = append(opts, curOpt)
-	}
-
+func (li *ListIndexes) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Raw) *ListIndexes {
 	labels, err := getErrorLabels(&rdr)
 	li.err = err
 
-	res, err := cb.BuildCursor(rdr, li.Session, li.Clock, opts...)
+	res, err := cb.BuildCursor(rdr, li.Session, li.Clock, li.CursorOpts...)
 	li.result = res
 	if err != nil {
 		li.err = Error{Message: err.Error(), Labels: labels}

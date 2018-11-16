@@ -9,13 +9,16 @@ package dispatch
 import (
 	"context"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 )
 
 // Delete handles the full cycle dispatch and execution of a delete command against the provided
@@ -28,6 +31,7 @@ func Delete(
 	clientID uuid.UUID,
 	pool *session.Pool,
 	retryWrite bool,
+	opts ...*options.DeleteOptions,
 ) (result.Delete, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -42,6 +46,14 @@ func Delete(
 			return result.Delete{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	deleteOpts := options.MergeDeleteOptions(opts...)
+	if deleteOpts.Collation != nil {
+		if ss.Description().WireVersion.Max < 5 {
+			return result.Delete{}, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(deleteOpts.Collation.ToDocument())})
 	}
 
 	// Execute in a single trip if retry writes not supported, or retry not enabled

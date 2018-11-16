@@ -14,6 +14,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // KillCursors represents the killCursors command.
@@ -38,14 +39,14 @@ func (kc *KillCursors) Encode(desc description.SelectedServer) (wiremessage.Wire
 }
 
 func (kc *KillCursors) encode(desc description.SelectedServer) (*Read, error) {
-	idVals := make([]*bson.Value, 0, len(kc.IDs))
+	idVals := make([]bsonx.Val, 0, len(kc.IDs))
 	for _, id := range kc.IDs {
-		idVals = append(idVals, bson.VC.Int64(id))
+		idVals = append(idVals, bsonx.Int64(id))
 	}
-	cmd := bson.NewDocument(
-		bson.EC.String("killCursors", kc.NS.Collection),
-		bson.EC.ArrayFromElements("cursors", idVals...),
-	)
+	cmd := bsonx.Doc{
+		{"killCursors", bsonx.String(kc.NS.Collection)},
+		{"cursors", bsonx.Array(idVals)},
+	}
 
 	return &Read{
 		Clock:   kc.Clock,
@@ -65,7 +66,7 @@ func (kc *KillCursors) Decode(desc description.SelectedServer, wm wiremessage.Wi
 	return kc.decode(desc, rdr)
 }
 
-func (kc *KillCursors) decode(desc description.SelectedServer, rdr bson.Reader) *KillCursors {
+func (kc *KillCursors) decode(desc description.SelectedServer, rdr bson.Raw) *KillCursors {
 	err := bson.Unmarshal(rdr, &kc.result)
 	if err != nil {
 		kc.err = err

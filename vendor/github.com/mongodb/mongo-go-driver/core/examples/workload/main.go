@@ -17,16 +17,18 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"github.com/mongodb/mongo-go-driver/bson"
 
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/dispatch"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
 )
 
 var concurrency = flag.Int("concurrency", 24, "how much concurrency should be used")
@@ -75,9 +77,9 @@ func main() {
 
 func prep(ctx context.Context, c *topology.Topology) error {
 
-	var docs = make([]*bson.Document, 0, 1000)
+	var docs = make([]bsonx.Doc, 0, 1000)
 	for i := 0; i < 1000; i++ {
-		docs = append(docs, bson.NewDocument(bson.EC.Int32("_id", int32(i))))
+		docs = append(docs, bsonx.Doc{{"_id", bsonx.Int32(int32(i))}})
 	}
 
 	ns := command.ParseNamespace(*ns)
@@ -93,10 +95,10 @@ func prep(ctx context.Context, c *topology.Topology) error {
 	}
 	defer conn.Close()
 
-	deletes := []*bson.Document{bson.NewDocument(
-		bson.EC.SubDocument("q", bson.NewDocument()),
-		bson.EC.Int32("limit", 0),
-	)}
+	deletes := []bsonx.Doc{{
+		{"q", bsonx.Document(bsonx.Doc{})},
+		{"limit", bsonx.Int32(0)},
+	}}
 	_, err = (&command.Delete{WriteConcern: nil, NS: ns, Deletes: deletes}).RoundTrip(ctx, s.Description(), conn)
 	if err != nil {
 		return err
@@ -125,17 +127,13 @@ func work(ctx context.Context, idx int, c *topology.Topology) {
 
 			limit := r.Intn(999) + 1
 
-			pipeline := bson.NewArray(
-				bson.VC.DocumentFromElements(
-					bson.EC.Int32("$limit", int32(limit)),
-				),
-			)
+			pipeline := bsonx.Arr{bsonx.Document(bsonx.Doc{{"$limit", bsonx.Int32(int32(limit))}})}
 
 			id, _ := uuid.New()
+			aggOpts := options.Aggregate().SetBatchSize(200)
 			cmd := command.Aggregate{
 				NS:       ns,
 				Pipeline: pipeline,
-				Opts:     []option.AggregateOptioner{option.OptBatchSize(200)},
 				ReadPref: rp,
 			}
 			cursor, err := dispatch.Aggregate(
@@ -144,6 +142,8 @@ func work(ctx context.Context, idx int, c *topology.Topology) {
 				description.ReadPrefSelector(rp),
 				id,
 				&session.Pool{},
+				bson.DefaultRegistry,
+				aggOpts,
 			)
 			if err != nil {
 				log.Printf("%d-failed executing aggregate: %s", idx, err)

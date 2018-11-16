@@ -13,62 +13,63 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Read represents a generic database read command.
 type Read struct {
 	DB          string
-	Command     *bson.Document
+	Command     bsonx.Doc
 	ReadPref    *readpref.ReadPref
 	ReadConcern *readconcern.ReadConcern
 	Clock       *session.ClusterClock
 	Session     *session.Client
 
-	result bson.Reader
+	result bson.Raw
 	err    error
 }
 
-func (r *Read) createReadPref(kind description.ServerKind) *bson.Document {
+func (r *Read) createReadPref(kind description.ServerKind) bsonx.Doc {
 	if r.ReadPref == nil {
 		return nil
 	}
 
-	doc := bson.NewDocument()
+	doc := bsonx.Doc{}
 
 	switch r.ReadPref.Mode() {
 	case readpref.PrimaryMode:
-		doc.Append(bson.EC.String("mode", "primary"))
+		doc = append(doc, bsonx.Elem{"mode", bsonx.String("primary")})
 	case readpref.PrimaryPreferredMode:
-		doc.Append(bson.EC.String("mode", "primaryPreferred"))
+		doc = append(doc, bsonx.Elem{"mode", bsonx.String("primaryPreferred")})
 	case readpref.SecondaryPreferredMode:
-		doc.Append(bson.EC.String("mode", "secondaryPreferred"))
+		doc = append(doc, bsonx.Elem{"mode", bsonx.String("secondaryPreferred")})
 	case readpref.SecondaryMode:
-		doc.Append(bson.EC.String("mode", "secondary"))
+		doc = append(doc, bsonx.Elem{"mode", bsonx.String("secondary")})
 	case readpref.NearestMode:
-		doc.Append(bson.EC.String("mode", "nearest"))
+		doc = append(doc, bsonx.Elem{"mode", bsonx.String("nearest")})
 	}
 
-	sets := make([]*bson.Value, 0, len(r.ReadPref.TagSets()))
+	sets := make([]bsonx.Val, 0, len(r.ReadPref.TagSets()))
 	for _, ts := range r.ReadPref.TagSets() {
 		if len(ts) == 0 {
 			continue
 		}
-		set := bson.NewDocument()
+		set := bsonx.Doc{}
 		for _, t := range ts {
-			set.Append(bson.EC.String(t.Name, t.Value))
+			set = append(set, bsonx.Elem{t.Name, bsonx.String(t.Value)})
 		}
-		sets = append(sets, bson.VC.Document(set))
+		sets = append(sets, bsonx.Document(set))
 	}
 	if len(sets) > 0 {
-		doc.Append(bson.EC.ArrayFromElements("tags", sets...))
+		doc = append(doc, bsonx.Elem{"tags", bsonx.Array(sets)})
 	}
 
 	if d, ok := r.ReadPref.MaxStaleness(); ok {
-		doc.Append(bson.EC.Int32("maxStalenessSeconds", int32(d.Seconds())))
+		doc = append(doc, bsonx.Elem{"maxStalenessSeconds", bsonx.Int32(int32(d.Seconds()))})
 	}
 
 	return doc
@@ -77,20 +78,25 @@ func (r *Read) createReadPref(kind description.ServerKind) *bson.Document {
 // addReadPref will add a read preference to the query document.
 //
 // NOTE: This method must always return either a valid bson.Reader or an error.
-func (r *Read) addReadPref(rp *readpref.ReadPref, kind description.ServerKind, query bson.Reader) (bson.Reader, error) {
+func (r *Read) addReadPref(rp *readpref.ReadPref, kind description.ServerKind, query bson.Raw) (bson.Raw, error) {
 	doc := r.createReadPref(kind)
 	if doc == nil {
 		return query, nil
 	}
 
-	return bson.NewDocument(
-		bson.EC.SubDocumentFromReader("$query", query),
-		bson.EC.SubDocument("$readPreference", doc),
-	).MarshalBSON()
+	qdoc := bsonx.Doc{}
+	err := bson.Unmarshal(query, &qdoc)
+	if err != nil {
+		return query, err
+	}
+	return bsonx.Doc{
+		{"$query", bsonx.Document(qdoc)},
+		{"$readPreference", bsonx.Document(doc)},
+	}.MarshalBSON()
 }
 
 // Encode r as OP_MSG
-func (r *Read) encodeOpMsg(desc description.SelectedServer, cmd *bson.Document) (wiremessage.WireMessage, error) {
+func (r *Read) encodeOpMsg(desc description.SelectedServer, cmd bsonx.Doc) (wiremessage.WireMessage, error) {
 	msg := wiremessage.Msg{
 		MsgHeader: wiremessage.Header{RequestID: wiremessage.NextRequestID()},
 		Sections:  make([]wiremessage.Section, 0),
@@ -147,7 +153,7 @@ func (r *Read) queryNeedsReadPref(kind description.ServerKind) bool {
 }
 
 // Encode c as OP_QUERY
-func (r *Read) encodeOpQuery(desc description.SelectedServer, cmd *bson.Document) (wiremessage.WireMessage, error) {
+func (r *Read) encodeOpQuery(desc description.SelectedServer, cmd bsonx.Doc) (wiremessage.WireMessage, error) {
 	rdr, err := marshalCommand(cmd)
 	if err != nil {
 		return nil, err
@@ -193,20 +199,17 @@ func (r *Read) decodeOpReply(wm wiremessage.WireMessage) {
 // Encode will encode this command into a wire message for the given server description.
 func (r *Read) Encode(desc description.SelectedServer) (wiremessage.WireMessage, error) {
 	cmd := r.Command.Copy()
-	err := addReadConcern(cmd, desc, r.ReadConcern, r.Session)
+	cmd, err := addReadConcern(cmd, desc, r.ReadConcern, r.Session)
 	if err != nil {
 		return nil, err
 	}
 
-	err = addSessionFields(cmd, desc, r.Session)
+	cmd, err = addSessionFields(cmd, desc, r.Session)
 	if err != nil {
 		return nil, err
 	}
 
-	err = addClusterTime(cmd, desc, r.Session, r.Clock)
-	if err != nil {
-		return nil, nil
-	}
+	cmd = addClusterTime(cmd, desc, r.Session, r.Clock)
 
 	if desc.WireVersion == nil || desc.WireVersion.Max < wiremessage.OpmsgWireVersion {
 		return r.encodeOpQuery(desc, cmd)
@@ -239,7 +242,7 @@ func (r *Read) Decode(desc description.SelectedServer, wm wiremessage.WireMessag
 }
 
 // Result returns the result of a decoded wire message and server description.
-func (r *Read) Result() (bson.Reader, error) {
+func (r *Read) Result() (bson.Raw, error) {
 	if r.err != nil {
 		return nil, r.err
 	}
@@ -253,7 +256,7 @@ func (r *Read) Err() error {
 }
 
 // RoundTrip handles the execution of this command using the provided wiremessage.ReadWriter.
-func (r *Read) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Reader, error) {
+func (r *Read) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Raw, error) {
 	wm, err := r.Encode(desc)
 	if err != nil {
 		return nil, err

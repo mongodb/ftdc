@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // CreateIndexes represents the createIndexes command.
@@ -23,8 +23,8 @@ import (
 // The createIndexes command creates indexes for a namespace.
 type CreateIndexes struct {
 	NS           Namespace
-	Indexes      *bson.Array
-	Opts         []option.CreateIndexesOptioner
+	Indexes      bsonx.Arr
+	Opts         []bsonx.Elem
 	WriteConcern *writeconcern.WriteConcern
 	Clock        *session.ClusterClock
 	Session      *session.Client
@@ -44,20 +44,11 @@ func (ci *CreateIndexes) Encode(desc description.SelectedServer) (wiremessage.Wi
 }
 
 func (ci *CreateIndexes) encode(desc description.SelectedServer) (*Write, error) {
-	cmd := bson.NewDocument(
-		bson.EC.String("createIndexes", ci.NS.Collection),
-		bson.EC.Array("indexes", ci.Indexes),
-	)
-
-	for _, opt := range ci.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
+	cmd := bsonx.Doc{
+		{"createIndexes", bsonx.String(ci.NS.Collection)},
+		{"indexes", bsonx.Array(ci.Indexes)},
 	}
+	cmd = append(cmd, ci.Opts...)
 
 	return &Write{
 		Clock:        ci.Clock,
@@ -80,7 +71,7 @@ func (ci *CreateIndexes) Decode(desc description.SelectedServer, wm wiremessage.
 	return ci.decode(desc, rdr)
 }
 
-func (ci *CreateIndexes) decode(desc description.SelectedServer, rdr bson.Reader) *CreateIndexes {
+func (ci *CreateIndexes) decode(desc description.SelectedServer, rdr bson.Raw) *CreateIndexes {
 	ci.err = bson.Unmarshal(rdr, &ci.result)
 	return ci
 }

@@ -9,13 +9,18 @@ package dispatch
 import (
 	"context"
 
+	"time"
+
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // FindOneAndDelete handles the full cycle dispatch and execution of a FindOneAndDelete command against the provided
@@ -28,6 +33,8 @@ func FindOneAndDelete(
 	clientID uuid.UUID,
 	pool *session.Pool,
 	retryWrite bool,
+	registry *bsoncodec.Registry,
+	opts ...*options.FindOneAndDeleteOptions,
 ) (result.FindAndModify, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -42,6 +49,33 @@ func FindOneAndDelete(
 			return result.FindAndModify{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	do := options.MergeFindOneAndDeleteOptions(opts...)
+	if do.Collation != nil {
+		if ss.Description().WireVersion.Max < 5 {
+			return result.FindAndModify{}, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(do.Collation.ToDocument())})
+	}
+	if do.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"maxTimeMs", bsonx.Int64(int64(*do.MaxTime / time.Millisecond))})
+	}
+	if do.Projection != nil {
+		projElem, err := interfaceToElement("fields", do.Projection, registry)
+		if err != nil {
+			return result.FindAndModify{}, err
+		}
+
+		cmd.Opts = append(cmd.Opts, projElem)
+	}
+	if do.Sort != nil {
+		sortElem, err := interfaceToElement("sort", do.Sort, registry)
+		if err != nil {
+			return result.FindAndModify{}, err
+		}
+
+		cmd.Opts = append(cmd.Opts, sortElem)
 	}
 
 	// Execute in a single trip if retry writes not supported, or retry not enabled

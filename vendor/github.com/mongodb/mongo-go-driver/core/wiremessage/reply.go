@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Reply represents the OP_REPLY message of the MongoDB wire protocol.
@@ -21,7 +22,7 @@ type Reply struct {
 	CursorID       int64
 	StartingFrom   int32
 	NumberReturned int32
-	Documents      []bson.Reader
+	Documents      []bson.Raw
 }
 
 // MarshalWireMessage implements the Marshaler and WireMessage interfaces.
@@ -117,8 +118,8 @@ func (r *Reply) UnmarshalWireMessage(b []byte) error {
 }
 
 // GetMainDocument returns the main BSON document for this reply.
-func (r *Reply) GetMainDocument() (*bson.Document, error) {
-	return bson.ReadDocument([]byte(r.Documents[0]))
+func (r *Reply) GetMainDocument() (bsonx.Doc, error) {
+	return bsonx.ReadDoc([]byte(r.Documents[0]))
 }
 
 // ReplyFlag represents the flags of an OP_REPLY message.

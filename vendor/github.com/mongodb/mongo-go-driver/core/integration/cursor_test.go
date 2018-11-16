@@ -15,9 +15,9 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -26,17 +26,17 @@ func TestTailableCursorLoopsUntilDocsAvailable(t *testing.T) {
 	noerr(t, err)
 
 	// create capped collection
-	createCmd := bson.NewDocument(
-		bson.EC.String("create", testutil.ColName(t)),
-		bson.EC.Boolean("capped", true),
-		bson.EC.Int32("size", 1000))
+	createCmd := bsonx.Doc{
+		{"create", bsonx.String(testutil.ColName(t))},
+		{"capped", bsonx.Boolean(true)},
+		{"size", bsonx.Int32(1000)}}
 	_, err = testutil.RunCommand(t, server.Server, dbName, createCmd)
 
 	conn, err := server.Connection(context.Background())
 	noerr(t, err)
 
 	// Insert a document
-	d := bson.NewDocument(bson.EC.Int32("_id", 1), bson.EC.Timestamp("ts", 5, 0))
+	d := bsonx.Doc{{"_id", bsonx.Int32(1)}, {"ts", bsonx.Timestamp(5, 0)}}
 	wc := writeconcern.New(writeconcern.WMajority())
 	testutil.AutoInsertDocs(t, wc, d)
 
@@ -46,11 +46,13 @@ func TestTailableCursorLoopsUntilDocsAvailable(t *testing.T) {
 	// find that document, setting cursor type to TAILABLEAWAIT
 	cursor, err := (&command.Find{
 		NS:     command.Namespace{DB: dbName, Collection: testutil.ColName(t)},
-		Filter: bson.NewDocument(bson.EC.SubDocument("ts", bson.NewDocument(bson.EC.Timestamp("$gte", 5, 0)))),
-		Opts: []option.FindOptioner{
-			option.OptLimit(0),
-			option.OptBatchSize(1),
-			option.OptCursorType(option.TailableAwait)},
+		Filter: bsonx.Doc{{"ts", bsonx.Document(bsonx.Doc{{"$gte", bsonx.Timestamp(5, 0)}})}},
+		Opts: []bsonx.Elem{
+			{"limit", bsonx.Int64(0)},
+			{"batchSize", bsonx.Int32(1)},
+			{"tailable", bsonx.Boolean(true)},
+			{"awaitData", bsonx.Boolean(true)},
+		},
 	}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 	noerr(t, err)
 
@@ -58,16 +60,16 @@ func TestTailableCursorLoopsUntilDocsAvailable(t *testing.T) {
 	assert.True(t, cursor.Next(context.Background()), "Cursor should have a next result")
 
 	// make sure it's the right document
-	var next bson.Reader
+	var next bson.Raw
 	err = cursor.Decode(&next)
 	noerr(t, err)
 
 	if !bytes.Equal(next[:len(rdr)], rdr) {
-		t.Errorf("Did not get expected document. got %v; want %v", bson.Reader(next[:len(rdr)]), bson.Reader(rdr))
+		t.Errorf("Did not get expected document. got %v; want %v", bson.Raw(next[:len(rdr)]), bson.Raw(rdr))
 	}
 
 	// insert another document in 500 MS
-	d = bson.NewDocument(bson.EC.Int32("_id", 2), bson.EC.Timestamp("ts", 6, 0))
+	d = bsonx.Doc{{"_id", bsonx.Int32(2)}, {"ts", bsonx.Timestamp(6, 0)}}
 
 	rdr, err = d.MarshalBSON()
 	noerr(t, err)
@@ -92,6 +94,6 @@ func TestTailableCursorLoopsUntilDocsAvailable(t *testing.T) {
 	noerr(t, err)
 
 	if !bytes.Equal(next[:len(rdr)], rdr) {
-		t.Errorf("Did not get expected document. got %v; want %v", bson.Reader(next[:len(rdr)]), bson.Reader(rdr))
+		t.Errorf("Did not get expected document. got %v; want %v", bson.Raw(next[:len(rdr)]), bson.Raw(rdr))
 	}
 }

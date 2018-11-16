@@ -9,10 +9,11 @@ package command
 import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
-func decodeCommandOpMsg(msg wiremessage.Msg) (bson.Reader, error) {
-	var mainDoc bson.Document
+func decodeCommandOpMsg(msg wiremessage.Msg) (bson.Raw, error) {
+	var mainDoc bsonx.Doc
 
 	for _, section := range msg.Sections {
 		switch converted := section.(type) {
@@ -22,18 +23,18 @@ func decodeCommandOpMsg(msg wiremessage.Msg) (bson.Reader, error) {
 				return nil, err
 			}
 		case wiremessage.SectionDocumentSequence:
-			arr := bson.NewArray()
+			arr := bsonx.Arr{}
 			for _, doc := range converted.Documents {
-				newDoc := bson.NewDocument()
+				newDoc := bsonx.Doc{}
 				err := newDoc.UnmarshalBSON(doc)
 				if err != nil {
 					return nil, err
 				}
 
-				arr.Append(bson.VC.Document(newDoc))
+				arr = append(arr, bsonx.Document(newDoc))
 			}
 
-			mainDoc.Append(bson.EC.Array(converted.Identifier, arr))
+			mainDoc = append(mainDoc, bsonx.Elem{converted.Identifier, bsonx.Array(arr)})
 		}
 	}
 
@@ -42,8 +43,8 @@ func decodeCommandOpMsg(msg wiremessage.Msg) (bson.Reader, error) {
 		return nil, err
 	}
 
-	rdr := bson.Reader(byteArray)
-	_, err = rdr.Validate()
+	rdr := bson.Raw(byteArray)
+	err = rdr.Validate()
 	if err != nil {
 		return nil, NewCommandResponseError("malformed OP_MSG: invalid document", err)
 	}

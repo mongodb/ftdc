@@ -14,6 +14,8 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ListCollections handles the full cycle dispatch and execution of a listCollections command against the provided
@@ -25,6 +27,7 @@ func ListCollections(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
+	opts ...*options.ListCollectionsOptions,
 ) (command.Cursor, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -50,6 +53,11 @@ func ListCollections(
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	lc := options.MergeListCollectionsOptions(opts...)
+	if lc.NameOnly != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"nameOnly", bsonx.Boolean(*lc.NameOnly)})
 	}
 
 	return cmd.RoundTrip(ctx, ss.Description(), ss, conn)

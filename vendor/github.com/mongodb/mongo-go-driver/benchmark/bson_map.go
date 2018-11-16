@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package benchmark
 
 import (
@@ -9,7 +15,7 @@ import (
 )
 
 func bsonMapDecoding(ctx context.Context, tm TimerManager, iters int, dataSet string) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, dataSet)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, dataSet)
 	if err != nil {
 		return err
 	}
@@ -30,7 +36,7 @@ func bsonMapDecoding(ctx context.Context, tm TimerManager, iters int, dataSet st
 }
 
 func bsonMapEncoding(ctx context.Context, tm TimerManager, iters int, dataSet string) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, dataSet)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, dataSet)
 	if err != nil {
 		return err
 	}

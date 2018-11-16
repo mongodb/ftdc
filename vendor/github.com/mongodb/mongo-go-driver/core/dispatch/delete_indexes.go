@@ -9,12 +9,16 @@ package dispatch
 import (
 	"context"
 
+	"time"
+
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // DropIndexes handles the full cycle dispatch and execution of a dropIndexes
@@ -26,7 +30,8 @@ func DropIndexes(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
-) (bson.Reader, error) {
+	opts ...*options.DropIndexesOptions,
+) (bson.Raw, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
 	if err != nil {
@@ -38,6 +43,11 @@ func DropIndexes(
 		return nil, err
 	}
 	defer conn.Close()
+
+	dio := options.MergeDropIndexesOptions(opts...)
+	if dio.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"maxTimeMS", bsonx.Int64(int64(*dio.MaxTime / time.Millisecond))})
+	}
 
 	// If no explicit session and deployment supports sessions, start implicit session.
 	if cmd.Session == nil && topo.SupportsSessions() {

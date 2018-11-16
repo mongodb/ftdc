@@ -15,6 +15,8 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ListDatabases handles the full cycle dispatch and execution of a listDatabases command against the provided
@@ -26,6 +28,7 @@ func ListDatabases(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
+	opts ...*options.ListDatabasesOptions,
 ) (result.ListDatabases, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -46,6 +49,11 @@ func ListDatabases(
 			return result.ListDatabases{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	ld := options.MergeListDatabasesOptions(opts...)
+	if ld.NameOnly != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"nameOnly", bsonx.Boolean(*ld.NameOnly)})
 	}
 
 	return cmd.RoundTrip(ctx, ss.Description(), conn)

@@ -14,13 +14,11 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/dispatch"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
-	"github.com/mongodb/mongo-go-driver/mongo/collectionopt"
-	"github.com/mongodb/mongo-go-driver/mongo/dbopt"
-	"github.com/mongodb/mongo-go-driver/mongo/listcollectionopt"
-	"github.com/mongodb/mongo-go-driver/mongo/runcmdopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Database performs operations on a given database.
@@ -35,11 +33,8 @@ type Database struct {
 	registry       *bsoncodec.Registry
 }
 
-func newDatabase(client *Client, name string, opts ...dbopt.Option) *Database {
-	dbOpt, err := dbopt.BundleDatabase(opts...).Unbundle()
-	if err != nil {
-		return nil
-	}
+func newDatabase(client *Client, name string, opts ...*options.DatabaseOptions) *Database {
+	dbOpt := options.MergeDatabaseOptions(opts...)
 
 	rc := client.readConcern
 	if dbOpt.ReadConcern != nil {
@@ -70,7 +65,10 @@ func newDatabase(client *Client, name string, opts ...dbopt.Option) *Database {
 		description.LatencySelector(db.client.localThreshold),
 	})
 
-	db.writeSelector = description.WriteSelector()
+	db.writeSelector = description.CompositeSelector([]description.ServerSelector{
+		description.WriteSelector(),
+		description.LatencySelector(db.client.localThreshold),
+	})
 
 	return db
 }
@@ -86,40 +84,40 @@ func (db *Database) Name() string {
 }
 
 // Collection gets a handle for a given collection in the database.
-func (db *Database) Collection(name string, opts ...collectionopt.Option) *Collection {
+func (db *Database) Collection(name string, opts ...*options.CollectionOptions) *Collection {
 	return newCollection(db, name, opts...)
 }
 
 // RunCommand runs a command on the database. A user can supply a custom
 // context to this method, or nil to default to context.Background().
-func (db *Database) RunCommand(ctx context.Context, runCommand interface{}, opts ...runcmdopt.Option) (bson.Reader, error) {
-
+func (db *Database) RunCommand(ctx context.Context, runCommand interface{}, opts ...*options.RunCmdOptions) (bson.Raw, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	runCmd, _, err := runcmdopt.BundleRunCmd(opts...).Unbundle()
-	if err != nil {
-		return nil, err
-	}
-
 	sess := sessionFromContext(ctx)
 
+	runCmd := options.MergeRunCmdOptions(opts...)
 	rp := runCmd.ReadPreference
 	if rp == nil {
 		if sess != nil && sess.TransactionRunning() {
 			rp = sess.CurrentRp // override with transaction read pref if specified
 		}
 		if rp == nil {
-			rp = db.readPreference // inherit from db if nothing specified in options
+			rp = readpref.Primary() // set to primary if nothing specified in options
 		}
 	}
+
+	readSelect := description.CompositeSelector([]description.ServerSelector{
+		description.ReadPrefSelector(rp),
+		description.LatencySelector(db.client.localThreshold),
+	})
 
 	runCmdDoc, err := transformDocument(db.registry, runCommand)
 	if err != nil {
 		return nil, err
 	}
-	return dispatch.Read(ctx,
+	result, err := dispatch.Read(ctx,
 		command.Read{
 			DB:       db.Name(),
 			Command:  runCmdDoc,
@@ -128,14 +126,16 @@ func (db *Database) RunCommand(ctx context.Context, runCommand interface{}, opts
 			Clock:    db.client.clock,
 		},
 		db.client.topology,
-		db.writeSelector,
+		readSelect,
 		db.client.id,
 		db.client.topology.SessionPool,
 	)
+
+	return result, replaceTopologyErr(err)
 }
 
 // Drop drops this database from mongodb.
-func (db *Database) Drop(ctx context.Context, opts ...dbopt.DropDB) error {
+func (db *Database) Drop(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -160,32 +160,35 @@ func (db *Database) Drop(ctx context.Context, opts ...dbopt.DropDB) error {
 		db.client.topology.SessionPool,
 	)
 	if err != nil && !command.IsNotFound(err) {
-		return err
+		return replaceTopologyErr(err)
 	}
 	return nil
 }
 
 // ListCollections list collections from mongodb database.
-func (db *Database) ListCollections(ctx context.Context, filter *bson.Document, opts ...listcollectionopt.ListCollections) (command.Cursor, error) {
+func (db *Database) ListCollections(ctx context.Context, filter interface{}, opts ...*options.ListCollectionsOptions) (Cursor, error) {
 	if ctx == nil {
 		ctx = context.Background()
-	}
-	listCollOpts, _, err := listcollectionopt.BundleListCollections(opts...).Unbundle(true)
-	if err != nil {
-		return nil, err
 	}
 
 	sess := sessionFromContext(ctx)
 
-	err = db.client.ValidSession(sess)
+	err := db.client.ValidSession(sess)
 	if err != nil {
 		return nil, err
 	}
 
+	var filterDoc bsonx.Doc
+	if filter != nil {
+		filterDoc, err = transformDocument(db.registry, filter)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	cmd := command.ListCollections{
 		DB:       db.name,
-		Filter:   filter,
-		Opts:     listCollOpts,
+		Filter:   filterDoc,
 		ReadPref: db.readPreference,
 		Session:  sess,
 		Clock:    db.client.clock,
@@ -197,9 +200,10 @@ func (db *Database) ListCollections(ctx context.Context, filter *bson.Document, 
 		db.readSelector,
 		db.client.id,
 		db.client.topology.SessionPool,
+		opts...,
 	)
 	if err != nil && !command.IsNotFound(err) {
-		return nil, err
+		return nil, replaceTopologyErr(err)
 	}
 
 	return cursor, nil

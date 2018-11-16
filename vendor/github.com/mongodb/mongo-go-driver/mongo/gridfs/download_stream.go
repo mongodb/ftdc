@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package gridfs
 
 import (
@@ -165,22 +171,22 @@ func (ds *DownloadStream) fillBuffer(ctx context.Context) error {
 		return err
 	}
 
-	chunkIndex, err := nextChunk.Lookup("n")
+	chunkIndex, err := nextChunk.LookupErr("n")
 	if err != nil {
 		return err
 	}
 
-	if chunkIndex.Value().Int32() != ds.expectedChunk {
+	if chunkIndex.Int32() != ds.expectedChunk {
 		return ErrWrongIndex
 	}
 
 	ds.expectedChunk++
-	data, err := nextChunk.Lookup("data")
+	data, err := nextChunk.LookupErr("data")
 	if err != nil {
 		return err
 	}
 
-	_, dataBytes := data.Value().Binary()
+	_, dataBytes := data.Binary()
 
 	bytesLen := int32(len(dataBytes))
 	if ds.expectedChunk == ds.numChunks {

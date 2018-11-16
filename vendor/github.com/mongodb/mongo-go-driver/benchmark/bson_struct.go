@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package benchmark
 
 import (
@@ -8,7 +14,7 @@ import (
 )
 
 func BSONFlatStructDecoding(ctx context.Context, tm TimerManager, iters int) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
 	if err != nil {
 		return err
 	}
@@ -26,7 +32,7 @@ func BSONFlatStructDecoding(ctx context.Context, tm TimerManager, iters int) err
 }
 
 func BSONFlatStructEncoding(ctx context.Context, tm TimerManager, iters int) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
 	if err != nil {
 		return err
 	}
@@ -53,7 +59,7 @@ func BSONFlatStructEncoding(ctx context.Context, tm TimerManager, iters int) err
 }
 
 func BSONFlatStructTagsEncoding(ctx context.Context, tm TimerManager, iters int) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
 	if err != nil {
 		return err
 	}
@@ -80,7 +86,7 @@ func BSONFlatStructTagsEncoding(ctx context.Context, tm TimerManager, iters int)
 }
 
 func BSONFlatStructTagsDecoding(ctx context.Context, tm TimerManager, iters int) error {
-	r, err := loadSourceReader(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
+	r, err := loadSourceRaw(getProjectRoot(), perfDataDir, bsonDataDir, flatBSONData)
 	if err != nil {
 		return err
 	}

@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // FindOneAndDelete represents the findOneAndDelete operation.
@@ -23,8 +23,8 @@ import (
 // The findOneAndDelete command deletes a single document that matches a query and returns it.
 type FindOneAndDelete struct {
 	NS           Namespace
-	Query        *bson.Document
-	Opts         []option.FindOneAndDeleteOptioner
+	Query        bsonx.Doc
+	Opts         []bsonx.Elem
 	WriteConcern *writeconcern.WriteConcern
 	Clock        *session.ClusterClock
 	Session      *session.Client
@@ -48,21 +48,12 @@ func (f *FindOneAndDelete) encode(desc description.SelectedServer) (*Write, erro
 		return nil, err
 	}
 
-	command := bson.NewDocument(
-		bson.EC.String("findAndModify", f.NS.Collection),
-		bson.EC.SubDocument("query", f.Query),
-		bson.EC.Boolean("remove", true),
-	)
-
-	for _, opt := range f.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(command)
-		if err != nil {
-			return nil, err
-		}
+	command := bsonx.Doc{
+		{"findAndModify", bsonx.String(f.NS.Collection)},
+		{"query", bsonx.Document(f.Query)},
+		{"remove", bsonx.Boolean(true)},
 	}
+	command = append(command, f.Opts...)
 
 	return &Write{
 		Clock:        f.Clock,
@@ -85,7 +76,7 @@ func (f *FindOneAndDelete) Decode(desc description.SelectedServer, wm wiremessag
 	return f.decode(desc, rdr)
 }
 
-func (f *FindOneAndDelete) decode(desc description.SelectedServer, rdr bson.Reader) *FindOneAndDelete {
+func (f *FindOneAndDelete) decode(desc description.SelectedServer, rdr bson.Raw) *FindOneAndDelete {
 	f.result, f.err = unmarshalFindAndModifyResult(rdr)
 	return f
 }

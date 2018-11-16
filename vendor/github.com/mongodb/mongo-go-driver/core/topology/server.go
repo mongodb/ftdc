@@ -21,8 +21,8 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/connection"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/event"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/session"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 const minHeartbeatInterval = 500 * time.Millisecond
@@ -182,6 +182,16 @@ func (s *Server) Connection(ctx context.Context) (connection.Connection, error) 
 		if _, ok := err.(*auth.Error); ok {
 			// authentication error --> drain connection
 			_ = s.pool.Drain()
+		}
+		if _, ok := err.(*connection.NetworkError); ok {
+			// update description to unknown and clears the connection pool
+			if desc != nil {
+				desc.Kind = description.Unknown
+				desc.LastError = err
+				s.updateDescription(*desc, false)
+			} else {
+				_ = s.pool.Drain()
+			}
 		}
 		return nil, err
 	}
@@ -436,7 +446,7 @@ func (s *Server) updateAverageRTT(delay time.Duration) time.Duration {
 func (s *Server) Drain() error { return s.pool.Drain() }
 
 // BuildCursor implements the command.CursorBuilder interface for the Server type.
-func (s *Server) BuildCursor(result bson.Reader, clientSession *session.Client, clock *session.ClusterClock, opts ...option.CursorOptioner) (command.Cursor, error) {
+func (s *Server) BuildCursor(result bson.Raw, clientSession *session.Client, clock *session.ClusterClock, opts ...bsonx.Elem) (command.Cursor, error) {
 	return newCursor(result, clientSession, clock, s, opts...)
 }
 

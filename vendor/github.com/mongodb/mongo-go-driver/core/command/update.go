@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Update represents the update command.
@@ -25,8 +25,8 @@ type Update struct {
 	ContinueOnError bool
 	Clock           *session.ClusterClock
 	NS              Namespace
-	Docs            []*bson.Document
-	Opts            []option.UpdateOptioner
+	Docs            []bsonx.Doc
+	Opts            []bsonx.Elem
 	WriteConcern    *writeconcern.WriteConcern
 	Session         *session.Client
 
@@ -63,25 +63,20 @@ func (u *Update) encode(desc description.SelectedServer) error {
 	return nil
 }
 
-func (u *Update) encodeBatch(docs []*bson.Document, desc description.SelectedServer) (*WriteBatch, error) {
-	copyDocs := make([]*bson.Document, 0, len(docs)) // copy of all the documents
+func (u *Update) encodeBatch(docs []bsonx.Doc, desc description.SelectedServer) (*WriteBatch, error) {
+	copyDocs := make([]bsonx.Doc, 0, len(docs)) // copy of all the documents
 	for _, doc := range docs {
 		newDoc := doc.Copy()
 		copyDocs = append(copyDocs, newDoc)
 	}
 
-	var options []option.Optioner
+	var options []bsonx.Elem
 	for _, opt := range u.Opts {
-		switch opt.(type) {
-		case nil:
-			continue
-		case option.OptUpsert, option.OptCollation, option.OptArrayFilters:
+		switch opt.Key {
+		case "upsert", "collation", "arrayFilters":
 			// options that are encoded on each individual document
-			for _, doc := range copyDocs {
-				err := opt.Option(doc)
-				if err != nil {
-					return nil, err
-				}
+			for idx := range copyDocs {
+				copyDocs[idx] = append(copyDocs[idx], opt)
 			}
 		default:
 			options = append(options, opt)
@@ -116,7 +111,7 @@ func (u *Update) Decode(desc description.SelectedServer, wm wiremessage.WireMess
 	return u.decode(desc, rdr)
 }
 
-func (u *Update) decode(desc description.SelectedServer, rdr bson.Reader) *Update {
+func (u *Update) decode(desc description.SelectedServer, rdr bson.Raw) *Update {
 	u.err = bson.Unmarshal(rdr, &u.result)
 	return u
 }

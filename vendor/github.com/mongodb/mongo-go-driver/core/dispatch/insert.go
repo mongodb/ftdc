@@ -9,13 +9,16 @@ package dispatch
 import (
 	"context"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 )
 
 // Insert handles the full cycle dispatch and execution of an insert command against the provided
@@ -28,6 +31,7 @@ func Insert(
 	clientID uuid.UUID,
 	pool *session.Pool,
 	retryWrite bool,
+	opts ...*options.InsertManyOptions,
 ) (result.Insert, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -42,6 +46,15 @@ func Insert(
 			return result.Insert{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	insertOpts := options.MergeInsertManyOptions(opts...)
+
+	if insertOpts.BypassDocumentValidation != nil && ss.Description().WireVersion.Includes(4) {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"bypassDocumentValidation", bsonx.Boolean(*insertOpts.BypassDocumentValidation)})
+	}
+	if insertOpts.Ordered != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"ordered", bsonx.Boolean(*insertOpts.Ordered)})
 	}
 
 	// Execute in a single trip if retry writes not supported, or retry not enabled

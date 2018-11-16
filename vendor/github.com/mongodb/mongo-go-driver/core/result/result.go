@@ -12,6 +12,7 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Upsert contains the information for a single upsert.
@@ -29,7 +30,7 @@ type Insert struct {
 
 // StartSession is a result from a StartSession command.
 type StartSession struct {
-	ID *bson.Document `bson:"id"`
+	ID bsonx.Doc `bson:"id"`
 }
 
 // EndSessions is a result from an EndSessions command.
@@ -58,7 +59,7 @@ type Distinct struct {
 
 // FindAndModify is a result from a findAndModify command.
 type FindAndModify struct {
-	Value           bson.Reader
+	Value           bson.Raw
 	LastErrorObject struct {
 		UpdatedExisting bool
 		Upserted        interface{}
@@ -77,7 +78,7 @@ type WriteError struct {
 type WriteConcernError struct {
 	Code    int
 	ErrMsg  string
-	ErrInfo bson.Reader
+	ErrInfo bson.Raw
 }
 
 // ListDatabases is the result from a listDatabases command.
@@ -94,7 +95,7 @@ type ListDatabases struct {
 type IsMaster struct {
 	Arbiters                     []string          `bson:"arbiters,omitempty"`
 	ArbiterOnly                  bool              `bson:"arbiterOnly,omitempty"`
-	ClusterTime                  *bson.Document    `bson:"$clusterTime,omitempty"`
+	ClusterTime                  bsonx.Doc         `bson:"$clusterTime,omitempty"`
 	Compression                  []string          `bson:"compression,omitempty"`
 	ElectionID                   objectid.ObjectID `bson:"electionId,omitempty"`
 	Hidden                       bool              `bson:"hidden,omitempty"`

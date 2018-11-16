@@ -14,6 +14,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // CommitTransaction represents the commitTransaction() command
@@ -30,7 +31,7 @@ func (ct *CommitTransaction) Encode(desc description.SelectedServer) (wiremessag
 }
 
 func (ct *CommitTransaction) encode(desc description.SelectedServer) *Write {
-	cmd := bson.NewDocument(bson.EC.Int32("commitTransaction", 1))
+	cmd := bsonx.Doc{{"commitTransaction", bsonx.Int32(1)}}
 	return &Write{
 		DB:           "admin",
 		Command:      cmd,
@@ -51,7 +52,7 @@ func (ct *CommitTransaction) Decode(desc description.SelectedServer, wm wiremess
 	return ct.decode(desc, rdr)
 }
 
-func (ct *CommitTransaction) decode(desc description.SelectedServer, rdr bson.Reader) *CommitTransaction {
+func (ct *CommitTransaction) decode(desc description.SelectedServer, rdr bson.Raw) *CommitTransaction {
 	ct.err = bson.Unmarshal(rdr, &ct.result)
 	if ct.err == nil && ct.result.WriteConcernError != nil {
 		ct.err = Error{

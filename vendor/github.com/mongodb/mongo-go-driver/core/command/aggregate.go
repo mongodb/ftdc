@@ -11,12 +11,12 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Aggregate represents the aggregate command.
@@ -24,8 +24,9 @@ import (
 // The aggregate command performs an aggregation.
 type Aggregate struct {
 	NS           Namespace
-	Pipeline     *bson.Array
-	Opts         []option.AggregateOptioner
+	Pipeline     bsonx.Arr
+	CursorOpts   []bsonx.Elem
+	Opts         []bsonx.Elem
 	ReadPref     *readpref.ReadPref
 	WriteConcern *writeconcern.WriteConcern
 	ReadConcern  *readconcern.ReadConcern
@@ -51,31 +52,25 @@ func (a *Aggregate) encode(desc description.SelectedServer) (*Read, error) {
 		return nil, err
 	}
 
-	command := bson.NewDocument()
-	command.Append(bson.EC.String("aggregate", a.NS.Collection), bson.EC.Array("pipeline", a.Pipeline))
+	command := bsonx.Doc{
+		{"aggregate", bsonx.String(a.NS.Collection)},
+		{"pipeline", bsonx.Array(a.Pipeline)},
+	}
 
-	cursor := bson.NewDocument()
-	command.Append(bson.EC.SubDocument("cursor", cursor))
+	cursor := bsonx.Doc{}
 
 	for _, opt := range a.Opts {
-		switch t := opt.(type) {
-		case nil, option.OptMaxAwaitTime:
-			continue
-		case option.OptBatchSize:
-			if t == 0 && a.HasDollarOut() {
+		switch opt.Key {
+		case "batchSize":
+			if opt.Value.Int32() == 0 && a.HasDollarOut() {
 				continue
 			}
-			err := opt.Option(cursor)
-			if err != nil {
-				return nil, err
-			}
+			cursor = append(cursor, opt)
 		default:
-			err := opt.Option(command)
-			if err != nil {
-				return nil, err
-			}
+			command = append(command, opt)
 		}
 	}
+	command = append(command, bsonx.Elem{"cursor", bsonx.Document(cursor)})
 
 	// add write concern because it won't be added by the Read command's Encode()
 	if a.WriteConcern != nil {
@@ -84,7 +79,7 @@ func (a *Aggregate) encode(desc description.SelectedServer) (*Read, error) {
 			return nil, err
 		}
 
-		command.Append(element)
+		command = append(command, element)
 	}
 
 	return &Read{
@@ -102,24 +97,17 @@ func (a *Aggregate) HasDollarOut() bool {
 	if a.Pipeline == nil {
 		return false
 	}
-	if a.Pipeline.Len() == 0 {
+	if len(a.Pipeline) == 0 {
 		return false
 	}
 
-	val, err := a.Pipeline.Lookup(uint(a.Pipeline.Len() - 1))
-	if err != nil {
-		return false
-	}
+	val := a.Pipeline[len(a.Pipeline)-1]
 
-	doc, ok := val.MutableDocumentOK()
-	if !ok || doc.Len() != 1 {
+	doc, ok := val.DocumentOK()
+	if !ok || len(doc) != 1 {
 		return false
 	}
-	elem, ok := doc.ElementAtOK(0)
-	if !ok {
-		return false
-	}
-	return elem.Key() == "$out"
+	return doc[0].Key == "$out"
 }
 
 // Decode will decode the wire message using the provided server description. Errors during decoding
@@ -134,20 +122,11 @@ func (a *Aggregate) Decode(desc description.SelectedServer, cb CursorBuilder, wm
 	return a.decode(desc, cb, rdr)
 }
 
-func (a *Aggregate) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Reader) *Aggregate {
-	opts := make([]option.CursorOptioner, 0)
-	for _, opt := range a.Opts {
-		curOpt, ok := opt.(option.CursorOptioner)
-		if !ok {
-			continue
-		}
-		opts = append(opts, curOpt)
-	}
-
+func (a *Aggregate) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Raw) *Aggregate {
 	labels, err := getErrorLabels(&rdr)
 	a.err = err
 
-	res, err := cb.BuildCursor(rdr, a.Session, a.Clock, opts...)
+	res, err := cb.BuildCursor(rdr, a.Session, a.Clock, a.CursorOpts...)
 	a.result = res
 	if err != nil {
 		a.err = Error{Message: err.Error(), Labels: labels}

@@ -24,13 +24,14 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/connection"
 	"github.com/mongodb/mongo-go-driver/core/connstring"
 	"github.com/mongodb/mongo-go-driver/core/event"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
-	"github.com/mongodb/mongo-go-driver/mongo/collectionopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -141,7 +142,7 @@ func TestTxnNumberIncluded(t *testing.T) {
 			if tc.includesTxn {
 				require.NotNil(t, evt.Command.Lookup("txnNumber"))
 			} else {
-				require.Nil(t, evt.Command.Lookup("txnNumber"))
+				require.Equal(t, evt.Command.Lookup("txnNumber"), bsonx.Val{})
 			}
 		})
 	}
@@ -200,7 +201,7 @@ func runRetryTestCase(t *testing.T, test *retryTestCase, data json.RawMessage, d
 		coll := db.Collection(collName)
 		docsToInsert := docSliceToInterfaceSlice(docSliceFromRaw(t, data))
 		if len(docsToInsert) > 0 {
-			coll2, err := coll.Clone(collectionopt.WriteConcern(writeconcern.New(writeconcern.WMajority())))
+			coll2, err := coll.Clone(options.Collection().SetWriteConcern(writeconcern.New(writeconcern.WMajority())))
 			require.NoError(t, err)
 			_, err = coll2.InsertMany(ctx, docsToInsert)
 			require.NoError(t, err)
@@ -214,10 +215,10 @@ func runRetryTestCase(t *testing.T, test *retryTestCase, data json.RawMessage, d
 
 			defer func() {
 				// disable failpoint if specified
-				_, _ = dbAdmin.RunCommand(ctx, bson.NewDocument(
-					bson.EC.String("configureFailPoint", test.FailPoint.ConfigureFailPoint),
-					bson.EC.String("mode", "off"),
-				))
+				_, _ = dbAdmin.RunCommand(ctx, bsonx.Doc{
+					{"configureFailPoint", bsonx.String(test.FailPoint.ConfigureFailPoint)},
+					{"mode", bsonx.String("off")},
+				})
 			}()
 		}
 
@@ -340,7 +341,7 @@ func createRetryMonitoredClient(t *testing.T, monitor *event.CommandMonitor) *Cl
 		connString:     testutil.ConnString(t),
 		readPreference: readpref.Primary(),
 		clock:          clock,
-		registry:       defaultRegistry,
+		registry:       bson.DefaultRegistry,
 	}
 
 	subscription, err := c.topology.Subscribe()

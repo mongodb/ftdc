@@ -13,10 +13,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // GetLastError represents the getLastError command.
@@ -45,7 +46,7 @@ func (gle *GetLastError) Encode() (wiremessage.WireMessage, error) {
 
 func (gle *GetLastError) encode() (*Read, error) {
 	// This can probably just be a global variable that we reuse.
-	cmd := bson.NewDocument(bson.EC.Int32("getLastError", 1))
+	cmd := bsonx.Doc{{"getLastError", bsonx.Int32(1)}}
 
 	return &Read{
 		Clock:    gle.Clock,
@@ -72,7 +73,7 @@ func (gle *GetLastError) Decode(wm wiremessage.WireMessage) *GetLastError {
 	return gle.decode(rdr)
 }
 
-func (gle *GetLastError) decode(rdr bson.Reader) *GetLastError {
+func (gle *GetLastError) decode(rdr bson.Raw) *GetLastError {
 	err := bson.Unmarshal(rdr, &gle.res)
 	if err != nil {
 		gle.err = err

@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bsoncodec
 
 import (
@@ -12,12 +18,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncore"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw/bsonrwtest"
 	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/mongodb/mongo-go-driver/bson/decimal"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 )
 
 func TestDefaultValueDecoders(t *testing.T) {
@@ -1239,7 +1245,7 @@ func TestDefaultValueDecoders(t *testing.T) {
 		noerr(t, err)
 		doc, err = bsoncore.AppendDocumentEnd(doc, idx)
 		noerr(t, err)
-		dvr := bsonrw.NewBSONValueReader(doc)
+		dvr := bsonrw.NewBSONDocumentReader(doc)
 		noerr(t, err)
 		dr, err := dvr.ReadDocument()
 		noerr(t, err)
@@ -1655,7 +1661,7 @@ func TestDefaultValueDecoders(t *testing.T) {
 		t.Run("Decode", func(t *testing.T) {
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					vr := bsonrw.NewBSONValueReader(tc.b)
+					vr := bsonrw.NewBSONDocumentReader(tc.b)
 					reg := buildDefaultRegistry()
 					vtype := reflect.TypeOf(tc.value)
 					dec, err := reg.LookupDecoder(vtype)

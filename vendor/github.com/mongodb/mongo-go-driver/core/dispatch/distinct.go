@@ -8,6 +8,10 @@ package dispatch
 
 import (
 	"context"
+	"time"
+
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
@@ -26,6 +30,7 @@ func Distinct(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
+	opts ...*options.DistinctOptions,
 ) (result.Distinct, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -53,6 +58,20 @@ func Distinct(
 			return result.Distinct{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	distinctOpts := options.MergeDistinctOptions(opts...)
+
+	if distinctOpts.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{
+			"maxTimeMS", bsonx.Int64(int64(time.Duration(*distinctOpts.MaxTime) / time.Millisecond)),
+		})
+	}
+	if distinctOpts.Collation != nil {
+		if desc.WireVersion.Max < 5 {
+			return result.Distinct{}, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(distinctOpts.Collation.ToDocument())})
 	}
 
 	return cmd.RoundTrip(ctx, desc, conn)

@@ -16,28 +16,29 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Write represents a generic write database command.
 // This can be used to send arbitrary write commands to the database.
 type Write struct {
 	DB           string
-	Command      *bson.Document
+	Command      bsonx.Doc
 	WriteConcern *writeconcern.WriteConcern
 	Clock        *session.ClusterClock
 	Session      *session.Client
 
-	result bson.Reader
+	result bson.Raw
 	err    error
 }
 
 // Encode c as OP_MSG
-func (w *Write) encodeOpMsg(desc description.SelectedServer, cmd *bson.Document) (wiremessage.WireMessage, error) {
-	var arr *bson.Array
+func (w *Write) encodeOpMsg(desc description.SelectedServer, cmd bsonx.Doc) (wiremessage.WireMessage, error) {
+	var arr bsonx.Arr
 	var identifier string
 
-	arr, identifier = opmsgRemoveArray(cmd)
+	cmd, arr, identifier = opmsgRemoveArray(cmd)
 
 	msg := wiremessage.Msg{
 		MsgHeader: wiremessage.Header{RequestID: wiremessage.NextRequestID()},
@@ -74,7 +75,7 @@ func (w *Write) encodeOpMsg(desc description.SelectedServer, cmd *bson.Document)
 }
 
 // Encode w as OP_QUERY
-func (w *Write) encodeOpQuery(desc description.SelectedServer, cmd *bson.Document) (wiremessage.WireMessage, error) {
+func (w *Write) encodeOpQuery(desc description.SelectedServer, cmd bsonx.Doc) (wiremessage.WireMessage, error) {
 	rdr, err := marshalCommand(cmd)
 	if err != nil {
 		return nil, err
@@ -124,12 +125,12 @@ func (w *Write) Encode(desc description.SelectedServer) (wiremessage.WireMessage
 	var err error
 	if w.Session != nil && w.Session.TransactionStarting() {
 		// Starting transactions have a read concern, even in writes.
-		err = addReadConcern(cmd, desc, nil, w.Session)
+		cmd, err = addReadConcern(cmd, desc, nil, w.Session)
 		if err != nil {
 			return nil, err
 		}
 	}
-	err = addWriteConcern(cmd, w.WriteConcern)
+	cmd, err = addWriteConcern(cmd, w.WriteConcern)
 	if err != nil {
 		return nil, err
 	}
@@ -144,20 +145,17 @@ func (w *Write) Encode(desc description.SelectedServer) (wiremessage.WireMessage
 		}
 	} else {
 		// only encode session ID for acknowledged writes
-		err = addSessionFields(cmd, desc, w.Session)
+		cmd, err = addSessionFields(cmd, desc, w.Session)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if w.Session != nil && w.Session.RetryWrite {
-		cmd.Append(bson.EC.Int64("txnNumber", w.Session.TxnNumber))
+		cmd = append(cmd, bsonx.Elem{"txnNumber", bsonx.Int64(w.Session.TxnNumber)})
 	}
 
-	err = addClusterTime(cmd, desc, w.Session, w.Clock)
-	if err != nil {
-		return nil, err
-	}
+	cmd = addClusterTime(cmd, desc, w.Session, w.Clock)
 
 	if desc.WireVersion == nil || desc.WireVersion.Max < wiremessage.OpmsgWireVersion {
 		return w.encodeOpQuery(desc, cmd)
@@ -192,7 +190,7 @@ func (w *Write) Decode(desc description.SelectedServer, wm wiremessage.WireMessa
 }
 
 // Result returns the result of a decoded wire message and server description.
-func (w *Write) Result() (bson.Reader, error) {
+func (w *Write) Result() (bson.Raw, error) {
 	if w.err != nil {
 		return nil, w.err
 	}
@@ -206,7 +204,7 @@ func (w *Write) Err() error {
 }
 
 // RoundTrip handles the execution of this command using the provided wiremessage.ReadWriteCloser.
-func (w *Write) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Reader, error) {
+func (w *Write) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Raw, error) {
 	wm, err := w.Encode(desc)
 	if err != nil {
 		return nil, err

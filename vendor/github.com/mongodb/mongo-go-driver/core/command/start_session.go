@@ -14,6 +14,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // StartSession represents a startSession command
@@ -30,7 +31,7 @@ func (ss *StartSession) Encode(desc description.SelectedServer) (wiremessage.Wir
 }
 
 func (ss *StartSession) encode(desc description.SelectedServer) *Write {
-	cmd := bson.NewDocument(bson.EC.Int32("startSession", 1))
+	cmd := bsonx.Doc{{"startSession", bsonx.Int32(1)}}
 	return &Write{
 		Clock:   ss.Clock,
 		DB:      "admin",
@@ -50,7 +51,7 @@ func (ss *StartSession) Decode(desc description.SelectedServer, wm wiremessage.W
 	return ss.decode(desc, rdr)
 }
 
-func (ss *StartSession) decode(desc description.SelectedServer, rdr bson.Reader) *StartSession {
+func (ss *StartSession) decode(desc description.SelectedServer, rdr bson.Raw) *StartSession {
 	ss.err = bson.Unmarshal(rdr, &ss.result)
 	return ss
 }

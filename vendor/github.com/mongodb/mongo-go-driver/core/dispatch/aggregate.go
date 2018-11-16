@@ -9,6 +9,12 @@ package dispatch
 import (
 	"context"
 
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
+	"time"
+
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/session"
@@ -25,6 +31,8 @@ func Aggregate(
 	readSelector, writeSelector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
+	registry *bsoncodec.Registry,
+	opts ...*options.AggregateOptions,
 ) (command.Cursor, error) {
 
 	dollarOut := cmd.HasDollarOut()
@@ -64,6 +72,46 @@ func Aggregate(
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	aggOpts := options.MergeAggregateOptions(opts...)
+
+	if aggOpts.AllowDiskUse != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"allowDiskUse", bsonx.Boolean(*aggOpts.AllowDiskUse)})
+	}
+	if aggOpts.BatchSize != nil {
+		elem := bsonx.Elem{"batchSize", bsonx.Int32(*aggOpts.BatchSize)}
+		cmd.Opts = append(cmd.Opts, elem)
+		cmd.CursorOpts = append(cmd.CursorOpts, elem)
+	}
+	if aggOpts.BypassDocumentValidation != nil && desc.WireVersion.Includes(4) {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"bypassDocumentValidation", bsonx.Boolean(*aggOpts.BypassDocumentValidation)})
+	}
+	if aggOpts.Collation != nil {
+		if desc.WireVersion.Max < 5 {
+			return nil, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(aggOpts.Collation.ToDocument())})
+	}
+	if aggOpts.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"maxTimeMS", bsonx.Int64(int64(*aggOpts.MaxTime / time.Millisecond))})
+	}
+	if aggOpts.MaxAwaitTime != nil {
+		// specified as maxTimeMS on getMore commands
+		cmd.CursorOpts = append(cmd.CursorOpts, bsonx.Elem{
+			"maxTimeMS", bsonx.Int64(int64(*aggOpts.MaxAwaitTime / time.Millisecond)),
+		})
+	}
+	if aggOpts.Comment != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"comment", bsonx.String(*aggOpts.Comment)})
+	}
+	if aggOpts.Hint != nil {
+		hintElem, err := interfaceToElement("hint", aggOpts.Hint, registry)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd.Opts = append(cmd.Opts, hintElem)
 	}
 
 	return cmd.RoundTrip(ctx, desc, ss, conn)

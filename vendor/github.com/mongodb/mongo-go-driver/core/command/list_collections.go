@@ -11,22 +11,23 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ListCollections represents the listCollections command.
 //
 // The listCollections command lists the collections in a database.
 type ListCollections struct {
-	Clock    *session.ClusterClock
-	DB       string
-	Filter   *bson.Document
-	Opts     []option.ListCollectionsOptioner
-	ReadPref *readpref.ReadPref
-	Session  *session.Client
+	Clock      *session.ClusterClock
+	DB         string
+	Filter     bsonx.Doc
+	CursorOpts []bsonx.Elem
+	Opts       []bsonx.Elem
+	ReadPref   *readpref.ReadPref
+	Session    *session.Client
 
 	result Cursor
 	err    error
@@ -42,21 +43,12 @@ func (lc *ListCollections) Encode(desc description.SelectedServer) (wiremessage.
 }
 
 func (lc *ListCollections) encode(desc description.SelectedServer) (*Read, error) {
-	cmd := bson.NewDocument(bson.EC.Int32("listCollections", 1))
+	cmd := bsonx.Doc{{"listCollections", bsonx.Int32(1)}}
 
 	if lc.Filter != nil {
-		cmd.Append(bson.EC.SubDocument("filter", lc.Filter))
+		cmd = append(cmd, bsonx.Elem{"filter", bsonx.Document(lc.Filter)})
 	}
-
-	for _, opt := range lc.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
-	}
+	cmd = append(cmd, lc.Opts...)
 
 	return &Read{
 		Clock:    lc.Clock,
@@ -78,21 +70,11 @@ func (lc *ListCollections) Decode(desc description.SelectedServer, cb CursorBuil
 	return lc.decode(desc, cb, rdr)
 }
 
-func (lc *ListCollections) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Reader) *ListCollections {
-
-	opts := make([]option.CursorOptioner, 0)
-	for _, opt := range lc.Opts {
-		curOpt, ok := opt.(option.CursorOptioner)
-		if !ok {
-			continue
-		}
-		opts = append(opts, curOpt)
-	}
-
+func (lc *ListCollections) decode(desc description.SelectedServer, cb CursorBuilder, rdr bson.Raw) *ListCollections {
 	labels, err := getErrorLabels(&rdr)
 	lc.err = err
 
-	res, err := cb.BuildCursor(rdr, lc.Session, lc.Clock, opts...)
+	res, err := cb.BuildCursor(rdr, lc.Session, lc.Clock, lc.CursorOpts...)
 	lc.result = res
 	if err != nil {
 		lc.err = Error{Message: err.Error(), Labels: labels}

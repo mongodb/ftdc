@@ -9,13 +9,16 @@ package dispatch
 import (
 	"context"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 )
 
 // Update handles the full cycle dispatch and execution of an update command against the provided
@@ -28,6 +31,7 @@ func Update(
 	clientID uuid.UUID,
 	pool *session.Pool,
 	retryWrite bool,
+	opts ...*options.UpdateOptions,
 ) (result.Update, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -42,6 +46,31 @@ func Update(
 			return result.Update{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	updateOpts := options.MergeUpdateOptions(opts...)
+
+	if updateOpts.ArrayFilters != nil {
+		if ss.Description().WireVersion.Max < 6 {
+			return result.Update{}, ErrArrayFilters
+		}
+		arr, err := updateOpts.ArrayFilters.ToArray()
+		if err != nil {
+			return result.Update{}, err
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"arrayFilters", bsonx.Array(arr)})
+	}
+	if updateOpts.BypassDocumentValidation != nil && ss.Description().WireVersion.Includes(4) {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"bypassDocumentValidation", bsonx.Boolean(*updateOpts.BypassDocumentValidation)})
+	}
+	if updateOpts.Collation != nil {
+		if ss.Description().WireVersion.Max < 5 {
+			return result.Update{}, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(updateOpts.Collation.ToDocument())})
+	}
+	if updateOpts.Upsert != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"upsert", bsonx.Boolean(*updateOpts.Upsert)})
 	}
 
 	// Execute in a single trip if retry writes not supported, or retry not enabled

@@ -9,13 +9,18 @@ package dispatch
 import (
 	"context"
 
+	"time"
+
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // FindOneAndUpdate handles the full cycle dispatch and execution of a FindOneAndUpdate command against the provided
@@ -28,6 +33,8 @@ func FindOneAndUpdate(
 	clientID uuid.UUID,
 	pool *session.Pool,
 	retryWrite bool,
+	registry *bsoncodec.Registry,
+	opts ...*options.FindOneAndUpdateOptions,
 ) (result.FindAndModify, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -42,6 +49,50 @@ func FindOneAndUpdate(
 			return result.FindAndModify{}, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	uo := options.MergeFindOneAndUpdateOptions(opts...)
+	if uo.ArrayFilters != nil {
+		arr, err := uo.ArrayFilters.ToArray()
+		if err != nil {
+			return result.FindAndModify{}, err
+		}
+
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"arrayFilters", bsonx.Array(arr)})
+	}
+	if uo.BypassDocumentValidation != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"bypassDocumentValidation", bsonx.Boolean(*uo.BypassDocumentValidation)})
+	}
+	if uo.Collation != nil {
+		if ss.Description().WireVersion.Max < 5 {
+			return result.FindAndModify{}, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(uo.Collation.ToDocument())})
+	}
+	if uo.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"maxTimeMS", bsonx.Int64(int64(*uo.MaxTime / time.Millisecond))})
+	}
+	if uo.Projection != nil {
+		projElem, err := interfaceToElement("fields", uo.Projection, registry)
+		if err != nil {
+			return result.FindAndModify{}, err
+		}
+
+		cmd.Opts = append(cmd.Opts, projElem)
+	}
+	if uo.ReturnDocument != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"new", bsonx.Boolean(*uo.ReturnDocument == options.After)})
+	}
+	if uo.Sort != nil {
+		sortElem, err := interfaceToElement("sort", uo.Sort, registry)
+		if err != nil {
+			return result.FindAndModify{}, err
+		}
+
+		cmd.Opts = append(cmd.Opts, sortElem)
+	}
+	if uo.Upsert != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"upsert", bsonx.Boolean(*uo.Upsert)})
 	}
 
 	// Execute in a single trip if retry writes not supported, or retry not enabled

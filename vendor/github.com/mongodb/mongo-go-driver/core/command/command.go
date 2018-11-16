@@ -12,13 +12,16 @@ import (
 	"context"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
+	"github.com/mongodb/mongo-go-driver/bson/primitive"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 )
 
 // WriteBatch represents a single batch for a write operation.
@@ -29,7 +32,7 @@ type WriteBatch struct {
 
 // DecodeError attempts to decode the wiremessage as an error
 func DecodeError(wm wiremessage.WireMessage) error {
-	var rdr bson.Reader
+	var rdr bson.Raw
 	switch msg := wm.(type) {
 	case wiremessage.Msg:
 		for _, section := range msg.Sections {
@@ -45,7 +48,7 @@ func DecodeError(wm wiremessage.WireMessage) error {
 		rdr = msg.Documents[0]
 	}
 
-	_, err := rdr.Validate()
+	err := rdr.Validate()
 	if err != nil {
 		return nil
 	}
@@ -62,20 +65,19 @@ func DecodeError(wm wiremessage.WireMessage) error {
 
 // helper method to extract an error from a reader if there is one; first returned item is the
 // error if it exists, the second holds parsing errors
-func extractError(rdr bson.Reader) error {
+func extractError(rdr bson.Raw) error {
 	var errmsg, codeName string
 	var code int32
 	var labels []string
-	itr, err := rdr.Iterator()
+	elems, err := rdr.Elements()
 	if err != nil {
 		return err
 	}
 
-	for itr.Next() {
-		elem := itr.Element()
+	for _, elem := range elems {
 		switch elem.Key() {
 		case "ok":
-			switch elem.Value().Type() {
+			switch elem.Value().Type {
 			case bson.TypeInt32:
 				if elem.Value().Int32() == 1 {
 					return nil
@@ -102,13 +104,13 @@ func extractError(rdr bson.Reader) error {
 				code = c
 			}
 		case "errorLabels":
-			if arr, okay := elem.Value().MutableArrayOK(); okay {
-				iter, err := arr.Iterator()
+			if arr, okay := elem.Value().ArrayOK(); okay {
+				elems, err := arr.Elements()
 				if err != nil {
 					continue
 				}
-				for iter.Next() {
-					if str, ok := iter.Value().StringValueOK(); ok {
+				for _, elem := range elems {
+					if str, ok := elem.Value().StringValueOK(); ok {
 						labels = append(labels, str)
 					}
 				}
@@ -129,17 +131,23 @@ func extractError(rdr bson.Reader) error {
 	}
 }
 
-func responseClusterTime(response bson.Reader) *bson.Document {
-	clusterTime, err := response.Lookup("$clusterTime")
+func responseClusterTime(response bson.Raw) bsonx.Doc {
+	clusterTime, err := response.LookupErr("$clusterTime")
 	if err != nil {
 		// $clusterTime not included by the server
 		return nil
 	}
 
-	return bson.NewDocument(clusterTime)
+	val := bsonx.Val{}
+	err = val.UnmarshalBSONValue(clusterTime.Type, clusterTime.Value)
+	if err != nil {
+		return nil
+	}
+
+	return bsonx.Doc{{"$clusterTime", val}}
 }
 
-func updateClusterTimes(sess *session.Client, clock *session.ClusterClock, response bson.Reader) error {
+func updateClusterTimes(sess *session.Client, clock *session.ClusterClock, response bson.Raw) error {
 	clusterTime := responseClusterTime(response)
 	if clusterTime == nil {
 		return nil
@@ -159,74 +167,74 @@ func updateClusterTimes(sess *session.Client, clock *session.ClusterClock, respo
 	return nil
 }
 
-func updateOperationTime(sess *session.Client, response bson.Reader) error {
+func updateOperationTime(sess *session.Client, response bson.Raw) error {
 	if sess == nil {
 		return nil
 	}
 
-	opTimeElem, err := response.Lookup("operationTime")
+	opTimeElem, err := response.LookupErr("operationTime")
 	if err != nil {
 		// operationTime not included by the server
 		return nil
 	}
 
-	t, i := opTimeElem.Value().Timestamp()
-	return sess.AdvanceOperationTime(&bson.Timestamp{
+	t, i := opTimeElem.Timestamp()
+	return sess.AdvanceOperationTime(&primitive.Timestamp{
 		T: t,
 		I: i,
 	})
 }
 
-func marshalCommand(cmd *bson.Document) (bson.Reader, error) {
+func marshalCommand(cmd bsonx.Doc) (bson.Raw, error) {
 	if cmd == nil {
-		return bson.Reader{5, 0, 0, 0, 0}, nil
+		return bson.Raw{5, 0, 0, 0, 0}, nil
 	}
 
 	return cmd.MarshalBSON()
 }
 
 // adds session related fields to a BSON doc representing a command
-func addSessionFields(cmd *bson.Document, desc description.SelectedServer, client *session.Client) error {
+func addSessionFields(cmd bsonx.Doc, desc description.SelectedServer, client *session.Client) (bsonx.Doc, error) {
 	if client == nil || !description.SessionsSupported(desc.WireVersion) || desc.SessionTimeoutMinutes == 0 {
-		return nil
+		return cmd, nil
 	}
 
 	if client.Terminated {
-		return session.ErrSessionEnded
+		return cmd, session.ErrSessionEnded
 	}
 
 	if _, err := cmd.LookupElementErr("lsid"); err != nil {
-		cmd.Delete("lsid")
+		cmd = cmd.Delete("lsid")
 	}
 
-	cmd.Append(bson.EC.SubDocument("lsid", client.SessionID))
+	cmd = append(cmd, bsonx.Elem{"lsid", bsonx.Document(client.SessionID)})
 
 	if client.TransactionRunning() ||
 		client.RetryingCommit {
-		addTransaction(cmd, client)
+		cmd = addTransaction(cmd, client)
 	}
 
 	client.ApplyCommand() // advance the state machine based on a command executing
 
-	return nil
+	return cmd, nil
 }
 
 // if in a transaction, add the transaction fields
-func addTransaction(cmd *bson.Document, client *session.Client) {
-	cmd.Append(bson.EC.Int64("txnNumber", client.TxnNumber))
+func addTransaction(cmd bsonx.Doc, client *session.Client) bsonx.Doc {
+	cmd = append(cmd, bsonx.Elem{"txnNumber", bsonx.Int64(client.TxnNumber)})
 	if client.TransactionStarting() {
 		// When starting transaction, always transition to the next state, even on error
-		cmd.Append(bson.EC.Boolean("startTransaction", true))
+		cmd = append(cmd, bsonx.Elem{"startTransaction", bsonx.Boolean(true)})
 	}
-	cmd.Append(bson.EC.Boolean("autocommit", false))
+	return append(cmd, bsonx.Elem{"autocommit", bsonx.Boolean(false)})
 }
 
-func addClusterTime(cmd *bson.Document, desc description.SelectedServer, sess *session.Client, clock *session.ClusterClock) error {
+func addClusterTime(cmd bsonx.Doc, desc description.SelectedServer, sess *session.Client, clock *session.ClusterClock) bsonx.Doc {
 	if (clock == nil && sess == nil) || !description.SessionsSupported(desc.WireVersion) {
-		return nil
+		return cmd
 	}
 
-	var clusterTime *bson.Document
+	var clusterTime bsonx.Doc
 	if clock != nil {
 		clusterTime = clock.GetClusterTime()
 	}
@@ -240,18 +248,16 @@ func addClusterTime(cmd *bson.Document, desc description.SelectedServer, sess *s
 	}
 
 	if clusterTime == nil {
-		return nil
+		return cmd
 	}
 
-	if _, err := cmd.LookupElementErr("$clusterTime"); err != nil {
-		cmd.Delete("$clusterTime")
-	}
+	cmd = cmd.Delete("$clusterTime")
 
-	return cmd.Concat(clusterTime)
+	return append(cmd, clusterTime...)
 }
 
 // add a read concern to a BSON doc representing a command
-func addReadConcern(cmd *bson.Document, desc description.SelectedServer, rc *readconcern.ReadConcern, sess *session.Client) error {
+func addReadConcern(cmd bsonx.Doc, desc description.SelectedServer, rc *readconcern.ReadConcern, sess *session.Client) (bsonx.Doc, error) {
 	// Starting transaction's read concern overrides all others
 	if sess != nil && sess.TransactionStarting() && sess.CurrentRc != nil {
 		rc = sess.CurrentRc
@@ -263,65 +269,58 @@ func addReadConcern(cmd *bson.Document, desc description.SelectedServer, rc *rea
 	}
 
 	if rc == nil {
-		return nil
+		return cmd, nil
 	}
 
 	element, err := rc.MarshalBSONElement()
 	if err != nil {
-		return err
+		return cmd, err
 	}
 
-	rcDoc := element.Value().MutableDocument()
+	rcDoc := element.Value.Document()
 	if description.SessionsSupported(desc.WireVersion) && sess != nil && sess.Consistent && sess.OperationTime != nil {
-		rcDoc = rcDoc.Append(
-			bson.EC.Timestamp("afterClusterTime", sess.OperationTime.T, sess.OperationTime.I),
-		)
+		rcDoc = append(rcDoc, bsonx.Elem{"afterClusterTime", bsonx.Timestamp(sess.OperationTime.T, sess.OperationTime.I)})
 	}
 
-	if _, err := cmd.LookupElementErr(element.Key()); err != nil {
-		cmd.Delete(element.Key())
-	}
+	cmd = cmd.Delete(element.Key)
 
-	if rcDoc.Len() != 0 {
-		cmd.Append(bson.EC.SubDocument("readConcern", rcDoc))
+	if len(rcDoc) != 0 {
+		cmd = append(cmd, bsonx.Elem{"readConcern", bsonx.Document(rcDoc)})
 	}
-	return nil
+	return cmd, nil
 }
 
 // add a write concern to a BSON doc representing a command
-func addWriteConcern(cmd *bson.Document, wc *writeconcern.WriteConcern) error {
+func addWriteConcern(cmd bsonx.Doc, wc *writeconcern.WriteConcern) (bsonx.Doc, error) {
 	if wc == nil {
-		return nil
+		return cmd, nil
 	}
 
 	element, err := wc.MarshalBSONElement()
 	if err != nil {
-		return err
+		return cmd, err
 	}
 
-	if _, err := cmd.LookupElementErr(element.Key()); err != nil {
-		// doc already has write concern
-		cmd.Delete(element.Key())
-	}
+	// delete if doc already has write concern
+	cmd = cmd.Delete(element.Key)
 
-	cmd.Append(element)
-	return nil
+	return append(cmd, element), nil
 }
 
 // Get the error labels from a command response
-func getErrorLabels(rdr *bson.Reader) ([]string, error) {
+func getErrorLabels(rdr *bson.Raw) ([]string, error) {
 	var labels []string
-	labelsElem, err := rdr.Lookup("errorLabels")
-	if err != bson.ErrElementNotFound {
+	labelsElem, err := rdr.LookupErr("errorLabels")
+	if err != bsoncore.ErrElementNotFound {
 		return nil, err
 	}
-	if labelsElem != nil {
-		labelsIt, err := labelsElem.Value().ReaderArray().Iterator()
+	if labelsElem.Type == bsontype.Array {
+		labelsIt, err := labelsElem.Array().Elements()
 		if err != nil {
 			return nil, err
 		}
-		for labelsIt.Next() {
-			labels = append(labels, labelsIt.Element().Value().StringValue())
+		for _, elem := range labelsIt {
+			labels = append(labels, elem.Value().StringValue())
 		}
 	}
 	return labels, nil
@@ -329,65 +328,56 @@ func getErrorLabels(rdr *bson.Reader) ([]string, error) {
 
 // Remove command arguments for insert, update, and delete commands from the BSON document so they can be encoded
 // as a Section 1 payload in OP_MSG
-func opmsgRemoveArray(cmdDoc *bson.Document) (*bson.Array, string) {
-	var array *bson.Array
+func opmsgRemoveArray(cmd bsonx.Doc) (bsonx.Doc, bsonx.Arr, string) {
+	var array bsonx.Arr
 	var id string
 
 	keys := []string{"documents", "updates", "deletes"}
 
 	for _, key := range keys {
-		val := cmdDoc.Lookup(key)
-		if val == nil {
+		val, err := cmd.LookupErr(key)
+		if err != nil {
 			continue
 		}
 
-		array = val.MutableArray()
-		cmdDoc.Delete(key)
+		array = val.Array()
+		cmd = cmd.Delete(key)
 		id = key
 		break
 	}
 
-	return array, id
+	return cmd, array, id
 }
 
 // Add the $db and $readPreference keys to the command
 // If the command has no read preference, pass nil for rpDoc
-func opmsgAddGlobals(cmd *bson.Document, dbName string, rpDoc *bson.Document) (bson.Reader, error) {
-	cmd.Append(bson.EC.String("$db", dbName))
+func opmsgAddGlobals(cmd bsonx.Doc, dbName string, rpDoc bsonx.Doc) (bson.Raw, error) {
+	cmd = append(cmd, bsonx.Elem{"$db", bsonx.String(dbName)})
 	if rpDoc != nil {
-		cmd.Append(bson.EC.SubDocument("$readPreference", rpDoc))
+		cmd = append(cmd, bsonx.Elem{"$readPreference", bsonx.Document(rpDoc)})
 	}
 
-	fullDocRdr, err := cmd.MarshalBSON()
-	if err != nil {
-		return nil, err
-	}
-
-	return fullDocRdr, nil
+	return cmd.MarshalBSON() // bsonx.Doc.MarshalBSON never returns an error.
 }
 
-func opmsgCreateDocSequence(arr *bson.Array, identifier string) (wiremessage.SectionDocumentSequence, error) {
+func opmsgCreateDocSequence(arr bsonx.Arr, identifier string) (wiremessage.SectionDocumentSequence, error) {
 	docSequence := wiremessage.SectionDocumentSequence{
 		PayloadType: wiremessage.DocumentSequence,
 		Identifier:  identifier,
-		Documents:   make([]bson.Reader, 0, arr.Len()),
+		Documents:   make([]bson.Raw, 0, len(arr)),
 	}
 
-	iter, err := arr.Iterator()
-	if err != nil {
-		return wiremessage.SectionDocumentSequence{}, err
-	}
-
-	for iter.Next() {
-		docSequence.Documents = append(docSequence.Documents, iter.Value().ReaderDocument())
+	for _, val := range arr {
+		d, _ := val.Document().MarshalBSON()
+		docSequence.Documents = append(docSequence.Documents, d)
 	}
 
 	docSequence.Size = int32(docSequence.PayloadLen())
 	return docSequence, nil
 }
 
-func splitBatches(docs []*bson.Document, maxCount, targetBatchSize int) ([][]*bson.Document, error) {
-	batches := [][]*bson.Document{}
+func splitBatches(docs []bsonx.Doc, maxCount, targetBatchSize int) ([][]bsonx.Doc, error) {
+	batches := [][]bsonx.Doc{}
 
 	if targetBatchSize > reservedCommandBufferBytes {
 		targetBatchSize -= reservedCommandBufferBytes
@@ -401,22 +391,19 @@ func splitBatches(docs []*bson.Document, maxCount, targetBatchSize int) ([][]*bs
 splitInserts:
 	for {
 		size := 0
-		batch := []*bson.Document{}
+		batch := []bsonx.Doc{}
 	assembleBatch:
 		for idx := startAt; idx < len(docs); idx++ {
-			itsize, err := docs[idx].Validate()
-			if err != nil {
-				return nil, err
-			}
+			raw, _ := docs[idx].MarshalBSON()
 
-			if int(itsize) > targetBatchSize {
+			if len(raw) > targetBatchSize {
 				return nil, ErrDocumentTooLarge
 			}
-			if size+int(itsize) > targetBatchSize {
+			if size+len(raw) > targetBatchSize {
 				break assembleBatch
 			}
 
-			size += int(itsize)
+			size += len(raw)
 			batch = append(batch, docs[idx])
 			startAt++
 			if len(batch) == maxCount {
@@ -433,11 +420,11 @@ splitInserts:
 }
 
 func encodeBatch(
-	docs []*bson.Document,
-	opts []option.Optioner,
+	docs []bsonx.Doc,
+	opts []bsonx.Elem,
 	cmdKind WriteCommandKind,
 	collName string,
-) (*bson.Document, error) {
+) (bsonx.Doc, error) {
 	var cmdName string
 	var docString string
 
@@ -453,26 +440,14 @@ func encodeBatch(
 		docString = "deletes"
 	}
 
-	cmd := bson.NewDocument(
-		bson.EC.String(cmdName, collName),
-	)
+	cmd := bsonx.Doc{{cmdName, bsonx.String(collName)}}
 
-	vals := make([]*bson.Value, 0, len(docs))
+	vals := make(bsonx.Arr, 0, len(docs))
 	for _, doc := range docs {
-		vals = append(vals, bson.VC.Document(doc))
+		vals = append(vals, bsonx.Document(doc))
 	}
-	cmd.Append(bson.EC.ArrayFromElements(docString, vals...))
-
-	for _, opt := range opts {
-		if opt == nil {
-			continue
-		}
-
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
-	}
+	cmd = append(cmd, bsonx.Elem{docString, bsonx.Array(vals)})
+	cmd = append(cmd, opts...)
 
 	return cmd, nil
 }

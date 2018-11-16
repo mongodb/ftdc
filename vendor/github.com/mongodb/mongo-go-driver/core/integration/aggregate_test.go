@@ -20,10 +20,10 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/integration/internal/israce"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/topology"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,17 +46,17 @@ func TestCommandAggregate(t *testing.T) {
 		noerr(t, err)
 		conn, err := server.Connection(context.Background())
 		noerr(t, err)
-		ds := []*bson.Document{
-			bson.NewDocument(bson.EC.Int32("_id", 1)),
-			bson.NewDocument(bson.EC.Int32("_id", 2)),
-			bson.NewDocument(bson.EC.Int32("_id", 3)),
-			bson.NewDocument(bson.EC.Int32("_id", 4)),
-			bson.NewDocument(bson.EC.Int32("_id", 5)),
+		ds := []bsonx.Doc{
+			{{"_id", bsonx.Int32(1)}},
+			{{"_id", bsonx.Int32(2)}},
+			{{"_id", bsonx.Int32(3)}},
+			{{"_id", bsonx.Int32(4)}},
+			{{"_id", bsonx.Int32(5)}},
 		}
 		wc := writeconcern.New(writeconcern.WMajority())
 		testutil.AutoInsertDocs(t, wc, ds...)
 
-		readers := make([]bson.Reader, 0, len(ds))
+		readers := make([]bson.Raw, 0, len(ds))
 		for _, doc := range ds {
 			r, err := doc.MarshalBSON()
 			noerr(t, err)
@@ -64,19 +64,19 @@ func TestCommandAggregate(t *testing.T) {
 		}
 		cursor, err := (&command.Aggregate{
 			NS: command.Namespace{DB: dbName, Collection: testutil.ColName(t)},
-			Pipeline: bson.NewArray(
-				bson.VC.Document(bson.NewDocument(
-					bson.EC.SubDocument("$match", bson.NewDocument(
-						bson.EC.SubDocument("_id", bson.NewDocument(bson.EC.Int32("$gt", 2))),
-					))),
+			Pipeline: bsonx.Arr{
+				bsonx.Document(bsonx.Doc{
+					{"$match", bsonx.Document(bsonx.Doc{
+						{"_id", bsonx.Document(bsonx.Doc{{"$gt", bsonx.Int32(2)}})},
+					})}},
 				),
-				bson.VC.Document(bson.NewDocument(bson.EC.SubDocument("$sort", bson.NewDocument(bson.EC.Int32("_id", -1))))),
-			),
-			Opts: []option.AggregateOptioner{option.OptBatchSize(2)},
+				bsonx.Document(bsonx.Doc{{"$sort", bsonx.Document(bsonx.Doc{{"_id", bsonx.Int32(-1)}})}}),
+			},
+			Opts: []bsonx.Elem{{"batchSize", bsonx.Int32(2)}},
 		}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 		noerr(t, err)
 
-		var next bson.Reader
+		var next bson.Raw
 
 		for i := 4; i > 1; i-- {
 			if !cursor.Next(context.Background()) {
@@ -85,7 +85,7 @@ func TestCommandAggregate(t *testing.T) {
 			err = cursor.Decode(&next)
 			noerr(t, err)
 			if !bytes.Equal(next[:len(readers[i])], readers[i]) {
-				t.Errorf("Did not get expected document. got %v; want %v", bson.Reader(next[:len(readers[i])]), readers[i])
+				t.Errorf("Did not get expected document. got %v; want %v", bson.Raw(next[:len(readers[i])]), readers[i])
 			}
 		}
 
@@ -98,14 +98,14 @@ func TestCommandAggregate(t *testing.T) {
 		noerr(t, err)
 		conn, err := server.Connection(context.Background())
 		noerr(t, err)
-		ds := []*bson.Document{
-			bson.NewDocument(bson.EC.Int32("_id", 1)),
-			bson.NewDocument(bson.EC.Int32("_id", 2)),
+		ds := []bsonx.Doc{
+			{{"_id", bsonx.Int32(1)}},
+			{{"_id", bsonx.Int32(2)}},
 		}
 		wc := writeconcern.New(writeconcern.WMajority())
 		testutil.AutoInsertDocs(t, wc, ds...)
 
-		readers := make([]bson.Reader, 0, len(ds))
+		readers := make([]bson.Raw, 0, len(ds))
 		for _, doc := range ds {
 			r, err := doc.MarshalBSON()
 			noerr(t, err)
@@ -113,14 +113,14 @@ func TestCommandAggregate(t *testing.T) {
 		}
 		_, err = (&command.Aggregate{
 			NS:       command.Namespace{DB: dbName, Collection: testutil.ColName(t)},
-			Pipeline: bson.NewArray(),
-			Opts:     []option.AggregateOptioner{option.OptAllowDiskUse(true)},
+			Pipeline: bsonx.Arr{},
+			Opts:     []bsonx.Elem{{"allowDiskUse", bsonx.Boolean(true)}},
 		}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 		if err != nil {
 			t.Errorf("Expected no error from allowing disk use, but got %v", err)
 		}
 	})
-	t.Run("MaxTimeMS", func(t *testing.T) {
+	t.Run("MaxTime", func(t *testing.T) {
 		t.Skip("max time is flaky on the server")
 
 		server, err := topology.ConnectServer(context.Background(), address.Address(*host))
@@ -130,17 +130,17 @@ func TestCommandAggregate(t *testing.T) {
 
 		_, err = (&command.Write{
 			DB: "admin",
-			Command: bson.NewDocument(
-				bson.EC.String("configureFailPoint", "maxTimeAlwaysTimeOut"),
-				bson.EC.String("mode", "alwaysOn"),
-			),
+			Command: bsonx.Doc{
+				{"configureFailPoint", bsonx.String("maxTimeAlwaysTimeOut")},
+				{"mode", bsonx.String("alwaysOn")},
+			},
 		}).RoundTrip(context.Background(), server.SelectedDescription(), conn)
 		noerr(t, err)
 
 		_, err = (&command.Aggregate{
 			NS:       command.Namespace{DB: dbName, Collection: testutil.ColName(t)},
-			Pipeline: bson.NewArray(),
-			Opts:     []option.AggregateOptioner{option.OptMaxTime(time.Millisecond)},
+			Pipeline: bsonx.Arr{},
+			Opts:     []bsonx.Elem{{"maxTimeMS", bsonx.Int64(1)}},
 		}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 		if !strings.Contains(err.Error(), "operation exceeded time limit") {
 			t.Errorf("Expected time limit exceeded error, but got %v", err)
@@ -148,10 +148,10 @@ func TestCommandAggregate(t *testing.T) {
 
 		_, err = (&command.Write{
 			DB: "admin",
-			Command: bson.NewDocument(
-				bson.EC.String("configureFailPoint", "maxTimeAlwaysTimeOut"),
-				bson.EC.String("mode", "off"),
-			),
+			Command: bsonx.Doc{
+				{"configureFailPoint", bsonx.String("maxTimeAlwaysTimeOut")},
+				{"mode", bsonx.String("off")},
+			},
 		}).RoundTrip(context.Background(), server.SelectedDescription(), conn)
 		noerr(t, err)
 	})
@@ -170,19 +170,19 @@ func TestAggregatePassesMaxAwaitTimeMSThroughToGetMore(t *testing.T) {
 	server, err := testutil.MonitoredTopology(t, dbName, monitor).SelectServer(context.Background(), description.WriteSelector())
 	noerr(t, err)
 
-	versionCmd := bson.NewDocument(bson.EC.Int32("serverStatus", 1))
+	versionCmd := bsonx.Doc{{"serverStatus", bsonx.Int32(1)}}
 	serverStatus, err := testutil.RunCommand(t, server.Server, dbName, versionCmd)
-	version, err := serverStatus.Lookup("version")
+	version, err := serverStatus.LookupErr("version")
 
-	if compareVersions(t, version.Value().StringValue(), "3.6") < 0 {
+	if compareVersions(t, version.StringValue(), "3.6") < 0 {
 		t.Skip()
 	}
 
 	// create capped collection
-	createCmd := bson.NewDocument(
-		bson.EC.String("create", colName),
-		bson.EC.Boolean("capped", true),
-		bson.EC.Int32("size", 1000))
+	createCmd := bsonx.Doc{
+		{"create", bsonx.String(colName)},
+		{"capped", bsonx.Boolean(true)},
+		{"size", bsonx.Int32(1000)}}
 	_, err = testutil.RunCommand(t, server.Server, dbName, createCmd)
 	noerr(t, err)
 
@@ -192,24 +192,28 @@ func TestAggregatePassesMaxAwaitTimeMSThroughToGetMore(t *testing.T) {
 	// create an aggregate command that results with a TAILABLEAWAIT cursor
 	cursor, err := (&command.Aggregate{
 		NS: command.Namespace{DB: dbName, Collection: testutil.ColName(t)},
-		Pipeline: bson.NewArray(
-			bson.VC.Document(bson.NewDocument(
-				bson.EC.SubDocument("$changeStream", bson.NewDocument()))),
-			bson.VC.Document(bson.NewDocument(
-				bson.EC.SubDocument("$match", bson.NewDocument(
-					bson.EC.SubDocument("fullDocument._id", bson.NewDocument(bson.EC.Int32("$gte", 1))),
-				))))),
-		Opts: []option.AggregateOptioner{option.OptBatchSize(2), option.OptMaxAwaitTime(time.Millisecond * 50)},
+		Pipeline: bsonx.Arr{
+			bsonx.Document(bsonx.Doc{
+				{"$changeStream", bsonx.Document(bsonx.Doc{})}}),
+			bsonx.Document(bsonx.Doc{
+				{"$match", bsonx.Document(bsonx.Doc{
+					{"fullDocument._id", bsonx.Document(bsonx.Doc{{"$gte", bsonx.Int32(1)}})},
+				})}})},
+		Opts: []bsonx.Elem{{"batchSize", bsonx.Int32(2)}},
+		CursorOpts: []bsonx.Elem{
+			{"batchSize", bsonx.Int32(2)},
+			{"maxTimeMS", bsonx.Int64(50)},
+		},
 	}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 	noerr(t, err)
 
 	// insert some documents
-	insertCmd := bson.NewDocument(
-		bson.EC.String("insert", colName),
-		bson.EC.ArrayFromElements("documents",
-			bson.VC.Document(bson.NewDocument(bson.EC.Int32("_id", 1))),
-			bson.VC.Document(bson.NewDocument(bson.EC.Int32("_id", 2))),
-			bson.VC.Document(bson.NewDocument(bson.EC.Int32("_id", 3)))))
+	insertCmd := bsonx.Doc{
+		{"insert", bsonx.String(colName)},
+		{"documents", bsonx.Array(bsonx.Arr{
+			bsonx.Document(bsonx.Doc{{"_id", bsonx.Int32(1)}}),
+			bsonx.Document(bsonx.Doc{{"_id", bsonx.Int32(2)}}),
+			bsonx.Document(bsonx.Doc{{"_id", bsonx.Int32(3)}})})}}
 	_, err = testutil.RunCommand(t, server.Server, dbName, insertCmd)
 
 	// wait a bit between insert and getMore commands
@@ -242,7 +246,7 @@ func TestAggregatePassesMaxAwaitTimeMSThroughToGetMore(t *testing.T) {
 		switch started.CommandName {
 		case "aggregate":
 			assert.Equal(t, 2, int(started.Command.Lookup("cursor", "batchSize").Int32()))
-			assert.Nil(t, started.Command.Lookup("maxAwaitTimeMS"),
+			assert.Equal(t, started.Command.Lookup("maxAwaitTimeMS"), bsonx.Val{},
 				"Should not have sent maxAwaitTimeMS in find command")
 		case "getMore":
 			assert.Equal(t, 2, int(started.Command.Lookup("batchSize").Int32()))
@@ -262,22 +266,20 @@ func TestAggregatePassesMaxAwaitTimeMSThroughToGetMore(t *testing.T) {
 		case "aggregate":
 			assert.Equal(t, 1, int(succeeded.Reply.Lookup("ok").Double()))
 
-			actual := succeeded.Reply.Lookup("cursor", "firstBatch").MutableArray()
+			actual := succeeded.Reply.Lookup("cursor", "firstBatch").Array()
 
-			for i := 0; i < actual.Len(); i++ {
-				v, _ := actual.Lookup(uint(i))
-				assert.Equal(t, id, int(v.MutableDocument().Lookup("fullDocument", "_id").Int32()))
+			for _, v := range actual {
+				assert.Equal(t, id, int(v.Document().Lookup("fullDocument", "_id").Int32()))
 				id++
 			}
 		case "getMore":
 			assert.Equal(t, "getMore", succeeded.CommandName)
 			assert.Equal(t, 1, int(succeeded.Reply.Lookup("ok").Double()))
 
-			actual := succeeded.Reply.Lookup("cursor", "nextBatch").MutableArray()
+			actual := succeeded.Reply.Lookup("cursor", "nextBatch").Array()
 
-			for i := 0; i < actual.Len(); i++ {
-				v, _ := actual.Lookup(uint(i))
-				assert.Equal(t, id, int(v.MutableDocument().Lookup("fullDocument", "_id").Int32()))
+			for _, v := range actual {
+				assert.Equal(t, id, int(v.Document().Lookup("fullDocument", "_id").Int32()))
 				id++
 			}
 		default:

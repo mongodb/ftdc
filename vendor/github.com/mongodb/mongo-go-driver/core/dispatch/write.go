@@ -15,7 +15,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 )
 
 // Write handles the full cycle dispatch and execution of a write command against the provided
@@ -27,7 +27,7 @@ func Write(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
-) (bson.Reader, error) {
+) (bson.Raw, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
 	if err != nil {

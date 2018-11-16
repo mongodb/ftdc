@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package gridfs
 
 import (
@@ -19,6 +25,8 @@ import (
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
 	"github.com/mongodb/mongo-go-driver/mongo"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 type testFile struct {
@@ -64,7 +72,7 @@ const gridFsTestDir = "../../data/gridfs"
 const downloadBufferSize = 100
 
 var ctx = context.Background()
-var emptyDoc = bson.NewDocument()
+var emptyDoc = bsonx.Doc{}
 var client *mongo.Client
 var db *mongo.Database
 var chunks, files, expectedChunks, expectedFiles *mongo.Collection
@@ -82,16 +90,16 @@ func loadInitialFiles(t *testing.T, data dataSection) int32 {
 	for _, v := range data.Files {
 		docBytes, err := v.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error converting raw message to bytes: %s", err)
-		doc := bson.NewDocument()
+		doc := bsonx.Doc{}
 		err = bson.UnmarshalExtJSON(docBytes, false, &doc)
 		//fmt.Println(doc.LookupElement("_id"))
 		testhelpers.RequireNil(t, err, "error creating file document: %s", err)
 
 		// convert n from int64 to int32
 		if cs, err := doc.LookupErr("chunkSize"); err == nil {
-			doc.Delete("chunkSize")
+			doc = doc.Delete("chunkSize")
 			chunkSize = cs.Int32()
-			doc.Append(bson.EC.Int32("chunkSize", chunkSize))
+			doc = append(doc, bsonx.Elem{"chunkSize", bsonx.Int32(chunkSize)})
 		}
 
 		filesDocs = append(filesDocs, doc)
@@ -100,21 +108,21 @@ func loadInitialFiles(t *testing.T, data dataSection) int32 {
 	for _, v := range data.Chunks {
 		docBytes, err := v.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error converting raw message to bytes: %s", err)
-		doc := bson.NewDocument()
+		doc := bsonx.Doc{}
 		err = bson.UnmarshalExtJSON(docBytes, false, &doc)
 		testhelpers.RequireNil(t, err, "error creating file document: %s", err)
 
 		// convert data $hex to binary value
 		if hexStr, err := doc.LookupErr("data", "$hex"); err == nil {
 			hexBytes := convertHexToBytes(t, hexStr.StringValue())
-			doc.Delete("data")
-			doc.Append(bson.EC.Binary("data", hexBytes))
+			doc = doc.Delete("data")
+			doc = append(doc, bsonx.Elem{"data", bsonx.Binary(0x00, hexBytes)})
 		}
 
 		// convert n from int64 to int32
 		if n, err := doc.LookupErr("n"); err == nil {
-			doc.Delete("n")
-			doc.Append(bson.EC.Int32("n", n.Int32()))
+			doc = doc.Delete("n")
+			doc = append(doc, bsonx.Elem{"n", bsonx.Int32(n.Int32())})
 		}
 
 		chunksDocs = append(chunksDocs, doc)
@@ -183,7 +191,7 @@ func runGridFSTestFile(t *testing.T, filepath string, db *mongo.Database) {
 		chunkSize = DefaultChunkSize
 	}
 
-	bucket, err := NewBucket(db, ChunkSizeBytes(chunkSize))
+	bucket, err := NewBucket(db, options.GridFSBucket().SetChunkSizeBytes(chunkSize))
 	testhelpers.RequireNil(t, err, "error creating bucket: %s", err)
 	err = bucket.SetWriteDeadline(deadline)
 	testhelpers.RequireNil(t, err, "error setting write deadline: %s", err)
@@ -215,7 +223,7 @@ func runGridFSTestFile(t *testing.T, filepath string, db *mongo.Database) {
 	}
 }
 
-func getInt64(val *bson.Value) int64 {
+func getInt64(val bsonx.Val) int64 {
 	switch val.Type() {
 	case bson.TypeInt32:
 		return int64(val.Int32())
@@ -228,7 +236,7 @@ func getInt64(val *bson.Value) int64 {
 	return 0
 }
 
-func compareValues(expected *bson.Value, actual *bson.Value) bool {
+func compareValues(expected bsonx.Val, actual bsonx.Val) bool {
 	if expected.IsNumber() {
 		if !actual.IsNumber() {
 			return false
@@ -251,7 +259,7 @@ func compareValues(expected *bson.Value, actual *bson.Value) bool {
 
 		return bytes.Equal(eID[:], aID[:])
 	case bson.TypeEmbeddedDocument:
-		return expected.MutableDocument().Equal(actual.MutableDocument())
+		return expected.Document().Equal(actual.Document())
 	default:
 		fmt.Printf("unknown type: %d\n", expected.Type())
 	}
@@ -259,11 +267,9 @@ func compareValues(expected *bson.Value, actual *bson.Value) bool {
 	return true // shouldn't get here
 }
 
-func compareGfsDoc(t *testing.T, expected *bson.Document, actual *bson.Document, filesID objectid.ObjectID) {
-	iter := expected.Iterator()
-	for iter.Next() {
-		elem := iter.Element()
-		key := elem.Key()
+func compareGfsDoc(t *testing.T, expected bsonx.Doc, actual bsonx.Doc, filesID objectid.ObjectID) {
+	for _, elem := range expected {
+		key := elem.Key
 
 		// continue for deprecated fields
 		if key == "md5" || key == "contentType" || key == "aliases" {
@@ -295,12 +301,12 @@ func compareGfsDoc(t *testing.T, expected *bson.Document, actual *bson.Document,
 			continue
 		}
 
-		if eDoc, ok := elem.Value().MutableDocumentOK(); ok {
-			compareGfsDoc(t, eDoc, actualVal.MutableDocument(), filesID)
+		if eDoc, ok := elem.Value.DocumentOK(); ok {
+			compareGfsDoc(t, eDoc, actualVal.Document(), filesID)
 			continue
 		}
 
-		if !compareValues(elem.Value(), actualVal) {
+		if !compareValues(elem.Value, actualVal) {
 			t.Fatalf("values for key %s not equal for test %s", key, t.Name())
 		}
 	}
@@ -318,8 +324,8 @@ func compareChunks(t *testing.T, filesID objectid.ObjectID) {
 			t.Fatalf("chunks has fewer documents than expectedChunks")
 		}
 
-		var actualChunk *bson.Document
-		var expectedChunk *bson.Document
+		var actualChunk bsonx.Doc
+		var expectedChunk bsonx.Doc
 
 		err = actualCursor.Decode(&actualChunk)
 		testhelpers.RequireNil(t, err, "error decoding actual chunk: %s", err)
@@ -342,8 +348,8 @@ func compareFiles(t *testing.T) {
 			t.Fatalf("files has fewer documents than expectedFiles")
 		}
 
-		var actualFile *bson.Document
-		var expectedFile *bson.Document
+		var actualFile bsonx.Doc
+		var expectedFile bsonx.Doc
 
 		err = actualCursor.Decode(&actualFile)
 		testhelpers.RequireNil(t, err, "error decoding actual file: %s", err)
@@ -360,11 +366,11 @@ func convertHexToBytes(t *testing.T, hexStr string) []byte {
 	return hexBytes
 }
 
-func msgToDoc(t *testing.T, msg json.RawMessage) *bson.Document {
+func msgToDoc(t *testing.T, msg json.RawMessage) bsonx.Doc {
 	rawBytes, err := msg.MarshalJSON()
 	testhelpers.RequireNil(t, err, "error marshalling message: %s", err)
 
-	doc := bson.NewDocument()
+	doc := bsonx.Doc{}
 	err = bson.UnmarshalExtJSON(rawBytes, true, &doc)
 	testhelpers.RequireNil(t, err, "error creating BSON doc: %s", err)
 
@@ -383,21 +389,21 @@ func runUploadAssert(t *testing.T, test test, fileID objectid.ObjectID) {
 			for i, docInterface := range assertData.Documents {
 				rdr, err := bson.Marshal(docInterface)
 				testhelpers.RequireNil(t, err, "error marshaling doc: %s", err)
-				doc, err := bson.ReadDocument(rdr)
+				doc, err := bsonx.ReadDoc(rdr)
 				testhelpers.RequireNil(t, err, "error reading doc: %s", err)
 
 				if id, err := doc.LookupErr("_id"); err == nil {
 					idStr := id.StringValue()
 					if idStr == "*result" || idStr == "*actual" {
 						// server will create _id
-						doc.Delete("_id")
+						doc = doc.Delete("_id")
 					}
 				}
 
 				if data, err := doc.LookupErr("data"); err == nil {
-					hexBytes := convertHexToBytes(t, data.MutableDocument().Lookup("$hex").StringValue())
-					doc.Delete("data")
-					doc.Append(bson.EC.Binary("data", hexBytes))
+					hexBytes := convertHexToBytes(t, data.Document().Lookup("$hex").StringValue())
+					doc = doc.Delete("data")
+					doc = append(doc, bsonx.Elem{"data", bsonx.Binary(0x00, hexBytes)})
 				}
 
 				docs[i] = doc
@@ -418,23 +424,19 @@ func runUploadAssert(t *testing.T, test test, fileID objectid.ObjectID) {
 	}
 }
 
-func parseUploadOptions(args *bson.Document) []UploadOptioner {
-	var opts []UploadOptioner
+func parseUploadOptions(args bsonx.Doc) *options.UploadOptions {
+	opts := options.GridFSUpload()
 
 	if optionsVal, err := args.LookupErr("options"); err == nil {
-		options := optionsVal.MutableDocument()
-		iter := options.Iterator()
+		for _, elem := range optionsVal.Document() {
+			val := elem.Value
 
-		for iter.Next() {
-			elem := iter.Element()
-			val := elem.Value()
-
-			switch elem.Key() {
+			switch elem.Key {
 			case "chunkSizeBytes":
 				size := val.Int32()
-				opts = append(opts, ChunkSizeBytes(size))
+				opts = opts.SetChunkSizeBytes(size)
 			case "metadata":
-				opts = append(opts, Metadata(val.MutableDocument()))
+				opts = opts.SetMetadata(val.Document())
 			}
 		}
 	}
@@ -447,7 +449,7 @@ func runUploadFromStreamTest(t *testing.T, test test, bucket *Bucket) {
 	opts := parseUploadOptions(args)
 	hexBytes := convertHexToBytes(t, args.Lookup("source", "$hex").StringValue())
 
-	fileID, err := bucket.UploadFromStream(args.Lookup("filename").StringValue(), bytes.NewBuffer(hexBytes), opts...)
+	fileID, err := bucket.UploadFromStream(args.Lookup("filename").StringValue(), bytes.NewBuffer(hexBytes), opts)
 	testhelpers.RequireNil(t, err, "error uploading from stream: %s", err)
 
 	runUploadAssert(t, test, fileID)
@@ -459,7 +461,7 @@ func runUploadTest(t *testing.T, test test, bucket *Bucket) {
 
 	opts := parseUploadOptions(args)
 	hexBytes := convertHexToBytes(t, args.Lookup("source", "$hex").StringValue())
-	stream, err := bucket.OpenUploadStream(args.Lookup("filename").StringValue(), opts...)
+	stream, err := bucket.OpenUploadStream(args.Lookup("filename").StringValue(), opts)
 	testhelpers.RequireNil(t, err, "error opening upload stream for %s: %s", t.Name(), err)
 
 	err = stream.SetWriteDeadline(deadline)
@@ -477,13 +479,10 @@ func runUploadTest(t *testing.T, test test, bucket *Bucket) {
 }
 
 // run a series of delete operations that are already BSON documents
-func runDeletes(t *testing.T, deletes *bson.Array, coll *mongo.Collection) {
-	iter, err := deletes.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for deletes: %s", err)
-
-	for iter.Next() {
-		doc := iter.Value().MutableDocument() // has q and limit
-		filter := doc.Lookup("q").MutableDocument()
+func runDeletes(t *testing.T, deletes bsonx.Arr, coll *mongo.Collection) {
+	for _, val := range deletes {
+		doc := val.Document() // has q and limit
+		filter := doc.Lookup("q").Document()
 
 		_, err := coll.DeleteOne(ctx, filter)
 		testhelpers.RequireNil(t, err, "error running deleteOne for %s: %s", t.Name(), err)
@@ -491,28 +490,23 @@ func runDeletes(t *testing.T, deletes *bson.Array, coll *mongo.Collection) {
 }
 
 // run a series of updates that are already BSON documents
-func runUpdates(t *testing.T, updates *bson.Array, coll *mongo.Collection) {
-	iter, err := updates.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for updates: %s", err)
-
-	for iter.Next() {
-		updateDoc := iter.Value().MutableDocument()
-		filter := updateDoc.Lookup("q").MutableDocument()
-		update := updateDoc.Lookup("u").MutableDocument()
+func runUpdates(t *testing.T, updates bsonx.Arr, coll *mongo.Collection) {
+	for _, val := range updates {
+		updateDoc := val.Document()
+		filter := updateDoc.Lookup("q").Document()
+		update := updateDoc.Lookup("u").Document()
 
 		// update has $set -> data -> $hex
 		if hexStr, err := update.LookupErr("$set", "data", "$hex"); err == nil {
 			hexBytes := convertHexToBytes(t, hexStr.StringValue())
-			update.Delete("$set")
-			err = update.Concat(bson.NewDocument(
-				bson.EC.SubDocument("$set", bson.NewDocument(
-					bson.EC.Binary("data", hexBytes),
-				)),
-			))
+			update = update.Delete("$set")
+			update = append(update, bsonx.Elem{"$set", bsonx.Document(bsonx.Doc{
+				{"data", bsonx.Binary(0x00, hexBytes)},
+			})})
 			testhelpers.RequireNil(t, err, "error concatenating data bytes to update: %s", err)
 		}
 
-		_, err = coll.UpdateOne(ctx, filter, update)
+		_, err := coll.UpdateOne(ctx, filter, update)
 		testhelpers.RequireNil(t, err, "error running updateOne for test %s: %s", t.Name(), err)
 	}
 }
@@ -520,7 +514,7 @@ func runUpdates(t *testing.T, updates *bson.Array, coll *mongo.Collection) {
 func compareDownloadAssertResult(t *testing.T, assert assertSection, copied int64) {
 	assertResult, err := assert.Result.MarshalJSON() // json.RawMessage
 	testhelpers.RequireNil(t, err, "error marshalling assert result: %s", err)
-	assertDoc := bson.NewDocument()
+	assertDoc := bsonx.Doc{}
 	err = bson.UnmarshalExtJSON(assertResult, true, &assertDoc)
 	testhelpers.RequireNil(t, err, "error constructing result doc: %s", err)
 
@@ -608,15 +602,15 @@ func runArrangeSection(t *testing.T, test test, coll *mongo.Collection) {
 		msgBytes, err := msg.MarshalJSON()
 		testhelpers.RequireNil(t, err, "error marshalling arrange data for test %s: %s", t.Name(), err)
 
-		msgDoc := bson.NewDocument()
+		msgDoc := bsonx.Doc{}
 		err = bson.UnmarshalExtJSON(msgBytes, true, &msgDoc)
 		testhelpers.RequireNil(t, err, "error creating arrange data doc for test %s: %s", t.Name(), err)
 
 		if _, err = msgDoc.LookupErr("delete"); err == nil {
 			// all arrange sections in the current spec tests operate on the fs.chunks collection
-			runDeletes(t, msgDoc.Lookup("deletes").MutableArray(), coll)
+			runDeletes(t, msgDoc.Lookup("deletes").Array(), coll)
 		} else if _, err = msgDoc.LookupErr("update"); err == nil {
-			runUpdates(t, msgDoc.Lookup("updates").MutableArray(), coll)
+			runUpdates(t, msgDoc.Lookup("updates").Array(), coll)
 		}
 	}
 }
@@ -639,14 +633,14 @@ func runDownloadToStreamTest(t *testing.T, test test, bucket *Bucket) {
 	compareDownloadToStreamAssert(t, test.Assert, n, err)
 }
 
-func parseDownloadByNameOpts(t *testing.T, args *bson.Document) []NameOptioner {
-	opts := []NameOptioner{}
+func parseDownloadByNameOpts(t *testing.T, args bsonx.Doc) *options.NameOptions {
+	opts := options.GridFSName()
 
 	if optsVal, err := args.LookupErr("options"); err == nil {
-		optsDoc := optsVal.MutableDocument()
+		optsDoc := optsVal.Document()
 
 		if revVal, err := optsDoc.LookupErr("revision"); err == nil {
-			opts = append(opts, Revision(revVal.Int32()))
+			opts = opts.SetRevision(revVal.Int32())
 		}
 	}
 
@@ -657,7 +651,7 @@ func runDownloadByNameTest(t *testing.T, test test, bucket *Bucket) {
 	// act section
 	args := msgToDoc(t, test.Act.Arguments)
 	opts := parseDownloadByNameOpts(t, args)
-	stream, streamErr := bucket.OpenDownloadStreamByName(args.Lookup("filename").StringValue(), opts...)
+	stream, streamErr := bucket.OpenDownloadStreamByName(args.Lookup("filename").StringValue(), opts)
 	compareDownloadAssert(t, test.Assert, stream, streamErr)
 }
 
@@ -665,7 +659,7 @@ func runDownloadByNameToStreamTest(t *testing.T, test test, bucket *Bucket) {
 	args := msgToDoc(t, test.Act.Arguments)
 	opts := parseDownloadByNameOpts(t, args)
 	downloadStream := bytes.NewBuffer(downloadBuffer)
-	n, err := bucket.DownloadToStreamByName(args.Lookup("filename").StringValue(), downloadStream, opts...)
+	n, err := bucket.DownloadToStreamByName(args.Lookup("filename").StringValue(), downloadStream, opts)
 
 	compareDownloadToStreamAssert(t, test.Assert, n, err)
 }
@@ -689,12 +683,10 @@ func runDeleteTest(t *testing.T, test test, bucket *Bucket) {
 
 	if len(test.Assert.Data) != 0 {
 		for _, data := range test.Assert.Data {
-			deletes := bson.NewArray()
+			deletes := bsonx.Arr{}
 
 			for _, deleteMsg := range data.Deletes {
-				deletes.Append(bson.VC.Document(
-					msgToDoc(t, deleteMsg),
-				))
+				deletes = append(deletes, bsonx.Document(msgToDoc(t, deleteMsg)))
 			}
 
 			runDeletes(t, deletes, expectedFiles)

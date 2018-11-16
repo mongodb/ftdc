@@ -10,12 +10,12 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/address"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/version"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Handshake represents a generic MongoDB Handshake. It calls isMaster and
@@ -23,7 +23,7 @@ import (
 //
 // The isMaster and buildInfo commands are used to build a server description.
 type Handshake struct {
-	Client             *bson.Document
+	Client             bsonx.Doc
 	Compressors        []string
 	SaslSupportedMechs string
 
@@ -92,25 +92,25 @@ func (h *Handshake) Handshake(ctx context.Context, addr address.Address, rw wire
 
 // ClientDoc creates a client information document for use in an isMaster
 // command.
-func ClientDoc(app string) *bson.Document {
-	doc := bson.NewDocument(
-		bson.EC.SubDocumentFromElements(
-			"driver",
-			bson.EC.String("name", "mongo-go-driver"),
-			bson.EC.String("version", version.Driver),
-		),
-		bson.EC.SubDocumentFromElements(
-			"os",
-			bson.EC.String("type", runtime.GOOS),
-			bson.EC.String("architecture", runtime.GOARCH),
-		),
-		bson.EC.String("platform", runtime.Version()))
+func ClientDoc(app string) bsonx.Doc {
+	doc := bsonx.Doc{
+		{"driver",
+			bsonx.Document(bsonx.Doc{
+				{"name", bsonx.String("mongo-go-driver")},
+				{"version", bsonx.String(version.Driver)},
+			}),
+		},
+		{"os",
+			bsonx.Document(bsonx.Doc{
+				{"type", bsonx.String(runtime.GOOS)},
+				{"architecture", bsonx.String(runtime.GOARCH)},
+			}),
+		},
+		{"platform", bsonx.String(runtime.Version())},
+	}
 
 	if app != "" {
-		doc.Append(bson.EC.SubDocumentFromElements(
-			"application",
-			bson.EC.String("name", app),
-		))
+		doc = append(doc, bsonx.Elem{"application", bsonx.Document(bsonx.Doc{{"name", bsonx.String(app)}})})
 	}
 
 	return doc

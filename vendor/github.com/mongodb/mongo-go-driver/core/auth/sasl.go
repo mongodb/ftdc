@@ -13,6 +13,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // SaslClient is the client piece of a sasl conversation.
@@ -50,11 +51,11 @@ func ConductSaslConversation(ctx context.Context, desc description.Server, rw wi
 
 	saslStartCmd := command.Read{
 		DB: db,
-		Command: bson.NewDocument(
-			bson.EC.Int32("saslStart", 1),
-			bson.EC.String("mechanism", mech),
-			bson.EC.Binary("payload", payload),
-		),
+		Command: bsonx.Doc{
+			{"saslStart", bsonx.Int32(1)},
+			{"mechanism", bsonx.String(mech)},
+			{"payload", bsonx.Binary(0x00, payload)},
+		},
 	}
 
 	type saslResponse struct {
@@ -99,11 +100,11 @@ func ConductSaslConversation(ctx context.Context, desc description.Server, rw wi
 
 		saslContinueCmd := command.Read{
 			DB: db,
-			Command: bson.NewDocument(
-				bson.EC.Int32("saslContinue", 1),
-				bson.EC.Int32("conversationId", int32(cid)),
-				bson.EC.Binary("payload", payload),
-			),
+			Command: bsonx.Doc{
+				{"saslContinue", bsonx.Int32(1)},
+				{"conversationId", bsonx.Int32(int32(cid))},
+				{"payload", bsonx.Binary(0x00, payload)},
+			},
 		}
 
 		rdr, err = saslContinueCmd.RoundTrip(ctx, ssdesc, rw)

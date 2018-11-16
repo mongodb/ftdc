@@ -13,8 +13,9 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 func TestCommandListCollections(t *testing.T) {
@@ -39,11 +40,11 @@ func TestCommandListCollections(t *testing.T) {
 			}
 		case command.QueryFailureError:
 			rdr := errt.Response
-			v, err := rdr.Lookup("code")
+			v, err := rdr.LookupErr("code")
 			noerr(t, err)
-			code, ok := v.Value().Int32OK()
+			code, ok := v.Int32OK()
 			if !ok {
-				t.Errorf("Incorrect value for code. It is a BSON %v", v.Value().Type())
+				t.Errorf("Incorrect value for code. It is a BSON %v", v.Type)
 			}
 			if code != 73 {
 				t.Errorf("Incorrect error code returned from server. got %d; want %d", code, 73)
@@ -65,17 +66,18 @@ func TestCommandListCollections(t *testing.T) {
 		testutil.DropCollection(t, testutil.DBName(t), collOne)
 		testutil.DropCollection(t, testutil.DBName(t), collTwo)
 		testutil.DropCollection(t, testutil.DBName(t), collThree)
-		testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bson.NewDocument(bson.EC.Int32("_id", 1)))
-		testutil.InsertDocs(t, testutil.DBName(t), collTwo, wc, bson.NewDocument(bson.EC.Int32("_id", 2)))
-		testutil.InsertDocs(t, testutil.DBName(t), collThree, wc, bson.NewDocument(bson.EC.Int32("_id", 3)))
+		testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bsonx.Doc{{"_id", bsonx.Int32(1)}})
+		testutil.InsertDocs(t, testutil.DBName(t), collTwo, wc, bsonx.Doc{{"_id", bsonx.Int32(2)}})
+		testutil.InsertDocs(t, testutil.DBName(t), collThree, wc, bsonx.Doc{{"_id", bsonx.Int32(3)}})
 
 		cursor, err := (&command.ListCollections{DB: dbName}).RoundTrip(context.Background(), server.SelectedDescription(), server, conn)
 		noerr(t, err)
 
 		names := map[string]bool{}
-		var next *bson.Document
+		next := bsonx.Doc{}
 
 		for cursor.Next(context.Background()) {
+			next = next[:0]
 			err = cursor.Decode(&next)
 			noerr(t, err)
 

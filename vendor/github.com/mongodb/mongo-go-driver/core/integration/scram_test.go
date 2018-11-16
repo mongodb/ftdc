@@ -13,12 +13,12 @@ import (
 	"context"
 	"os"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/connstring"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/topology"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 type scramTestCase struct {
@@ -59,7 +59,7 @@ func TestSCRAM(t *testing.T) {
 	wc := writeconcern.New(writeconcern.WMajority())
 	collOne := testutil.ColName(t)
 	testutil.DropCollection(t, testutil.DBName(t), collOne)
-	testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bson.NewDocument(bson.EC.String("name", "scram_test")))
+	testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bsonx.Doc{{"name", bsonx.String("scram_test")}})
 
 	// Test step 1: Create users for test cases
 	err = createScramUsers(t, server.Server, testUsers)
@@ -140,7 +140,7 @@ func runScramAuthTest(t *testing.T, cs connstring.ConnString) error {
 	ss, err := topology.SelectServer(context.Background(), description.WriteSelector())
 	noerr(t, err)
 
-	cmd := bson.NewDocument(bson.EC.Int32("dbstats", 1))
+	cmd := bsonx.Doc{{"dbstats", bsonx.Int32(1)}}
 	_, err = testutil.RunCommand(t, ss.Server, testutil.DBName(t), cmd)
 	return err
 }
@@ -148,25 +148,23 @@ func runScramAuthTest(t *testing.T, cs connstring.ConnString) error {
 func createScramUsers(t *testing.T, s *topology.Server, cases []scramTestCase) error {
 	db := testutil.DBName(t)
 	for _, c := range cases {
-		mechsAsBSON := bson.NewArray()
+		mechsAsBSON := bsonx.Arr{}
 		for _, v := range c.mechanisms {
-			mechsAsBSON.Append(bson.VC.String(v))
+			mechsAsBSON = append(mechsAsBSON, bsonx.String(v))
 		}
-		newUserCmd := bson.NewDocument(
-			bson.EC.String("createUser", c.username),
-			bson.EC.String("pwd", c.password),
-			bson.EC.Array("roles",
-				bson.NewArray(
-					bson.VC.Document(
-						bson.NewDocument(
-							bson.EC.String("role", "readWrite"),
-							bson.EC.String("db", db),
-						),
-					),
+		newUserCmd := bsonx.Doc{
+			{"createUser", bsonx.String(c.username)},
+			{"pwd", bsonx.String(c.password)},
+			{"roles", bsonx.Array(bsonx.Arr{
+				bsonx.Document(
+					bsonx.Doc{
+						{"role", bsonx.String("readWrite")},
+						{"db", bsonx.String(db)},
+					},
 				),
-			),
-			bson.EC.Array("mechanisms", mechsAsBSON),
-		)
+			})},
+			{"mechanisms", bsonx.Array(mechsAsBSON)},
+		}
 		_, err := testutil.RunCommand(t, s, db, newUserCmd)
 		if err != nil {
 			return fmt.Errorf("Couldn't create user '%s' on db '%s': %v", c.username, testutil.DBName(t), err)

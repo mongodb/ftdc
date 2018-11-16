@@ -8,12 +8,17 @@ package dispatch
 
 import (
 	"context"
+	"time"
+
+	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/options"
 )
 
 // CountDocuments handles the full cycle dispatch and execution of a countDocuments command against the provided
@@ -25,6 +30,8 @@ func CountDocuments(
 	selector description.ServerSelector,
 	clientID uuid.UUID,
 	pool *session.Pool,
+	registry *bsoncodec.Registry,
+	opts ...*options.CountOptions,
 ) (int64, error) {
 
 	ss, err := topo.SelectServer(ctx, selector)
@@ -52,6 +59,29 @@ func CountDocuments(
 			return 0, err
 		}
 		defer cmd.Session.EndSession()
+	}
+
+	countOpts := options.MergeCountOptions(opts...)
+
+	// ignore Skip and Limit because we already have these options in the pipeline
+	if countOpts.MaxTime != nil {
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{
+			"maxTimeMS", bsonx.Int64(int64(time.Duration(*countOpts.MaxTime) / time.Millisecond)),
+		})
+	}
+	if countOpts.Collation != nil {
+		if desc.WireVersion.Max < 5 {
+			return 0, ErrCollation
+		}
+		cmd.Opts = append(cmd.Opts, bsonx.Elem{"collation", bsonx.Document(countOpts.Collation.ToDocument())})
+	}
+	if countOpts.Hint != nil {
+		hintElem, err := interfaceToElement("hint", countOpts.Hint, registry)
+		if err != nil {
+			return 0, err
+		}
+
+		cmd.Opts = append(cmd.Opts, hintElem)
 	}
 
 	return cmd.RoundTrip(ctx, desc, ss, conn)

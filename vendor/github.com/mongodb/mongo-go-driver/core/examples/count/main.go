@@ -21,6 +21,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/topology"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 var uri = flag.String("uri", "mongodb://localhost:27017", "the mongodb uri to use")
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	id, _ := uuid.New()
-	cmd := command.Read{DB: dbname, Command: bson.NewDocument(bson.EC.String("count", *col))}
+	cmd := command.Read{DB: dbname, Command: bsonx.Doc{{"count", bsonx.String(*col)}}}
 	rdr, err := dispatch.Read(
 		ctx, cmd, t,
 		description.WriteSelector(),
@@ -68,13 +69,13 @@ func main() {
 		log.Fatalf("failed executing count command on %s.%s: %v", dbname, *col, err)
 	}
 
-	doc := bson.NewDocument()
+	doc := bsonx.Doc{}
 	err = doc.UnmarshalBSON(rdr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	result, err := doc.ToExtJSONErr(true)
+	result, err := bson.MarshalExtJSON(doc, true, false)
 	if err != nil {
 		log.Fatalf("failed to convert BSON to extended JSON: %s", err)
 	}
