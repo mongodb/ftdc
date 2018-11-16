@@ -57,7 +57,7 @@ func metricForArray(key string, path []string, a *bsonx.Array) []Metric {
 		return []Metric{}
 	}
 
-	iter, _ := a.Iterator() // ignore the error which can never be non-nil
+	iter := a.Iterator() // ignore the error which can never be non-nil
 	o := []Metric{}
 	idx := 0
 	for iter.Next() {
@@ -202,7 +202,7 @@ func rehydrateElement(ref *bsonx.Element, sample int, metrics []Metric, idx int)
 	case bsonx.TypeDecimal128:
 		return nil, idx
 	case bsonx.TypeArray:
-		iter, _ := ref.Value().MutableArray().Iterator()
+		iter := ref.Value().MutableArray().Iterator()
 		elems := []*bsonx.Element{}
 
 		for iter.Next() {
@@ -281,17 +281,14 @@ func extractMetricsFromDocument(doc *bsonx.Document) ([]int64, error) {
 }
 
 func extractMetricsFromArray(array *bsonx.Array) ([]int64, error) {
-	iter, err := bsonx.NewArrayIterator(array)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	var (
+		err     error
 		data    []int64
 		metrics []int64
 	)
 
 	catcher := grip.NewBasicCatcher()
+	iter := array.Iterator()
 
 	for iter.Next() {
 		data, err = extractMetricsFromValue(iter.Value())
@@ -366,10 +363,10 @@ func isMetricsDocument(key string, doc *bsonx.Document) ([]string, int) {
 }
 
 func isMetricsArray(key string, array *bsonx.Array) ([]string, int) {
-	iter, _ := bsonx.NewArrayIterator(array) // ignore the error which can never be non-nil
 	idx := 0
 	numKeys := 0
 	keys := []string{}
+	iter := array.Iterator()
 	for iter.Next() {
 		ks, num := isMetricsValue(key+strconv.Itoa(idx), iter.Value())
 

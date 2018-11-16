@@ -14,14 +14,6 @@ type ArrayIterator struct {
 	err   error
 }
 
-// NewArrayIterator constructs a new ArrayIterator over a given Array
-func NewArrayIterator(array *Array) (*ArrayIterator, error) {
-	iter := &ArrayIterator{}
-	iter.array = array
-
-	return iter, nil
-}
-
 func newArrayIterator(a *Array) *ArrayIterator {
 	return &ArrayIterator{array: a}
 }

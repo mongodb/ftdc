@@ -337,8 +337,8 @@ func (a *Array) MarshalBSON() ([]byte, error) {
 
 // Iterator returns a ArrayIterator that can be used to iterate through the
 // elements of this Array.
-func (a *Array) Iterator() (*ArrayIterator, error) {
-	return NewArrayIterator(a)
+func (a *Array) Iterator() *ArrayIterator {
+	return newArrayIterator(a)
 }
 
 // Equal compares this document to another, returning true if they are equal.
