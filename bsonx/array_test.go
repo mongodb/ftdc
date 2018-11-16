@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
 )
 
 func TestArray(t *testing.T) {
@@ -43,9 +43,11 @@ func TestArray(t *testing.T) {
 				got := NewArray()
 				got.doc.IgnoreNilInsert = true
 				got.Append(nil)
-				if diff := cmp.Diff(got, want, cmp.AllowUnexported(Document{}, Array{})); diff != "" {
-					t.Errorf("Documents differ: (-got +want)\n%s", diff)
-				}
+
+				require.Equal(t, want, got)
+				// if diff := cmp.Diff(got, want, cmp.AllowUnexported(Document{}, Array{})); diff != "" {
+				// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+				// }
 			}()
 		})
 		testCases := []struct {
@@ -113,9 +115,11 @@ func TestArray(t *testing.T) {
 						if r != nil {
 							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, nil)
 						}
-						if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{}, Array{})); diff != "" {
-							t.Errorf("Documents differ: (-got +want)\n%s", diff)
-						}
+
+						require.Equal(t, tc.want, got)
+						// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{}, Array{})); diff != "" {
+						// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+						// }
 					}()
 					got = NewArray()
 					got.doc.IgnoreNilInsert = true

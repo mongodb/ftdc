@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"math"
 	"testing"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 func TestValue(t *testing.T) {
@@ -203,7 +201,7 @@ func TestValue(t *testing.T) {
 				if equal != tc.equal {
 					t.Errorf("test case #%d: Expected equality not satisfied. got=%t; want=%t", idx, equal, tc.equal)
 					t.Errorf("\nv1: %#v\nv2: %#v", tc.v1, tc.v2)
-					spew.Dump(tc.v1, tc.v2)
+					// spew.Dump(tc.v1, tc.v2)
 				}
 			})
 		}

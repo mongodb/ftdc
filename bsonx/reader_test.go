@@ -41,7 +41,7 @@ func TestReader(t *testing.T) {
 		t.Run("TooShort", func(t *testing.T) {
 			want := NewErrTooSmall()
 			_, got := Reader{'\x00', '\x00'}.Validate()
-			if !want.Equals(got) {
+			if !IsTooSmall(got) {
 				t.Errorf("Did not get expected error. got %v; want %v", got, want)
 			}
 		})
@@ -80,7 +80,7 @@ func TestReader(t *testing.T) {
 			binary.LittleEndian.PutUint32(r[0:4], 11)
 			r[4], r[5], r[6], r[7], r[8], r[9], r[10] = '\x01', 'f', 'o', 'o', '\x00', '\x01', '\x02'
 			_, got := r.Validate()
-			if !want.Equals(got) {
+			if !IsTooSmall(got) {
 				t.Errorf("Did not get expected error. got %v; want %v", got, want)
 			}
 		})
@@ -226,7 +226,7 @@ func TestReader(t *testing.T) {
 				'\x00',
 			}
 			_, err := rdr.Lookup("x", "y")
-			if !NewErrTooSmall().Equals(err) {
+			if !IsTooSmall(err) {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, NewErrTooSmall())
 			}
 		})
@@ -240,7 +240,7 @@ func TestReader(t *testing.T) {
 				'\x00',
 			}
 			_, err := rdr.Lookup("x", "y")
-			if !NewErrTooSmall().Equals(err) {
+			if !IsTooSmall(err) {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, NewErrTooSmall())
 			}
 		})
@@ -339,6 +339,7 @@ func TestReader(t *testing.T) {
 				if err != nil {
 					t.Errorf("Unexpected error from ElementAt: %s", err)
 				}
+
 				if diff := cmp.Diff(got, tc.want, cmp.Comparer(readerElementComparer)); diff != "" {
 					t.Errorf("Documents differ: (-got +want)\n%s", diff)
 				}

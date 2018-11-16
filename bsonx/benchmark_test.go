@@ -1,9 +1,5 @@
 package bsonx
 
-import (
-	"testing"
-)
-
 type encodetest struct {
 	Field1String  string
 	Field1Int64   int64
@@ -113,16 +109,4 @@ var nestedInstance = nestedtest1{
 			},
 		},
 	},
-}
-
-func BenchmarkEncoding(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, _ = Marshal(encodetestInstance)
-	}
-}
-
-func BenchmarkEncodingNested(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		_, _ = Marshal(nestedInstance)
-	}
 }

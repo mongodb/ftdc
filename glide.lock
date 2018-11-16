@@ -7,6 +7,8 @@ imports:
   version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 - name: github.com/stretchr/testify
   version: 890a5c3458b43e6104ff5da8dfa139d013d77544
+- name: github.com/google/go-cmp
+  version: 2248b49eaa8e1c8c0963ee77b40841adbc19d4ca
 
 - name: github.com/mongodb/mongo-go-driver
   version: 44d349d1886bcc181046312daee15bb2533a2d10

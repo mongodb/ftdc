@@ -23,7 +23,7 @@ func TestDocument(t *testing.T) {
 		t.Run("TooShort", func(t *testing.T) {
 			want := NewErrTooSmall()
 			_, got := ReadDocument([]byte{'\x00', '\x00'})
-			if !want.Equals(got) {
+			if !IsTooSmall(got) {
 				t.Errorf("Did not get expected error. got %#v; want %#v", got, want)
 			}
 		})
@@ -62,7 +62,7 @@ func TestDocument(t *testing.T) {
 			binary.LittleEndian.PutUint32(b[0:4], 11)
 			b[4], b[5], b[6], b[7], b[8], b[9], b[10] = '\x01', 'f', 'o', 'o', '\x00', '\x01', '\x02'
 			_, got := ReadDocument(b)
-			if !want.Equals(got) {
+			if !IsTooSmall(got) {
 				t.Errorf("Did not get expected error. got %#v; want %#v", got, want)
 			}
 		})
@@ -81,9 +81,10 @@ func TestDocument(t *testing.T) {
 				if err != tc.err {
 					t.Errorf("Did not get expected error. got %#v; want %#v", err, tc.err)
 				}
-				if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
-					t.Errorf("Documents differ: (-got +want)\n%s", diff)
-				}
+				require.Equal(t, tc.want, got)
+				// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
+				// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+				// }
 			})
 		}
 	})
@@ -115,9 +116,10 @@ func TestDocument(t *testing.T) {
 				got := NewDocument()
 				got.IgnoreNilInsert = true
 				got.Append(nil)
-				if diff := cmp.Diff(got, want, cmp.AllowUnexported(Document{})); diff != "" {
-					t.Errorf("Documents differ: (-got +want)\n%s", diff)
-				}
+				require.Equal(t, want, got)
+				// if diff := cmp.Diff(got, want, cmp.AllowUnexported(Document{})); diff != "" {
+				// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+				// }
 			}()
 		})
 		testCases := []struct {
@@ -163,9 +165,11 @@ func TestDocument(t *testing.T) {
 						if r != ErrNilElement {
 							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, ErrNilElement)
 						}
-						if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
-							t.Errorf("Documents differ: (-got +want)\n%s", diff)
-						}
+						require.Equal(t, tc.want, got)
+
+						// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
+						// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+						// }
 					}()
 					got = NewDocument()
 					got.Prepend(tc.elems...)
@@ -193,9 +197,11 @@ func TestDocument(t *testing.T) {
 						if r != nil {
 							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, nil)
 						}
-						if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
-							t.Errorf("Documents differ: (-got +want)\n%s", diff)
-						}
+						require.Equal(t, tc.want, got)
+
+						// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
+						// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+						// }
 					}()
 					got = NewDocument()
 					got.IgnoreNilInsert = true
@@ -298,9 +304,11 @@ func TestDocument(t *testing.T) {
 						if r != ErrNilElement {
 							t.Errorf("Did not receive expected error from panic. got %#v; want %#v", r, ErrNilElement)
 						}
-						if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
-							t.Errorf("Documents differ: (-got +want)\n%s", diff)
-						}
+
+						require.Equal(t, tc.want, got)
+						// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
+						// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+						// }
 					}()
 					got = NewDocument()
 					got.Set(tc.elem)
@@ -328,9 +336,11 @@ func TestDocument(t *testing.T) {
 						if r != nil {
 							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, nil)
 						}
-						if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
-							t.Errorf("Documents differ: (-got +want)\n%s", diff)
-						}
+
+						require.Equal(t, tc.want, got)
+						// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{})); diff != "" {
+						// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+						// }
 					}()
 					got = NewDocument()
 					got.IgnoreNilInsert = true
@@ -373,9 +383,11 @@ func TestDocument(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				got := tc.d.Set(tc.elem)
-				if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{}, Element{}, Value{})); diff != "" {
-					t.Errorf("Documents differ: (-got +want)\n%s", diff)
-				}
+
+				require.Equal(t, tc.want, got)
+				// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Document{}, Element{}, Value{})); diff != "" {
+				// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+				// }
 			})
 		}
 	})
@@ -511,9 +523,11 @@ func TestDocument(t *testing.T) {
 				if !ok {
 					t.Errorf("ElementAtOK returned ok=false when true was expected")
 				}
-				if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Element{}, Value{})); diff != "" {
-					t.Errorf("Documents differ: (-got +want)\n%s", diff)
-				}
+
+				require.Equal(t, tc.want, got)
+				// if diff := cmp.Diff(got, tc.want, cmp.AllowUnexported(Element{}, Value{})); diff != "" {
+				// 	t.Errorf("Documents differ: (-got +want)\n%s", diff)
+				// }
 			})
 		}
 	})
@@ -766,10 +780,11 @@ func TestDocument(t *testing.T) {
 		gotSlc := d.elems
 		d.Reset()
 		wantSlc := make([]*Element, 5)
-		if diff := cmp.Diff(gotSlc, wantSlc, cmp.AllowUnexported(Element{})); diff != "" {
-			t.Error("Pointers to elements should be cleared on Reset.")
-			t.Errorf("Element slices differ: (-got +want)\n%s", diff)
-		}
+		require.Equal(t, wantSlc, gotSlc)
+		// if diff := cmp.Diff(gotSlc, wantSlc, cmp.AllowUnexported(Element{})); diff != "" {
+		// 	t.Error("Pointers to elements should be cleared on Reset.")
+		// 	t.Errorf("Element slices differ: (-got +want)\n%s", diff)
+		// }
 		if len(d.elems) != 0 {
 			t.Errorf("Expected length of elements slice to be 0. got %d; want %d", len(d.elems), 0)
 		}
@@ -798,9 +813,11 @@ func TestDocument(t *testing.T) {
 				if err != tc.err {
 					t.Errorf("Returned error does not match expected error. got %s; want %s", err, tc.err)
 				}
-				if diff := cmp.Diff(buf.Bytes(), tc.want); diff != "" {
-					t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
-				}
+				require.Equal(t, tc.want, buf.Bytes())
+
+				// if diff := cmp.Diff(buf.Bytes(), tc.want); diff != "" {
+				// 	t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
+				// }
 			})
 		}
 	})
@@ -810,7 +827,7 @@ func TestDocument(t *testing.T) {
 			d.elems[0].value.data = d.elems[0].value.data[:3]
 			b := make([]byte, 15)
 			_, err := d.WriteDocument(0, b)
-			if !NewErrTooSmall().Equals(err) {
+			if !IsTooSmall(err) {
 				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
 			}
 		})
@@ -818,7 +835,7 @@ func TestDocument(t *testing.T) {
 			d := NewDocument(EC.Double("", 3.14159))
 			b := make([]byte, 5)
 			_, err := d.WriteDocument(0, b)
-			if !NewErrTooSmall().Equals(err) {
+			if !IsTooSmall(err) {
 				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
 			}
 		})
@@ -851,9 +868,11 @@ func TestDocument(t *testing.T) {
 			if err != tc.err {
 				t.Errorf("Returned error does not match expected error. got %s; want %s", err, tc.err)
 			}
-			if diff := cmp.Diff(b, tc.want); diff != "" {
-				t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
-			}
+			require.Equal(t, tc.want, b)
+
+			// if diff := cmp.Diff(b, tc.want); diff != "" {
+			// 	t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
+			// }
 		}
 	})
 	t.Run("MarshalBSON", func(t *testing.T) {})
@@ -882,6 +901,7 @@ func TestDocument(t *testing.T) {
 			if err != tc.err {
 				t.Errorf("Expected error not returned. got %s; want %s", err, tc.err)
 			}
+
 			if diff := cmp.Diff(d, tc.want, cmp.Comparer(documentComparer)); diff != "" {
 				t.Errorf("Documents differ: (-got +want)\n%s", diff)
 				t.Errorf("\n%#v\n%#v", d, tc.want)
@@ -915,7 +935,7 @@ func TestDocument(t *testing.T) {
 				t.Errorf("Unexpected error while writing document to buffer: %s", err)
 			}
 			_, err = NewDocument().ReadFrom(&buf)
-			if !NewErrTooSmall().Equals(err) {
+			if !IsTooSmall(err) {
 				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
 			}
 		})
@@ -943,9 +963,11 @@ func TestDocument(t *testing.T) {
 			if err != tc.err {
 				t.Errorf("Returned error does not match expected error. got %s; want %s", err, tc.err)
 			}
-			if diff := cmp.Diff(d, tc.want, cmp.AllowUnexported(Document{}, Element{})); diff != "" {
-				t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
-			}
+			require.Equal(t, tc.want, d)
+
+			// if diff := cmp.Diff(d, tc.want, cmp.AllowUnexported(Document{}, Element{})); diff != "" {
+			// 	t.Errorf("Written bytes differ: (-got +want)\n%s", diff)
+			// }
 		}
 	})
 	t.Run("ToExtJSON", func(t *testing.T) {

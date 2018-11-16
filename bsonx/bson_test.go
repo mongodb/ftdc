@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/stretchr/testify/require"
 )
 
 func noerr(t *testing.T, err error) {
@@ -33,15 +35,16 @@ func TestTimeRoundTrip(t *testing.T) {
 		t.Errorf("Did not get zero time as expected.")
 	}
 
-	bsonOut, err := Marshal(val)
+	bsonOut, err := bson.Marshal(val)
 	noerr(t, err)
 	rtval := struct {
 		Value time.Time
 		ID    string
 	}{}
 
-	err = Unmarshal(bsonOut, &rtval)
+	err = bson.Unmarshal(bsonOut, &rtval)
 	noerr(t, err)
+
 	if !cmp.Equal(val, rtval) {
 		t.Errorf("Did not round trip properly. got %v; want %v", val, rtval)
 	}
@@ -61,16 +64,15 @@ func TestNonNullTimeRoundTrip(t *testing.T) {
 		Value: now,
 	}
 
-	bsonOut, err := Marshal(val)
+	bsonOut, err := bson.Marshal(val)
 	noerr(t, err)
 	rtval := struct {
 		Value time.Time
 		ID    string
 	}{}
 
-	err = Unmarshal(bsonOut, &rtval)
+	err = bson.Unmarshal(bsonOut, &rtval)
 	noerr(t, err)
-	if !cmp.Equal(val, rtval) {
-		t.Errorf("Did not round trip properly. got %v; want %v", val, rtval)
-	}
+
+	require.Equal(t, val, rtval)
 }

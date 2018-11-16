@@ -4,7 +4,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errTooSmall = errors.New("eror: too small")
+var errTooSmall = errors.New("error: too small")
 
 func IsTooSmall(err error) bool { return errors.Cause(err) == errTooSmall }
 

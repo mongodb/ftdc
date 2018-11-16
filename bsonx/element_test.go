@@ -39,7 +39,7 @@ func TestElement(t *testing.T) {
 			rdr := Element{&Value{start: 0, offset: 3, data: []byte{0x01, 'x', 0x00, 0x00}}}
 			want := NewErrTooSmall()
 			_, got := rdr.Validate()
-			if !want.Equals(got) {
+			if !IsTooSmall(got) {
 				t.Errorf("Did not receive expected error. got %s; want %s", got, want)
 			}
 		})
@@ -133,7 +133,7 @@ func TestElement(t *testing.T) {
 					if size != tc.size {
 						t.Errorf("Did not return correct number of bytes read. got %d; want %d", size, tc.size)
 					}
-					if !want.Equals(got) {
+					if !IsTooSmall(got) {
 						t.Errorf("Did not return correct error. got %v; want %v", got, want)
 					}
 				})
