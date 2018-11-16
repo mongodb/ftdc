@@ -17,15 +17,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"fmt"
 
 	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
-	"github.com/mongodb/mongo-go-driver/mongo/aggregateopt"
-	"github.com/mongodb/mongo-go-driver/mongo/bulkwriteopt"
-	"github.com/mongodb/mongo-go-driver/mongo/collectionopt"
-	"github.com/mongodb/mongo-go-driver/mongo/mongoopt"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,18 +89,18 @@ func compareVersions(t *testing.T, v1 string, v2 string) int {
 func getServerVersion(db *Database) (string, error) {
 	serverStatus, err := db.RunCommand(
 		context.Background(),
-		bson.NewDocument(bson.EC.Int32("serverStatus", 1)),
+		bsonx.Doc{{"serverStatus", bsonx.Int32(1)}},
 	)
 	if err != nil {
 		return "", err
 	}
 
-	version, err := serverStatus.Lookup("version")
+	version, err := serverStatus.LookupErr("version")
 	if err != nil {
 		return "", err
 	}
 
-	return version.Value().StringValue(), nil
+	return version.StringValue(), nil
 }
 
 // Test case for all CRUD spec tests.
@@ -134,20 +133,20 @@ func runCRUDTestFile(t *testing.T, filepath string, db *Database) {
 
 		_, _ = db.RunCommand(
 			context.Background(),
-			bson.NewDocument(bson.EC.String("drop", collName)),
+			bsonx.Doc{{"drop", bsonx.String(collName)}},
 		)
 
 		if test.Outcome.Collection != nil && len(test.Outcome.Collection.Name) > 0 {
 			_, _ = db.RunCommand(
 				context.Background(),
-				bson.NewDocument(bson.EC.String("drop", test.Outcome.Collection.Name)),
+				bsonx.Doc{{"drop", bsonx.String(test.Outcome.Collection.Name)}},
 			)
 		}
 
 		coll := db.Collection(collName)
 		docsToInsert := docSliceToInterfaceSlice(docSliceFromRaw(t, testfile.Data))
 
-		wcColl, err := coll.Clone(collectionopt.WriteConcern(writeconcern.New(writeconcern.WMajority())))
+		wcColl, err := coll.Clone(options.Collection().SetWriteConcern(writeconcern.New(writeconcern.WMajority())))
 		require.NoError(t, err)
 		_, err = wcColl.InsertMany(context.Background(), docsToInsert)
 		require.NoError(t, err)
@@ -191,14 +190,14 @@ func aggregateTest(t *testing.T, db *Database, coll *Collection, test *testCase)
 	t.Run(test.Description, func(t *testing.T) {
 		pipeline := test.Operation.Arguments["pipeline"].([]interface{})
 
-		opts := aggregateopt.BundleAggregate()
+		opts := options.Aggregate()
 
 		if batchSize, found := test.Operation.Arguments["batchSize"]; found {
-			opts = opts.BatchSize(int32(batchSize.(float64)))
+			opts = opts.SetBatchSize(int32(batchSize.(float64)))
 		}
 
 		if collation, found := test.Operation.Arguments["collation"]; found {
-			opts = opts.Collation(collationFromMap(collation.(map[string]interface{})))
+			opts = opts.SetCollation(newCollationFromMap(collation.(map[string]interface{})))
 		}
 
 		out := false
@@ -243,8 +242,9 @@ func bulkWriteTest(t *testing.T, coll *Collection, test *testCase) {
 			var document map[string]interface{}
 			var replacement map[string]interface{}
 			var update map[string]interface{}
-			var arrayFilters []interface{}
-			var collation *mongoopt.Collation
+			var arrayFilters options.ArrayFilters
+			var arrayFiltersSet bool
+			var collation *options.Collation
 			var upsert bool
 			var upsertSet bool
 
@@ -267,7 +267,10 @@ func bulkWriteTest(t *testing.T, coll *Collection, test *testCase) {
 				case "collation":
 					collation = collationFromMap(v.(map[string]interface{}))
 				case "arrayFilters":
-					arrayFilters = v.([]interface{})
+					arrayFilters = options.ArrayFilters{
+						Filters: v.([]interface{}),
+					}
+					arrayFiltersSet = true
 				default:
 					fmt.Printf("unknown argument: %s\n", k)
 				}
@@ -338,7 +341,7 @@ func bulkWriteTest(t *testing.T, coll *Collection, test *testCase) {
 				if collation != nil {
 					uom = uom.Collation(collation)
 				}
-				if arrayFilters != nil {
+				if arrayFiltersSet {
 					uom = uom.ArrayFilters(arrayFilters)
 				}
 				model = uom
@@ -356,7 +359,7 @@ func bulkWriteTest(t *testing.T, coll *Collection, test *testCase) {
 				if collation != nil {
 					umm = umm.Collation(collation)
 				}
-				if arrayFilters != nil {
+				if arrayFiltersSet {
 					umm = umm.ArrayFilters(arrayFilters)
 				}
 				model = umm
@@ -371,29 +374,25 @@ func bulkWriteTest(t *testing.T, coll *Collection, test *testCase) {
 		if err != nil {
 			t.Fatalf("error marshalling options: %s", err)
 		}
-		optsDoc, err := bson.ReadDocument(optsBytes)
+		optsDoc, err := bsonx.ReadDoc(optsBytes)
 		if err != nil {
 			t.Fatalf("error creating options doc: %s", err)
 		}
 
-		optsKeys, err := optsDoc.Keys(false)
-		if err != nil {
-			t.Fatalf("error getting keys from options doc: %s", err)
-		}
+		opts := options.BulkWrite()
+		for _, elem := range optsDoc {
+			k := elem.Key
+			val := optsDoc.Lookup(k)
 
-		bundle := bulkwriteopt.BundleBulkWrite()
-		for _, k := range optsKeys {
-			val := optsDoc.Lookup(k.String())
-
-			switch k.String() {
+			switch k {
 			case "ordered":
-				bundle = bundle.Ordered(val.Boolean())
+				opts = opts.SetOrdered(val.Boolean())
 			default:
-				fmt.Printf("unkonwn bulk write opt: %s\n", k.String())
+				fmt.Printf("unkonwn bulk write opt: %s\n", k)
 			}
 		}
 
-		res, err := coll.BulkWrite(ctx, models, bundle)
+		res, err := coll.BulkWrite(ctx, models, opts)
 		verifyBulkWriteResult(t, res, test.Outcome.Result)
 		verifyCollectionContents(t, coll, test.Outcome.Collection.Data)
 	})

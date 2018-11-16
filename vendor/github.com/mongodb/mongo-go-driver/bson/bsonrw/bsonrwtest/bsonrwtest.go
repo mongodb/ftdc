@@ -1,13 +1,19 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bsonrwtest
 
 import (
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson/bsoncore"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
 	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/mongodb/mongo-go-driver/bson/decimal"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 )
 
 var _ bsonrw.ValueReader = (*ValueReaderWriter)(nil)
@@ -186,15 +192,26 @@ type ValueReaderWriter struct {
 	BSONType bsontype.Type
 	Err      error
 	ErrAfter Invoked // error after this method is called
+	depth    uint64
+}
+
+// prevent infinite recursion.
+func (llvrw *ValueReaderWriter) checkdepth() {
+	llvrw.depth++
+	if llvrw.depth > 1000 {
+		panic("max depth exceeded")
+	}
 }
 
 // Type implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) Type() bsontype.Type {
+	llvrw.checkdepth()
 	return llvrw.BSONType
 }
 
 // Skip implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) Skip() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = Skip
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -204,6 +221,7 @@ func (llvrw *ValueReaderWriter) Skip() error {
 
 // ReadArray implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadArray() (bsonrw.ArrayReader, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadArray
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -214,6 +232,7 @@ func (llvrw *ValueReaderWriter) ReadArray() (bsonrw.ArrayReader, error) {
 
 // ReadBinary implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadBinary() (b []byte, btype byte, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadBinary
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, 0x00, llvrw.Err
@@ -235,6 +254,7 @@ func (llvrw *ValueReaderWriter) ReadBinary() (b []byte, btype byte, err error) {
 
 // ReadBoolean implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadBoolean() (bool, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadBoolean
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return false, llvrw.Err
@@ -258,6 +278,7 @@ func (llvrw *ValueReaderWriter) ReadBoolean() (bool, error) {
 
 // ReadDocument implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadDocument() (bsonrw.DocumentReader, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadDocument
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -268,6 +289,7 @@ func (llvrw *ValueReaderWriter) ReadDocument() (bsonrw.DocumentReader, error) {
 
 // ReadCodeWithScope implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadCodeWithScope() (code string, dr bsonrw.DocumentReader, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadCodeWithScope
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", nil, llvrw.Err
@@ -278,6 +300,7 @@ func (llvrw *ValueReaderWriter) ReadCodeWithScope() (code string, dr bsonrw.Docu
 
 // ReadDBPointer implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadDBPointer() (ns string, oid objectid.ObjectID, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadDBPointer
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", objectid.ObjectID{}, llvrw.Err
@@ -299,6 +322,7 @@ func (llvrw *ValueReaderWriter) ReadDBPointer() (ns string, oid objectid.ObjectI
 
 // ReadDateTime implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadDateTime() (int64, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadDateTime
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return 0, llvrw.Err
@@ -315,6 +339,7 @@ func (llvrw *ValueReaderWriter) ReadDateTime() (int64, error) {
 
 // ReadDecimal128 implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadDecimal128() (decimal.Decimal128, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadDecimal128
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return decimal.Decimal128{}, llvrw.Err
@@ -331,6 +356,7 @@ func (llvrw *ValueReaderWriter) ReadDecimal128() (decimal.Decimal128, error) {
 
 // ReadDouble implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadDouble() (float64, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadDouble
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return 0, llvrw.Err
@@ -347,6 +373,7 @@ func (llvrw *ValueReaderWriter) ReadDouble() (float64, error) {
 
 // ReadInt32 implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadInt32() (int32, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadInt32
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return 0, llvrw.Err
@@ -363,6 +390,7 @@ func (llvrw *ValueReaderWriter) ReadInt32() (int32, error) {
 
 // ReadInt64 implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadInt64() (int64, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadInt64
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return 0, llvrw.Err
@@ -378,6 +406,7 @@ func (llvrw *ValueReaderWriter) ReadInt64() (int64, error) {
 
 // ReadJavascript implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadJavascript() (code string, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadJavascript
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", llvrw.Err
@@ -393,6 +422,7 @@ func (llvrw *ValueReaderWriter) ReadJavascript() (code string, err error) {
 
 // ReadMaxKey implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadMaxKey() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadMaxKey
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -403,6 +433,7 @@ func (llvrw *ValueReaderWriter) ReadMaxKey() error {
 
 // ReadMinKey implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadMinKey() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadMinKey
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -413,6 +444,7 @@ func (llvrw *ValueReaderWriter) ReadMinKey() error {
 
 // ReadNull implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadNull() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadNull
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -423,6 +455,7 @@ func (llvrw *ValueReaderWriter) ReadNull() error {
 
 // ReadObjectID implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadObjectID() (objectid.ObjectID, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadObjectID
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return objectid.ObjectID{}, llvrw.Err
@@ -438,6 +471,7 @@ func (llvrw *ValueReaderWriter) ReadObjectID() (objectid.ObjectID, error) {
 
 // ReadRegex implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadRegex() (pattern string, options string, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadRegex
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", "", llvrw.Err
@@ -458,6 +492,7 @@ func (llvrw *ValueReaderWriter) ReadRegex() (pattern string, options string, err
 
 // ReadString implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadString() (string, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadString
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", llvrw.Err
@@ -473,6 +508,7 @@ func (llvrw *ValueReaderWriter) ReadString() (string, error) {
 
 // ReadSymbol implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadSymbol() (symbol string, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadSymbol
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", llvrw.Err
@@ -495,6 +531,7 @@ func (llvrw *ValueReaderWriter) ReadSymbol() (symbol string, err error) {
 
 // ReadTimestamp implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadTimestamp() (t uint32, i uint32, err error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadTimestamp
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return 0, 0, llvrw.Err
@@ -515,6 +552,7 @@ func (llvrw *ValueReaderWriter) ReadTimestamp() (t uint32, i uint32, err error) 
 
 // ReadUndefined implements the bsonrw.ValueReader interface.
 func (llvrw *ValueReaderWriter) ReadUndefined() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadUndefined
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -525,6 +563,7 @@ func (llvrw *ValueReaderWriter) ReadUndefined() error {
 
 // WriteArray implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteArray() (bsonrw.ArrayWriter, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteArray
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -534,6 +573,7 @@ func (llvrw *ValueReaderWriter) WriteArray() (bsonrw.ArrayWriter, error) {
 
 // WriteBinary implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteBinary(b []byte) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteBinary
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -543,6 +583,7 @@ func (llvrw *ValueReaderWriter) WriteBinary(b []byte) error {
 
 // WriteBinaryWithSubtype implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteBinaryWithSubtype(b []byte, btype byte) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteBinaryWithSubtype
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -552,6 +593,7 @@ func (llvrw *ValueReaderWriter) WriteBinaryWithSubtype(b []byte, btype byte) err
 
 // WriteBoolean implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteBoolean(bool) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteBoolean
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -561,6 +603,7 @@ func (llvrw *ValueReaderWriter) WriteBoolean(bool) error {
 
 // WriteCodeWithScope implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteCodeWithScope(code string) (bsonrw.DocumentWriter, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteCodeWithScope
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -570,6 +613,7 @@ func (llvrw *ValueReaderWriter) WriteCodeWithScope(code string) (bsonrw.Document
 
 // WriteDBPointer implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteDBPointer(ns string, oid objectid.ObjectID) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDBPointer
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -579,6 +623,7 @@ func (llvrw *ValueReaderWriter) WriteDBPointer(ns string, oid objectid.ObjectID)
 
 // WriteDateTime implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteDateTime(dt int64) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDateTime
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -588,6 +633,7 @@ func (llvrw *ValueReaderWriter) WriteDateTime(dt int64) error {
 
 // WriteDecimal128 implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteDecimal128(decimal.Decimal128) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDecimal128
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -597,6 +643,7 @@ func (llvrw *ValueReaderWriter) WriteDecimal128(decimal.Decimal128) error {
 
 // WriteDouble implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteDouble(float64) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDouble
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -606,6 +653,7 @@ func (llvrw *ValueReaderWriter) WriteDouble(float64) error {
 
 // WriteInt32 implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteInt32(int32) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteInt32
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -615,6 +663,7 @@ func (llvrw *ValueReaderWriter) WriteInt32(int32) error {
 
 // WriteInt64 implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteInt64(int64) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteInt64
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -624,6 +673,7 @@ func (llvrw *ValueReaderWriter) WriteInt64(int64) error {
 
 // WriteJavascript implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteJavascript(code string) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteJavascript
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -633,6 +683,7 @@ func (llvrw *ValueReaderWriter) WriteJavascript(code string) error {
 
 // WriteMaxKey implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteMaxKey() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteMaxKey
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -642,6 +693,7 @@ func (llvrw *ValueReaderWriter) WriteMaxKey() error {
 
 // WriteMinKey implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteMinKey() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteMinKey
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -651,6 +703,7 @@ func (llvrw *ValueReaderWriter) WriteMinKey() error {
 
 // WriteNull implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteNull() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteNull
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -660,6 +713,7 @@ func (llvrw *ValueReaderWriter) WriteNull() error {
 
 // WriteObjectID implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteObjectID(objectid.ObjectID) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteObjectID
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -669,6 +723,7 @@ func (llvrw *ValueReaderWriter) WriteObjectID(objectid.ObjectID) error {
 
 // WriteRegex implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteRegex(pattern string, options string) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteRegex
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -678,6 +733,7 @@ func (llvrw *ValueReaderWriter) WriteRegex(pattern string, options string) error
 
 // WriteString implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteString(string) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteString
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -687,6 +743,7 @@ func (llvrw *ValueReaderWriter) WriteString(string) error {
 
 // WriteDocument implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteDocument() (bsonrw.DocumentWriter, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDocument
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -696,6 +753,7 @@ func (llvrw *ValueReaderWriter) WriteDocument() (bsonrw.DocumentWriter, error) {
 
 // WriteSymbol implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteSymbol(symbol string) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteSymbol
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -705,6 +763,7 @@ func (llvrw *ValueReaderWriter) WriteSymbol(symbol string) error {
 
 // WriteTimestamp implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteTimestamp(t uint32, i uint32) error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteTimestamp
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -714,6 +773,7 @@ func (llvrw *ValueReaderWriter) WriteTimestamp(t uint32, i uint32) error {
 
 // WriteUndefined implements the bsonrw.ValueWriter interface.
 func (llvrw *ValueReaderWriter) WriteUndefined() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteUndefined
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -723,6 +783,7 @@ func (llvrw *ValueReaderWriter) WriteUndefined() error {
 
 // ReadElement implements the bsonrw.DocumentReader interface.
 func (llvrw *ValueReaderWriter) ReadElement() (string, bsonrw.ValueReader, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadElement
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return "", nil, llvrw.Err
@@ -733,6 +794,7 @@ func (llvrw *ValueReaderWriter) ReadElement() (string, bsonrw.ValueReader, error
 
 // WriteDocumentElement implements the bsonrw.DocumentWriter interface.
 func (llvrw *ValueReaderWriter) WriteDocumentElement(string) (bsonrw.ValueWriter, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDocumentElement
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -743,6 +805,7 @@ func (llvrw *ValueReaderWriter) WriteDocumentElement(string) (bsonrw.ValueWriter
 
 // WriteDocumentEnd implements the bsonrw.DocumentWriter interface.
 func (llvrw *ValueReaderWriter) WriteDocumentEnd() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteDocumentEnd
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err
@@ -753,6 +816,7 @@ func (llvrw *ValueReaderWriter) WriteDocumentEnd() error {
 
 // ReadValue implements the bsonrw.ArrayReader interface.
 func (llvrw *ValueReaderWriter) ReadValue() (bsonrw.ValueReader, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = ReadValue
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -763,6 +827,7 @@ func (llvrw *ValueReaderWriter) ReadValue() (bsonrw.ValueReader, error) {
 
 // WriteArrayElement implements the bsonrw.ArrayWriter interface.
 func (llvrw *ValueReaderWriter) WriteArrayElement() (bsonrw.ValueWriter, error) {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteArrayElement
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return nil, llvrw.Err
@@ -773,6 +838,7 @@ func (llvrw *ValueReaderWriter) WriteArrayElement() (bsonrw.ValueWriter, error) 
 
 // WriteArrayEnd implements the bsonrw.ArrayWriter interface.
 func (llvrw *ValueReaderWriter) WriteArrayEnd() error {
+	llvrw.checkdepth()
 	llvrw.Invoked = WriteArrayEnd
 	if llvrw.ErrAfter == llvrw.Invoked {
 		return llvrw.Err

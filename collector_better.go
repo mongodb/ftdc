@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
 type betterCollector struct {
-	metadata   *bson.Document
-	reference  *bson.Document
+	metadata   *bsonx.Document
+	reference  *bsonx.Document
 	startedAt  time.Time
 	lastSample []int64
 	deltas     []int64
@@ -28,7 +28,14 @@ func NewBaseCollector(maxSize int) Collector {
 	}
 }
 
-func (c *betterCollector) SetMetadata(doc *bson.Document) { c.metadata = doc }
+func (c *betterCollector) SetMetadata(in interface{}) error {
+	doc, err := readDocument(in)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	c.metadata = doc
+	return nil
+}
 func (c *betterCollector) Reset() {
 	c.reference = nil
 	c.lastSample = nil
@@ -47,7 +54,12 @@ func (c *betterCollector) Info() CollectorInfo {
 	}
 }
 
-func (c *betterCollector) Add(doc *bson.Document) error {
+func (c *betterCollector) Add(in interface{}) error {
+	doc, err := readDocument(in)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	if c.reference == nil {
 		c.startedAt = time.Now()
 		c.reference = doc
@@ -97,19 +109,19 @@ func (c *betterCollector) Resolve() ([]byte, error) {
 
 	buf := bytes.NewBuffer([]byte{})
 	if c.metadata != nil {
-		_, err := bson.NewDocument(
-			bson.EC.Time("_id", c.startedAt),
-			bson.EC.Int32("type", 0),
-			bson.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
+		_, err := bsonx.NewDocument(
+			bsonx.EC.Time("_id", c.startedAt),
+			bsonx.EC.Int32("type", 0),
+			bsonx.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
 		if err != nil {
 			return nil, errors.Wrap(err, "problem writing metadata document")
 		}
 	}
 
-	_, err = bson.NewDocument(
-		bson.EC.Time("_id", c.startedAt),
-		bson.EC.Int32("type", 1),
-		bson.EC.Binary("data", data)).WriteTo(buf)
+	_, err = bsonx.NewDocument(
+		bsonx.EC.Time("_id", c.startedAt),
+		bsonx.EC.Int32("type", 1),
+		bsonx.EC.Binary("data", data)).WriteTo(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "problem writing metric chunk document")
 	}

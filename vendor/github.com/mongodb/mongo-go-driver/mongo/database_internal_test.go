@@ -15,15 +15,16 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
-	"github.com/mongodb/mongo-go-driver/mongo/dbopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestDatabase(t *testing.T, name *string, opts ...dbopt.Option) *Database {
+func createTestDatabase(t *testing.T, name *string, opts ...*options.DatabaseOptions) *Database {
 	if name == nil {
 		db := testutil.DBName(t)
 		name = &db
@@ -63,8 +64,8 @@ func TestDatabase_Options(t *testing.T) {
 	rcLocal := readconcern.Local()
 	rcMajority := readconcern.Majority()
 
-	opts := []dbopt.Option{dbopt.ReadPreference(rpPrimary), dbopt.ReadConcern(rcLocal), dbopt.WriteConcern(wc1),
-		dbopt.ReadPreference(rpSecondary), dbopt.ReadConcern(rcMajority), dbopt.WriteConcern(wc2)}
+	opts := options.Database().SetReadPreference(rpPrimary).SetReadConcern(rcLocal).SetWriteConcern(wc1).
+		SetReadPreference(rpSecondary).SetReadConcern(rcMajority).SetWriteConcern(wc2)
 
 	expectedDb := &Database{
 		readConcern:    rcMajority,
@@ -74,12 +75,7 @@ func TestDatabase_Options(t *testing.T) {
 
 	t.Run("IndividualOptions", func(t *testing.T) {
 		// if options specified multiple times, last instance should take precedence
-		db := createTestDatabase(t, &name, opts...)
-		compareDbs(t, expectedDb, db)
-	})
-
-	t.Run("Bundle", func(t *testing.T) {
-		db := createTestDatabase(t, &name, dbopt.BundleDatabase(opts...))
+		db := createTestDatabase(t, &name, opts)
 		compareDbs(t, expectedDb, db)
 	})
 }
@@ -94,7 +90,7 @@ func TestDatabase_InheritOptions(t *testing.T) {
 	client.readConcern = rcLocal
 
 	wc1 := writeconcern.New(writeconcern.W(10))
-	db := client.Database(name, dbopt.WriteConcern(wc1))
+	db := client.Database(name, options.Database().SetWriteConcern(wc1))
 
 	// db should inherit read preference and read concern from client
 	switch {
@@ -107,23 +103,47 @@ func TestDatabase_InheritOptions(t *testing.T) {
 	}
 }
 
+func TestDatabase_ReplaceTopologyError(t *testing.T) {
+	t.Parallel()
+
+	if testing.Short() {
+		t.Skip()
+	}
+
+	cs := testutil.ConnString(t)
+	c, err := NewClient(cs.String())
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	db := c.Database("TestDatabase_ReplaceTopologyError")
+
+	_, err = db.RunCommand(context.Background(), bsonx.Doc{{"ismaster", bsonx.Int32(1)}})
+	require.Equal(t, err, ErrClientDisconnected)
+
+	err = db.Drop(ctx)
+	require.Equal(t, err, ErrClientDisconnected)
+
+	_, err = db.ListCollections(ctx, nil)
+	require.Equal(t, err, ErrClientDisconnected)
+}
+
 func TestDatabase_RunCommand(t *testing.T) {
 	t.Parallel()
 
 	db := createTestDatabase(t, nil)
 
-	result, err := db.RunCommand(context.Background(), bson.NewDocument(bson.EC.Int32("ismaster", 1)))
+	result, err := db.RunCommand(context.Background(), bsonx.Doc{{"ismaster", bsonx.Int32(1)}})
 	require.NoError(t, err)
 
-	isMaster, err := result.Lookup("ismaster")
+	isMaster, err := result.LookupErr("ismaster")
 	require.NoError(t, err)
-	require.Equal(t, isMaster.Value().Type(), bson.TypeBoolean)
-	require.Equal(t, isMaster.Value().Boolean(), true)
+	require.Equal(t, isMaster.Type, bson.TypeBoolean)
+	require.Equal(t, isMaster.Boolean(), true)
 
-	ok, err := result.Lookup("ok")
+	ok, err := result.LookupErr("ok")
 	require.NoError(t, err)
-	require.Equal(t, ok.Value().Type(), bson.TypeDouble)
-	require.Equal(t, ok.Value().Double(), 1.0)
+	require.Equal(t, ok.Type, bson.TypeDouble)
+	require.Equal(t, ok.Double(), 1.0)
 }
 
 func TestDatabase_Drop(t *testing.T) {
@@ -150,11 +170,11 @@ func setupListCollectionsDb(db *Database) (uncappedName string, cappedName strin
 
 	_, err = db.RunCommand(
 		context.Background(),
-		bson.NewDocument(
-			bson.EC.String("create", cappedName),
-			bson.EC.Boolean("capped", true),
-			bson.EC.Int32("size", 64*1024),
-		),
+		bsonx.Doc{
+			{"create", bsonx.String(cappedName)},
+			{"capped", bsonx.Boolean(true)},
+			{"size", bsonx.Int32(64 * 1024)},
+		},
 	)
 	if err != nil {
 		return "", "", err
@@ -162,8 +182,8 @@ func setupListCollectionsDb(db *Database) (uncappedName string, cappedName strin
 	cappedColl := db.Collection(cappedName)
 
 	id := objectid.New()
-	want := bson.EC.ObjectID("_id", id)
-	doc := bson.NewDocument(want, bson.EC.Int32("x", 1))
+	want := bsonx.Elem{"_id", bsonx.ObjectID(id)}
+	doc := bsonx.Doc{want, {"x", bsonx.Int32(1)}}
 
 	_, err = uncappedColl.InsertOne(context.Background(), doc)
 	if err != nil {
@@ -185,7 +205,7 @@ func verifyListCollections(cursor Cursor, uncappedName string, cappedName string
 	var cappedFound bool
 
 	for cursor.Next(context.Background()) {
-		next := bson.NewDocument()
+		next := bsonx.Doc{}
 		err = cursor.Decode(next)
 		if err != nil {
 			return err
@@ -242,11 +262,9 @@ func listCollectionsTest(db *Database, cappedOnly bool) error {
 		return err
 	}
 
-	var filter *bson.Document
+	var filter bsonx.Doc
 	if cappedOnly {
-		filter = bson.NewDocument(
-			bson.EC.Boolean("options.capped", true),
-		)
+		filter = bsonx.Doc{{"options.capped", bsonx.Boolean(true)}}
 	}
 
 	for i := 0; i < 10; i++ {
@@ -290,7 +308,7 @@ func TestDatabase_ListCollections(t *testing.T) {
 				t.Skip()
 			}
 			dbName := tt.name
-			db := createTestDatabase(t, &dbName, dbopt.ReadPreference(tt.rp))
+			db := createTestDatabase(t, &dbName, options.Database().SetReadPreference(tt.rp))
 
 			defer func() {
 				err := db.Drop(context.Background())

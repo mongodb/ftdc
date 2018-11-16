@@ -9,11 +9,12 @@ package session
 import (
 	"errors"
 
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
+	"github.com/mongodb/mongo-go-driver/bson/primitive"
 	"github.com/mongodb/mongo-go-driver/core/uuid"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // ErrSessionEnded is returned when a client session is used after a call to endSession().
@@ -62,9 +63,9 @@ const (
 type Client struct {
 	*Server
 	ClientID       uuid.UUID
-	ClusterTime    *bson.Document
+	ClusterTime    bsonx.Doc
 	Consistent     bool // causal consistency
-	OperationTime  *bson.Timestamp
+	OperationTime  *primitive.Timestamp
 	SessionType    Type
 	Terminated     bool
 	RetryingCommit bool
@@ -87,7 +88,7 @@ type Client struct {
 	state state
 }
 
-func getClusterTime(clusterTime *bson.Document) (uint32, uint32) {
+func getClusterTime(clusterTime bsonx.Doc) (uint32, uint32) {
 	if clusterTime == nil {
 		return 0, 0
 	}
@@ -97,7 +98,7 @@ func getClusterTime(clusterTime *bson.Document) (uint32, uint32) {
 		return 0, 0
 	}
 
-	timestampVal, err := clusterTimeVal.MutableDocument().LookupErr("clusterTime")
+	timestampVal, err := clusterTimeVal.Document().LookupErr("clusterTime")
 	if err != nil {
 		return 0, 0
 	}
@@ -106,7 +107,7 @@ func getClusterTime(clusterTime *bson.Document) (uint32, uint32) {
 }
 
 // MaxClusterTime compares 2 clusterTime documents and returns the document representing the highest cluster time.
-func MaxClusterTime(ct1 *bson.Document, ct2 *bson.Document) *bson.Document {
+func MaxClusterTime(ct1 bsonx.Doc, ct2 bsonx.Doc) bsonx.Doc {
 	epoch1, ord1 := getClusterTime(ct1)
 	epoch2, ord2 := getClusterTime(ct2)
 
@@ -124,20 +125,26 @@ func MaxClusterTime(ct1 *bson.Document, ct2 *bson.Document) *bson.Document {
 }
 
 // NewClientSession creates a Client.
-func NewClientSession(pool *Pool, clientID uuid.UUID, sessionType Type, opts ...ClientOptioner) (*Client, error) {
+func NewClientSession(pool *Pool, clientID uuid.UUID, sessionType Type, opts ...*ClientOptions) (*Client, error) {
 	c := &Client{
-		Consistent:  true, // causal consistency defaults to true
+		Consistent:  true, // set default
 		ClientID:    clientID,
 		SessionType: sessionType,
 		pool:        pool,
 	}
 
-	var err error
-	for _, opt := range opts {
-		err = opt.Option(c)
-		if err != nil {
-			return nil, err
-		}
+	mergedOpts := mergeClientOptions(opts...)
+	if mergedOpts.CausalConsistency != nil {
+		c.Consistent = *mergedOpts.CausalConsistency
+	}
+	if mergedOpts.DefaultReadPreference != nil {
+		c.transactionRp = mergedOpts.DefaultReadPreference
+	}
+	if mergedOpts.DefaultReadConcern != nil {
+		c.transactionRc = mergedOpts.DefaultReadConcern
+	}
+	if mergedOpts.DefaultWriteConcern != nil {
+		c.transactionWc = mergedOpts.DefaultWriteConcern
 	}
 
 	servSess, err := pool.GetSession()
@@ -151,7 +158,7 @@ func NewClientSession(pool *Pool, clientID uuid.UUID, sessionType Type, opts ...
 }
 
 // AdvanceClusterTime updates the session's cluster time.
-func (c *Client) AdvanceClusterTime(clusterTime *bson.Document) error {
+func (c *Client) AdvanceClusterTime(clusterTime bsonx.Doc) error {
 	if c.Terminated {
 		return ErrSessionEnded
 	}
@@ -160,7 +167,7 @@ func (c *Client) AdvanceClusterTime(clusterTime *bson.Document) error {
 }
 
 // AdvanceOperationTime updates the session's operation time.
-func (c *Client) AdvanceOperationTime(opTime *bson.Timestamp) error {
+func (c *Client) AdvanceOperationTime(opTime *primitive.Timestamp) error {
 	if c.Terminated {
 		return ErrSessionEnded
 	}
@@ -233,7 +240,7 @@ func (c *Client) CheckStartTransaction() error {
 
 // StartTransaction initializes the transaction options and advances the state machine.
 // It does not contact the server to start the transaction.
-func (c *Client) StartTransaction(opts ...ClientOptioner) error {
+func (c *Client) StartTransaction(opts *TransactionOptions) error {
 	err := c.CheckStartTransaction()
 	if err != nil {
 		return err
@@ -242,11 +249,10 @@ func (c *Client) StartTransaction(opts ...ClientOptioner) error {
 	c.IncrementTxnNumber()
 	c.RetryingCommit = false
 
-	for _, opt := range opts {
-		err := opt.Option(c)
-		if err != nil {
-			return err
-		}
+	if opts != nil {
+		c.CurrentRc = opts.ReadConcern
+		c.CurrentRp = opts.ReadPreference
+		c.CurrentWc = opts.WriteConcern
 	}
 
 	if c.CurrentRc == nil {

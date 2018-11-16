@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package gridfs
 
 import (
@@ -8,9 +14,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
 	"github.com/mongodb/mongo-go-driver/mongo"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // UploadBufferSize is the size in bytes of one stream batch. Chunks will be written to the db after the sum of chunk
@@ -132,9 +138,7 @@ func (us *UploadStream) Abort() error {
 		defer cancel()
 	}
 
-	_, err := us.chunksColl.DeleteMany(ctx, bson.NewDocument(
-		bson.EC.ObjectID("files_id", us.FileID),
-	))
+	_, err := us.chunksColl.DeleteMany(ctx, bsonx.Doc{{"files_id", bsonx.ObjectID(us.FileID)}})
 	if err != nil {
 		return err
 	}
@@ -156,12 +160,12 @@ func (us *UploadStream) uploadChunks(ctx context.Context) error {
 			chunkData = us.buffer[i : i+int(us.chunkSize)]
 		}
 
-		docs[us.chunkIndex] = bson.NewDocument(
-			bson.EC.ObjectID("_id", objectid.New()),
-			bson.EC.ObjectID("files_id", us.FileID),
-			bson.EC.Int32("n", int32(us.chunkIndex)),
-			bson.EC.Binary("data", chunkData),
-		)
+		docs[us.chunkIndex] = bsonx.Doc{
+			{"_id", bsonx.ObjectID(objectid.New())},
+			{"files_id", bsonx.ObjectID(us.FileID)},
+			{"n", bsonx.Int32(int32(us.chunkIndex))},
+			{"data", bsonx.Binary(0x00, chunkData)},
+		}
 
 		us.chunkIndex++
 		us.fileLen += int64(len(chunkData))
@@ -176,16 +180,16 @@ func (us *UploadStream) uploadChunks(ctx context.Context) error {
 }
 
 func (us *UploadStream) createFilesCollDoc(ctx context.Context) error {
-	doc := bson.NewDocument(
-		bson.EC.ObjectID("_id", us.FileID),
-		bson.EC.Int64("length", us.fileLen),
-		bson.EC.Int32("chunkSize", us.chunkSize),
-		bson.EC.DateTime("uploadDate", time.Now().UnixNano()/int64(time.Millisecond)),
-		bson.EC.String("filename", us.filename),
-	)
+	doc := bsonx.Doc{
+		{"_id", bsonx.ObjectID(us.FileID)},
+		{"length", bsonx.Int64(us.fileLen)},
+		{"chunkSize", bsonx.Int32(us.chunkSize)},
+		{"uploadDate", bsonx.DateTime(time.Now().UnixNano() / int64(time.Millisecond))},
+		{"filename", bsonx.String(us.filename)},
+	}
 
 	if us.metadata != nil {
-		doc.Append(bson.EC.SubDocument("metadata", us.metadata))
+		doc = append(doc, bsonx.Elem{"metadata", bsonx.Document(us.metadata)})
 	}
 
 	_, err := us.filesColl.InsertOne(ctx, doc)

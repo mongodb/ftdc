@@ -19,8 +19,9 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,11 +64,11 @@ func TestCompression(t *testing.T) {
 	collOne := testutil.ColName(t)
 
 	testutil.DropCollection(t, testutil.DBName(t), collOne)
-	testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bson.NewDocument(bson.EC.String("name", "compression_test")))
+	testutil.InsertDocs(t, testutil.DBName(t), collOne, wc, bsonx.Doc{{"name", bsonx.String("compression_test")}})
 
 	cmd := &command.Read{
 		DB:      testutil.DBName(t),
-		Command: bson.NewDocument(bson.EC.Int32("serverStatus", 1)),
+		Command: bsonx.Doc{{"serverStatus", bsonx.Int32(1)}},
 	}
 
 	ctx := context.Background()
@@ -77,7 +78,7 @@ func TestCompression(t *testing.T) {
 	rdr, err := cmd.RoundTrip(ctx, server.SelectedDescription(), rw)
 	noerr(t, err)
 
-	result, err := bson.ReadDocument(rdr)
+	result, err := bsonx.ReadDoc(rdr)
 	noerr(t, err)
 
 	serverVersion, err := result.LookupErr("version")
@@ -92,10 +93,10 @@ func TestCompression(t *testing.T) {
 
 	require.Equal(t, networkVal.Type(), bson.TypeEmbeddedDocument)
 
-	compressionVal, err := networkVal.MutableDocument().LookupErr("compression")
+	compressionVal, err := networkVal.Document().LookupErr("compression")
 	noerr(t, err)
 
-	snappy, err := compressionVal.MutableDocument().LookupErr("snappy")
+	snappy, err := compressionVal.Document().LookupErr("snappy")
 	noerr(t, err)
 
 	compressorKey := "compressor"
@@ -103,10 +104,10 @@ func TestCompression(t *testing.T) {
 	if compareTo36 < 0 {
 		compressorKey = "compressed"
 	}
-	compressor, err := snappy.MutableDocument().LookupErr(compressorKey)
+	compressor, err := snappy.Document().LookupErr(compressorKey)
 	noerr(t, err)
 
-	bytesIn, err := compressor.MutableDocument().LookupErr("bytesIn")
+	bytesIn, err := compressor.Document().LookupErr("bytesIn")
 	noerr(t, err)
 
 	require.True(t, bytesIn.IsNumber())

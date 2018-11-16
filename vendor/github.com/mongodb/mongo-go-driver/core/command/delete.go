@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Delete represents the delete command.
@@ -25,8 +25,8 @@ import (
 type Delete struct {
 	ContinueOnError bool
 	NS              Namespace
-	Deletes         []*bson.Document
-	Opts            []option.DeleteOptioner
+	Deletes         []bsonx.Doc
+	Opts            []bsonx.Elem
 	WriteConcern    *writeconcern.WriteConcern
 	Clock           *session.ClusterClock
 	Session         *session.Client
@@ -64,24 +64,19 @@ func (d *Delete) encode(desc description.SelectedServer) error {
 	return nil
 }
 
-func (d *Delete) encodeBatch(docs []*bson.Document, desc description.SelectedServer) (*WriteBatch, error) {
-	copyDocs := make([]*bson.Document, 0, len(docs))
+func (d *Delete) encodeBatch(docs []bsonx.Doc, desc description.SelectedServer) (*WriteBatch, error) {
+	copyDocs := make([]bsonx.Doc, 0, len(docs))
 	for _, doc := range docs {
 		copyDocs = append(copyDocs, doc.Copy())
 	}
 
-	var options []option.Optioner
+	var options []bsonx.Elem
 	for _, opt := range d.Opts {
-		switch opt.(type) {
-		case nil:
-			continue
-		case option.OptCollation:
-			for _, doc := range copyDocs {
-				if err := opt.Option(doc); err != nil {
-					return nil, err
-				}
+		if opt.Key == "collation" {
+			for idx := range copyDocs {
+				copyDocs[idx] = append(copyDocs[idx], opt)
 			}
-		default:
+		} else {
 			options = append(options, opt)
 		}
 	}
@@ -115,7 +110,7 @@ func (d *Delete) Decode(desc description.SelectedServer, wm wiremessage.WireMess
 	return d.decode(desc, rdr)
 }
 
-func (d *Delete) decode(desc description.SelectedServer, rdr bson.Reader) *Delete {
+func (d *Delete) decode(desc description.SelectedServer, rdr bson.Raw) *Delete {
 	d.err = bson.Unmarshal(rdr, &d.result)
 	return d
 }

@@ -12,11 +12,11 @@ import (
 
 	"strings"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	. "github.com/mongodb/mongo-go-driver/core/auth"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
 	"github.com/mongodb/mongo-go-driver/internal"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 func TestMongoDBCRAuthenticator_Fails(t *testing.T) {
@@ -29,12 +29,12 @@ func TestMongoDBCRAuthenticator_Fails(t *testing.T) {
 	}
 
 	resps := make(chan wiremessage.WireMessage, 2)
-	resps <- internal.MakeReply(t, bson.NewDocument(
-		bson.EC.Int32("ok", 1),
-		bson.EC.String("nonce", "2375531c32080ae8"),
-	))
+	resps <- internal.MakeReply(t, bsonx.Doc{
+		{"ok", bsonx.Int32(1)},
+		{"nonce", bsonx.String("2375531c32080ae8")},
+	})
 
-	resps <- internal.MakeReply(t, bson.NewDocument(bson.EC.Int32("ok", 0)))
+	resps <- internal.MakeReply(t, bsonx.Doc{{"ok", bsonx.Int32(0)}})
 
 	c := &internal.ChannelConn{Written: make(chan wiremessage.WireMessage, 2), ReadResp: resps}
 
@@ -64,12 +64,12 @@ func TestMongoDBCRAuthenticator_Succeeds(t *testing.T) {
 
 	resps := make(chan wiremessage.WireMessage, 2)
 
-	resps <- internal.MakeReply(t, bson.NewDocument(
-		bson.EC.Int32("ok", 1),
-		bson.EC.String("nonce", "2375531c32080ae8"),
-	))
+	resps <- internal.MakeReply(t, bsonx.Doc{
+		{"ok", bsonx.Int32(1)},
+		{"nonce", bsonx.String("2375531c32080ae8")},
+	})
 
-	resps <- internal.MakeReply(t, bson.NewDocument(bson.EC.Int32("ok", 1)))
+	resps <- internal.MakeReply(t, bsonx.Doc{{"ok", bsonx.Int32(1)}})
 
 	c := &internal.ChannelConn{Written: make(chan wiremessage.WireMessage, 2), ReadResp: resps}
 
@@ -86,14 +86,14 @@ func TestMongoDBCRAuthenticator_Succeeds(t *testing.T) {
 		t.Fatalf("expected 2 messages to be sent but had %d", len(c.Written))
 	}
 
-	want := bson.NewDocument(bson.EC.Int32("getnonce", 1))
+	want := bsonx.Doc{{"getnonce", bsonx.Int32(1)}}
 	compareResponses(t, <-c.Written, want, "source")
 
-	expectedAuthenticateDoc := bson.NewDocument(
-		bson.EC.Int32("authenticate", 1),
-		bson.EC.String("user", "user"),
-		bson.EC.String("nonce", "2375531c32080ae8"),
-		bson.EC.String("key", "21742f26431831d5cfca035a08c5bdf6"),
-	)
+	expectedAuthenticateDoc := bsonx.Doc{
+		{"authenticate", bsonx.Int32(1)},
+		{"user", bsonx.String("user")},
+		{"nonce", bsonx.String("2375531c32080ae8")},
+		{"key", bsonx.String("21742f26431831d5cfca035a08c5bdf6")},
+	}
 	compareResponses(t, <-c.Written, expectedAuthenticateDoc, "source")
 }

@@ -12,11 +12,12 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 )
 
 // Count represents the count command.
@@ -24,8 +25,8 @@ import (
 // The count command counts how many documents in a collection match the given query.
 type Count struct {
 	NS          Namespace
-	Query       *bson.Document
-	Opts        []option.CountOptioner
+	Query       bsonx.Doc
+	Opts        []bsonx.Elem
 	ReadPref    *readpref.ReadPref
 	ReadConcern *readconcern.ReadConcern
 	Clock       *session.ClusterClock
@@ -50,16 +51,8 @@ func (c *Count) encode(desc description.SelectedServer) (*Read, error) {
 		return nil, err
 	}
 
-	command := bson.NewDocument(bson.EC.String("count", c.NS.Collection), bson.EC.SubDocument("query", c.Query))
-	for _, opt := range c.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(command)
-		if err != nil {
-			return nil, err
-		}
-	}
+	command := bsonx.Doc{{"count", bsonx.String(c.NS.Collection)}, {"query", bsonx.Document(c.Query)}}
+	command = append(command, c.Opts...)
 
 	return &Read{
 		Clock:       c.Clock,
@@ -83,10 +76,10 @@ func (c *Count) Decode(desc description.SelectedServer, wm wiremessage.WireMessa
 	return c.decode(desc, rdr)
 }
 
-func (c *Count) decode(desc description.SelectedServer, rdr bson.Reader) *Count {
-	val, err := rdr.Lookup("n")
+func (c *Count) decode(desc description.SelectedServer, rdr bson.Raw) *Count {
+	val, err := rdr.LookupErr("n")
 	switch {
-	case err == bson.ErrElementNotFound:
+	case err == bsoncore.ErrElementNotFound:
 		c.err = errors.New("invalid response from server, no 'n' field")
 		return c
 	case err != nil:
@@ -94,11 +87,11 @@ func (c *Count) decode(desc description.SelectedServer, rdr bson.Reader) *Count 
 		return c
 	}
 
-	switch val.Value().Type() {
+	switch val.Type {
 	case bson.TypeInt32:
-		c.result = int64(val.Value().Int32())
+		c.result = int64(val.Int32())
 	case bson.TypeInt64:
-		c.result = val.Value().Int64()
+		c.result = val.Int64()
 	default:
 		c.err = errors.New("invalid response from server, value field is not a number")
 	}

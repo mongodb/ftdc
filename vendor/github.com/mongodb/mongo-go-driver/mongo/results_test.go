@@ -10,15 +10,17 @@ import (
 	"testing"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeleteResult_unmarshalInto(t *testing.T) {
 	t.Parallel()
 
-	doc := bson.NewDocument(
-		bson.EC.Int64("n", 2),
-		bson.EC.Int64("ok", 1))
+	doc := bsonx.Doc{
+		{"n", bsonx.Int64(2)},
+		{"ok", bsonx.Int64(1)},
+	}
 
 	b, err := doc.MarshalBSON()
 	require.Nil(t, err)
@@ -36,10 +38,10 @@ func TestDeleteResult_marshalFrom(t *testing.T) {
 	buf, err := bson.Marshal(result)
 	require.Nil(t, err)
 
-	doc, err := bson.ReadDocument(buf)
+	doc, err := bsonx.ReadDoc(buf)
 	require.Nil(t, err)
 
-	require.Equal(t, doc.Len(), 1)
+	require.Equal(t, len(doc), 1)
 	e, err := doc.LookupErr("n")
 	require.NoError(t, err)
 	require.Equal(t, e.Type(), bson.TypeInt64)
@@ -49,16 +51,16 @@ func TestDeleteResult_marshalFrom(t *testing.T) {
 func TestUpdateOneResult_unmarshalInto(t *testing.T) {
 	t.Parallel()
 
-	doc := bson.NewDocument(
-		bson.EC.Int32("n", 1),
-		bson.EC.Int32("nModified", 2),
-		bson.EC.ArrayFromElements(
-			"upserted",
-			bson.VC.DocumentFromElements(
-				bson.EC.Int32("index", 0),
-				bson.EC.Int32("_id", 3),
-			),
-		))
+	doc := bsonx.Doc{
+		{"n", bsonx.Int32(1)},
+		{"nModified", bsonx.Int32(2)},
+		{"upserted", bsonx.Array(bsonx.Arr{
+			bsonx.Document(bsonx.Doc{
+				{"index", bsonx.Int32(0)},
+				{"_id", bsonx.Int32(3)},
+			}),
+		}),
+		}}
 
 	b, err := doc.MarshalBSON()
 	require.Nil(t, err)

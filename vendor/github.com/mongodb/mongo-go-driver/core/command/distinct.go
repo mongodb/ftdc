@@ -11,12 +11,12 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // Distinct represents the disctinct command.
@@ -26,8 +26,8 @@ import (
 type Distinct struct {
 	NS          Namespace
 	Field       string
-	Query       *bson.Document
-	Opts        []option.DistinctOptioner
+	Query       bsonx.Doc
+	Opts        []bsonx.Elem
 	ReadPref    *readpref.ReadPref
 	ReadConcern *readconcern.ReadConcern
 	Clock       *session.ClusterClock
@@ -53,21 +53,13 @@ func (d *Distinct) encode(desc description.SelectedServer) (*Read, error) {
 		return nil, err
 	}
 
-	command := bson.NewDocument(bson.EC.String("distinct", d.NS.Collection), bson.EC.String("key", d.Field))
+	command := bsonx.Doc{{"distinct", bsonx.String(d.NS.Collection)}, {"key", bsonx.String(d.Field)}}
 
 	if d.Query != nil {
-		command.Append(bson.EC.SubDocument("query", d.Query))
+		command = append(command, bsonx.Elem{"query", bsonx.Document(d.Query)})
 	}
 
-	for _, opt := range d.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(command)
-		if err != nil {
-			return nil, err
-		}
-	}
+	command = append(command, d.Opts...)
 
 	return &Read{
 		Clock:       d.Clock,
@@ -91,7 +83,7 @@ func (d *Distinct) Decode(desc description.SelectedServer, wm wiremessage.WireMe
 	return d.decode(desc, rdr)
 }
 
-func (d *Distinct) decode(desc description.SelectedServer, rdr bson.Reader) *Distinct {
+func (d *Distinct) decode(desc description.SelectedServer, rdr bson.Raw) *Distinct {
 	d.err = bson.Unmarshal(rdr, &d.result)
 	return d
 }

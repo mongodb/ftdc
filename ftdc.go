@@ -4,19 +4,19 @@ import (
 	"context"
 	"strings"
 
-	"github.com/mongodb/mongo-go-driver/bson"
-	"github.com/mongodb/mongo-go-driver/bson/bsontype"
+	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
 type Chunk struct {
 	metrics   []Metric
 	nPoints   int
-	metadata  *bson.Document
-	reference *bson.Document
+	metadata  *bsonx.Document
+	reference *bsonx.Document
 }
 
-func (c *Chunk) GetMetadata() *bson.Document {
+func (c *Chunk) GetMetadata() *bsonx.Document {
 	return c.metadata
 }
 

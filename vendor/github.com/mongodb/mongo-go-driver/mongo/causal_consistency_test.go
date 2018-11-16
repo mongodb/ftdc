@@ -11,12 +11,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/primitive"
 	"github.com/mongodb/mongo-go-driver/core/event"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
-	"github.com/mongodb/mongo-go-driver/mongo/sessionopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 var ccStarted *event.CommandStartedEvent
@@ -31,11 +32,9 @@ var ccMonitor = &event.CommandMonitor{
 	},
 }
 
-var startingDoc = bson.NewDocument(
-	bson.EC.Int32("hello", 5),
-)
+var startingDoc = bsonx.Doc{{"hello", bsonx.Int32(5)}}
 
-func compareOperationTimes(t *testing.T, expected *bson.Timestamp, actual *bson.Timestamp) {
+func compareOperationTimes(t *testing.T, expected *primitive.Timestamp, actual *primitive.Timestamp) {
 	if expected.T != actual.T {
 		t.Fatalf("T value mismatch; expected %d got %d", expected.T, actual.T)
 	}
@@ -45,11 +44,11 @@ func compareOperationTimes(t *testing.T, expected *bson.Timestamp, actual *bson.
 	}
 }
 
-func checkOperationTime(t *testing.T, cmd *bson.Document, shouldInclude bool) {
+func checkOperationTime(t *testing.T, cmd bsonx.Doc, shouldInclude bool) {
 	rc, err := cmd.LookupErr("readConcern")
 	testhelpers.RequireNil(t, err, "key read concern not found")
 
-	_, err = rc.MutableDocument().LookupErr("afterClusterTime")
+	_, err = rc.Document().LookupErr("afterClusterTime")
 	if shouldInclude {
 		testhelpers.RequireNil(t, err, "afterClusterTime not found")
 	} else {
@@ -57,15 +56,15 @@ func checkOperationTime(t *testing.T, cmd *bson.Document, shouldInclude bool) {
 	}
 }
 
-func getOperationTime(t *testing.T, cmd *bson.Document) *bson.Timestamp {
+func getOperationTime(t *testing.T, cmd bsonx.Doc) *primitive.Timestamp {
 	rc, err := cmd.LookupErr("readConcern")
 	testhelpers.RequireNil(t, err, "key read concern not found")
 
-	ct, err := rc.MutableDocument().LookupErr("afterClusterTime")
+	ct, err := rc.Document().LookupErr("afterClusterTime")
 	testhelpers.RequireNil(t, err, "key afterClusterTime not found")
 
 	timeT, timeI := ct.Timestamp()
-	return &bson.Timestamp{
+	return &primitive.Timestamp{
 		T: timeT,
 		I: timeI,
 	}
@@ -94,11 +93,11 @@ func createReadFuncMap(t *testing.T, dbName string, collName string) (*Client, *
 	return client, db, coll, functions
 }
 
-func checkReadConcern(t *testing.T, cmd *bson.Document, levelIncluded bool, expectedLevel string, optimeIncluded bool, expectedTime *bson.Timestamp) {
+func checkReadConcern(t *testing.T, cmd bsonx.Doc, levelIncluded bool, expectedLevel string, optimeIncluded bool, expectedTime *primitive.Timestamp) {
 	rc, err := cmd.LookupErr("readConcern")
 	testhelpers.RequireNil(t, err, "key readConcern not found")
 
-	rcDoc := rc.MutableDocument()
+	rcDoc := rc.Document()
 	levelVal, err := rcDoc.LookupErr("level")
 	if levelIncluded {
 		testhelpers.RequireNil(t, err, "key level not found")
@@ -113,7 +112,7 @@ func checkReadConcern(t *testing.T, cmd *bson.Document, levelIncluded bool, expe
 	if optimeIncluded {
 		testhelpers.RequireNil(t, err, "key afterClusterTime not found")
 		ctT, ctI := ct.Timestamp()
-		compareOperationTimes(t, expectedTime, &bson.Timestamp{ctT, ctI})
+		compareOperationTimes(t, expectedTime, &primitive.Timestamp{ctT, ctI})
 	} else {
 		testhelpers.RequireNotNil(t, err, "key afterClusterTime found")
 	}
@@ -203,7 +202,7 @@ func TestCausalConsistency(t *testing.T) {
 		testhelpers.RequireNil(t, err, "error dropping db: %s", err)
 
 		coll := db.Collection("FirstCommandColl")
-		err = client.UseSessionWithOptions(ctx, []sessionopt.Session{sessionopt.CausalConsistency(true)},
+		err = client.UseSessionWithOptions(ctx, options.Session().SetCausalConsistency(true),
 			func(mctx SessionContext) error {
 				_, err := coll.Find(mctx, emptyDoc)
 				return err
@@ -243,7 +242,7 @@ func TestCausalConsistency(t *testing.T) {
 		serverT, serverI := ccSucceeded.Reply.Lookup("operationTime").Timestamp()
 
 		testhelpers.RequireNotNil(t, sess.OperationTime(), "operation time nil after first command")
-		compareOperationTimes(t, &bson.Timestamp{serverT, serverI}, sess.OperationTime())
+		compareOperationTimes(t, &primitive.Timestamp{serverT, serverI}, sess.OperationTime())
 	})
 
 	t.Run("TestOperationTimeSent", func(t *testing.T) {
@@ -257,7 +256,7 @@ func TestCausalConsistency(t *testing.T) {
 
 		for _, tc := range readMap {
 			t.Run(tc.name, func(t *testing.T) {
-				sess, err := client.StartSession(sessionopt.CausalConsistency(true))
+				sess, err := client.StartSession(options.Session().SetCausalConsistency(true))
 				testhelpers.RequireNil(t, err, "error creating session for %s: %s", tc.name, err)
 				defer sess.EndSession(ctx)
 
@@ -291,7 +290,7 @@ func TestCausalConsistency(t *testing.T) {
 
 		for _, tc := range writeMap {
 			t.Run(tc.name, func(t *testing.T) {
-				sess, err := client.StartSession(sessionopt.CausalConsistency(true))
+				sess, err := client.StartSession(options.Session().SetCausalConsistency(true))
 				testhelpers.RequireNil(t, err, "error starting session: %s", err)
 				defer sess.EndSession(ctx)
 
@@ -326,7 +325,7 @@ func TestCausalConsistency(t *testing.T) {
 		testhelpers.RequireNil(t, err, "error dropping db: %s", err)
 
 		coll := db.Collection("NonConsistentReadColl")
-		_ = client.UseSessionWithOptions(ctx, []sessionopt.Session{sessionopt.CausalConsistency(false)},
+		_ = client.UseSessionWithOptions(ctx, options.Session().SetCausalConsistency(false),
 			func(mctx SessionContext) error {
 				_, _ = coll.Find(mctx, emptyDoc)
 				return nil
@@ -352,7 +351,7 @@ func TestCausalConsistency(t *testing.T) {
 		skipIfSessionsSupported(t, db)
 
 		coll := db.Collection("InvalidTopologyColl")
-		_ = client.UseSessionWithOptions(ctx, []sessionopt.Session{sessionopt.CausalConsistency(true)},
+		_ = client.UseSessionWithOptions(ctx, options.Session().SetCausalConsistency(true),
 			func(mctx SessionContext) error {
 				_, _ = coll.Find(mctx, emptyDoc)
 				return nil
@@ -374,7 +373,7 @@ func TestCausalConsistency(t *testing.T) {
 		skipIfBelow36(t)
 
 		client := createSessionsMonitoredClient(t, ccMonitor)
-		sess, err := client.StartSession(sessionopt.CausalConsistency(true))
+		sess, err := client.StartSession(options.Session().SetCausalConsistency(true))
 		testhelpers.RequireNil(t, err, "error starting session: %s", err)
 
 		db := client.Database("DefaultReadConcernDB")
@@ -410,7 +409,7 @@ func TestCausalConsistency(t *testing.T) {
 		skipIfBelow36(t)
 
 		client := createSessionsMonitoredClient(t, ccMonitor)
-		sess, err := client.StartSession(sessionopt.CausalConsistency(true))
+		sess, err := client.StartSession(options.Session().SetCausalConsistency(true))
 		testhelpers.RequireNil(t, err, "error starting session: %s", err)
 		defer sess.EndSession(ctx)
 
@@ -445,7 +444,7 @@ func TestCausalConsistency(t *testing.T) {
 		// Unacknowledged write should not update the operationTime property of a session
 
 		client := createSessionsMonitoredClient(t, nil)
-		sess, err := client.StartSession(sessionopt.CausalConsistency(true))
+		sess, err := client.StartSession(options.Session().SetCausalConsistency(true))
 		testhelpers.RequireNil(t, err, "error starting session: %s", err)
 		defer sess.EndSession(ctx)
 

@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bsoncodec
 
 import (
@@ -35,6 +41,7 @@ func (dve DefaultValueEncoders) RegisterDefaultEncoders(rb *RegistryBuilder) {
 		RegisterEncoder(tJSONNumber, ValueEncoderFunc(dve.JSONNumberEncodeValue)).
 		RegisterEncoder(tURL, ValueEncoderFunc(dve.URLEncodeValue)).
 		RegisterEncoder(tValueMarshaler, ValueEncoderFunc(dve.ValueMarshalerEncodeValue)).
+		RegisterEncoder(tProxy, ValueEncoderFunc(dve.ProxyEncodeValue)).
 		RegisterDefaultEncoder(reflect.Bool, ValueEncoderFunc(dve.BooleanEncodeValue)).
 		RegisterDefaultEncoder(reflect.Int, ValueEncoderFunc(dve.IntEncodeValue)).
 		RegisterDefaultEncoder(reflect.Int8, ValueEncoderFunc(dve.IntEncodeValue)).
@@ -206,6 +213,9 @@ func (dve DefaultValueEncoders) ObjectIDEncodeValue(ec EncodeContext, vw bsonrw.
 	case objectid.ObjectID:
 		oid = t
 	case *objectid.ObjectID:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		oid = *t
 	default:
 		return ValueEncoderError{
@@ -225,6 +235,9 @@ func (dve DefaultValueEncoders) Decimal128EncodeValue(ec EncodeContext, vw bsonr
 	case decimal.Decimal128:
 		d128 = t
 	case *decimal.Decimal128:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		d128 = *t
 	default:
 		return ValueEncoderError{
@@ -244,6 +257,9 @@ func (dve DefaultValueEncoders) JSONNumberEncodeValue(ec EncodeContext, vw bsonr
 	case json.Number:
 		jsnum = t
 	case *json.Number:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		jsnum = *t
 	default:
 		return ValueEncoderError{
@@ -273,6 +289,9 @@ func (dve DefaultValueEncoders) URLEncodeValue(ec EncodeContext, vw bsonrw.Value
 	case url.URL:
 		u = &t
 	case *url.URL:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		u = t
 	default:
 		return ValueEncoderError{
@@ -292,6 +311,9 @@ func (dve DefaultValueEncoders) TimeEncodeValue(ec EncodeContext, vw bsonrw.Valu
 	case time.Time:
 		tt = t
 	case *time.Time:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		tt = *t
 	default:
 		return ValueEncoderError{
@@ -311,6 +333,9 @@ func (dve DefaultValueEncoders) ByteSliceEncodeValue(ec EncodeContext, vw bsonrw
 	case []byte:
 		slcb = t
 	case *[]byte:
+		if t == nil {
+			return vw.WriteNull()
+		}
 		slcb = *t
 	default:
 		return ValueEncoderError{
@@ -441,4 +466,26 @@ func (dve DefaultValueEncoders) ValueMarshalerEncodeValue(ec EncodeContext, vw b
 		return err
 	}
 	return bsonrw.Copier{}.CopyValueFromBytes(vw, t, val)
+}
+
+// ProxyEncodeValue is the ValueEncoderFunc for Proxy implementations.
+func (dve DefaultValueEncoders) ProxyEncodeValue(ec EncodeContext, vw bsonrw.ValueWriter, i interface{}) error {
+	proxy, ok := i.(Proxy)
+	if !ok {
+		return ValueEncoderError{
+			Name:     "ProxyEncodeValue",
+			Types:    []interface{}{(Proxy)(nil)},
+			Received: i,
+		}
+	}
+
+	val, err := proxy.ProxyBSON()
+	if err != nil {
+		return err
+	}
+	encoder, err := ec.LookupEncoder(reflect.TypeOf(val))
+	if err != nil {
+		return err
+	}
+	return encoder.EncodeValue(ec, vw, val)
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
-	"github.com/mongodb/mongo-go-driver/bson"
 )
 
 // ChunkIterator is a simple iterator for reading off of an FTDC data
@@ -49,7 +49,7 @@ func ReadChunks(ctx context.Context, r io.Reader) *ChunkIterator {
 		pipe:    make(chan *Chunk, 2),
 	}
 
-	ipc := make(chan *bson.Document)
+	ipc := make(chan *bsonx.Document)
 	ctx, iter.cancel = context.WithCancel(ctx)
 
 	go func() {

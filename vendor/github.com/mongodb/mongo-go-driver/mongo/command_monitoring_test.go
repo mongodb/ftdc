@@ -12,6 +12,9 @@ import (
 	"path"
 	"testing"
 
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+
 	"bytes"
 	"fmt"
 	"time"
@@ -20,14 +23,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/event"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
-	"github.com/mongodb/mongo-go-driver/mongo/findopt"
-	"github.com/mongodb/mongo-go-driver/mongo/insertopt"
-	"github.com/mongodb/mongo-go-driver/mongo/updateopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
 )
 
 const cmTestsDir = "../data/command-monitoring"
@@ -58,7 +58,7 @@ func createMonitoredClient(t *testing.T, monitor *event.CommandMonitor) *Client 
 	}
 }
 
-func skipCmTest(t *testing.T, testCase *bson.Document, serverVersion string) bool {
+func skipCmTest(t *testing.T, testCase bsonx.Doc, serverVersion string) bool {
 	minVersionVal, err := testCase.LookupErr("ignore_if_server_version_less_than")
 	if err == nil {
 		if compareVersions(t, minVersionVal.StringValue(), serverVersion) > 0 {
@@ -90,18 +90,13 @@ func drainChannels() {
 	}
 }
 
-func insertDocuments(docsArray *bson.Array, coll *Collection, opts ...insertopt.Many) error {
-	iter, err := docsArray.Iterator()
-	if err != nil {
-		return err
+func insertDocuments(docsArray bsonx.Arr, coll *Collection, opts ...*options.InsertManyOptions) error {
+	docs := make([]interface{}, 0, len(docsArray))
+	for _, val := range docsArray {
+		docs = append(docs, val.Document())
 	}
 
-	docs := make([]interface{}, 0, docsArray.Len())
-	for iter.Next() {
-		docs = append(docs, iter.Value().MutableDocument())
-	}
-
-	_, err = coll.InsertMany(context.Background(), docs, opts...)
+	_, err := coll.InsertMany(context.Background(), docs, opts...)
 	return err
 }
 
@@ -116,7 +111,7 @@ func runCmTestFile(t *testing.T, filepath string) {
 	content, err := ioutil.ReadFile(filepath)
 	testhelpers.RequireNil(t, err, "error reading JSON file: %s", err)
 
-	doc := bson.NewDocument()
+	doc := bsonx.Doc{}
 	err = bson.UnmarshalExtJSON(content, true, &doc)
 	testhelpers.RequireNil(t, err, "error converting JSON to BSON: %s", err)
 
@@ -127,11 +122,9 @@ func runCmTestFile(t *testing.T, filepath string) {
 	testhelpers.RequireNil(t, err, "error getting server version: %s", err)
 
 	collName := doc.Lookup("collection_name").StringValue()
-	testsIter, err := doc.Lookup("tests").MutableArray().Iterator()
-	testhelpers.RequireNil(t, err, "error getting array iterator: %s", err)
 
-	for testsIter.Next() {
-		testDoc := testsIter.Value().MutableDocument()
+	for _, val := range doc.Lookup("tests").Array() {
+		testDoc := val.Document()
 
 		if skipCmTest(t, testDoc, serverVersionStr) {
 			continue
@@ -142,11 +135,8 @@ func runCmTestFile(t *testing.T, filepath string) {
 			var skipTop bool
 			currentTop := os.Getenv("topology")
 
-			iter, err := skippedTopos.MutableArray().Iterator()
-			testhelpers.RequireNil(t, err, "error creating iterator for skipped topologies: %s", err)
-
-			for iter.Next() {
-				top := iter.Value().StringValue()
+			for _, val := range skippedTopos.Array() {
+				top := val.StringValue()
 				// the only use of ignore_if_topology_type in the tests is in find.json and has "sharded" which actually maps
 				// to topology type "sharded_cluster". This option isn't documented in the command monitoring testing README
 				// so there's no way of knowing if future CM tests will use this option for other topologies.
@@ -163,14 +153,14 @@ func runCmTestFile(t *testing.T, filepath string) {
 
 		_, err = db.RunCommand(
 			context.Background(),
-			bson.NewDocument(bson.EC.String("drop", collName)),
+			bsonx.Doc{{"drop", bsonx.String(collName)}},
 		)
 
 		coll := db.Collection(collName)
-		err = insertDocuments(doc.Lookup("data").MutableArray(), coll)
+		err = insertDocuments(doc.Lookup("data").Array(), coll)
 		testhelpers.RequireNil(t, err, "error inserting starting data: %s", err)
 
-		operationDoc := testDoc.Lookup("operation").MutableDocument()
+		operationDoc := testDoc.Lookup("operation").Document()
 
 		drainChannels()
 
@@ -199,25 +189,23 @@ func runCmTestFile(t *testing.T, filepath string) {
 	}
 }
 
-func checkActualHelper(t *testing.T, expected *bson.Document, actual *bson.Document, nested bool) {
-	iter := actual.Iterator()
-	for iter.Next() {
-		elem := iter.Element()
-		key := elem.Key()
+func checkActualHelper(t *testing.T, expected bsonx.Doc, actual bsonx.Doc, nested bool) {
+	for _, elem := range actual {
+		key := elem.Key
 
 		// TODO: see comments in compareStartedEvent about ordered and batchSize
 		if key == "ordered" || key == "batchSize" {
 			continue
 		}
 
-		val := elem.Value()
+		val := elem.Value
 
 		if nested {
 			expectedVal, err := expected.LookupErr(key)
 			testhelpers.RequireNil(t, err, "nested field %s not found in expected cmd", key)
 
-			if nestedDoc, ok := val.MutableDocumentOK(); ok {
-				checkActualHelper(t, expectedVal.MutableDocument(), nestedDoc, true)
+			if nestedDoc, ok := val.DocumentOK(); ok {
+				checkActualHelper(t, expectedVal.Document(), nestedDoc, true)
 			} else if !compareValues(expectedVal, val) {
 				t.Errorf("nested field %s has different value", key)
 			}
@@ -225,12 +213,12 @@ func checkActualHelper(t *testing.T, expected *bson.Document, actual *bson.Docum
 	}
 }
 
-func checkActualFields(t *testing.T, expected *bson.Document, actual *bson.Document) {
+func checkActualFields(t *testing.T, expected bsonx.Doc, actual bsonx.Doc) {
 	// check that the command sent has no extra fields in nested subdocuments
 	checkActualHelper(t, expected, actual, false)
 }
 
-func compareWriteError(t *testing.T, expected *bson.Document, actual *bson.Document) {
+func compareWriteError(t *testing.T, expected bsonx.Doc, actual bsonx.Doc) {
 	expectedIndex := expected.Lookup("index").Int32()
 	actualIndex := actual.Lookup("index").Int32()
 
@@ -264,40 +252,28 @@ func compareWriteError(t *testing.T, expected *bson.Document, actual *bson.Docum
 	}
 }
 
-func compareWriteErrors(t *testing.T, expected *bson.Array, actual *bson.Array) {
-	if expected.Len() != actual.Len() {
-		t.Errorf("writeErrors length mismatch. expected %d got %d", expected.Len(), actual.Len())
+func compareWriteErrors(t *testing.T, expected bsonx.Arr, actual bsonx.Arr) {
+	if len(expected) != len(actual) {
+		t.Errorf("writeErrors length mismatch. expected %d got %d", len(expected), len(actual))
 		t.FailNow()
 	}
 
-	iter, err := expected.Iterator()
-	testhelpers.RequireNil(t, err, "error creating expected iterator for writeErrors: %s", err)
-
-	actualIter, err := actual.Iterator()
-	testhelpers.RequireNil(t, err, "error creating actual iterator for writeErrors: %s", err)
-
-	for iter.Next() && actualIter.Next() {
-		expectedErr := iter.Value().MutableDocument()
-		actualErr := actualIter.Value().MutableDocument()
+	for idx := range expected {
+		expectedErr := expected[idx].Document()
+		actualErr := actual[idx].Document()
 		compareWriteError(t, expectedErr, actualErr)
 	}
 }
 
-func compareBatches(t *testing.T, expected *bson.Array, actual *bson.Array) {
-	if expected.Len() != actual.Len() {
-		t.Errorf("batch length mismatch. expected %d got %d", expected.Len(), actual.Len())
+func compareBatches(t *testing.T, expected bsonx.Arr, actual bsonx.Arr) {
+	if len(expected) != len(actual) {
+		t.Errorf("batch length mismatch. expected %d got %d", len(expected), len(actual))
 		t.FailNow()
 	}
 
-	expectedIter, err := expected.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for expected batch: %s", err)
-
-	actualIter, err := actual.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for actual batch: %s", err)
-
-	for expectedIter.Next() && actualIter.Next() {
-		expectedDoc := expectedIter.Value().MutableDocument()
-		actualDoc := actualIter.Value().MutableDocument()
+	for idx := range expected {
+		expectedDoc := expected[idx].Document()
+		actualDoc := actual[idx].Document()
 
 		if !expectedDoc.Equal(actualDoc) {
 			t.Errorf("document mismatch in cursor batch")
@@ -306,7 +282,7 @@ func compareBatches(t *testing.T, expected *bson.Array, actual *bson.Array) {
 	}
 }
 
-func compareCursors(t *testing.T, expected *bson.Document, actual *bson.Document) {
+func compareCursors(t *testing.T, expected bsonx.Doc, actual bsonx.Doc) {
 	expectedID := expected.Lookup("id").Int64()
 	actualID := actual.Lookup("id").Int64()
 
@@ -338,31 +314,24 @@ func compareCursors(t *testing.T, expected *bson.Document, actual *bson.Document
 	actualBatchVal, err := actual.LookupErr(batchID)
 	testhelpers.RequireNil(t, err, "could not find batch with ID %s in actual cursor", batchID)
 
-	expectedBatch := batchVal.MutableArray()
-	actualBatch := actualBatchVal.MutableArray()
+	expectedBatch := batchVal.Array()
+	actualBatch := actualBatchVal.Array()
 	compareBatches(t, expectedBatch, actualBatch)
 }
 
-func compareUpserted(t *testing.T, expected *bson.Array, actual *bson.Array) {
-	if expected.Len() != actual.Len() {
-		t.Errorf("length mismatch. expected %d got %d", expected.Len(), actual.Len())
+func compareUpserted(t *testing.T, expected bsonx.Arr, actual bsonx.Arr) {
+	if len(expected) != len(actual) {
+		t.Errorf("length mismatch. expected %d got %d", len(expected), len(actual))
 	}
-	expectedIter, err := expected.Iterator()
-	testhelpers.RequireNil(t, err, "error creating expected iter: %s", err)
 
-	actualIter, err := actual.Iterator()
-	testhelpers.RequireNil(t, err, "error creating actual iter: %s", err)
-
-	for expectedIter.Next() && actualIter.Next() {
-		compareDocs(t, expectedIter.Value().MutableDocument(), actualIter.Value().MutableDocument())
+	for idx := range expected {
+		compareDocs(t, expected[idx].Document(), actual[idx].Document())
 	}
 }
 
-func compareReply(t *testing.T, succeeded *event.CommandSucceededEvent, reply *bson.Document) {
-	iter := reply.Iterator()
-	for iter.Next() {
-		elem := iter.Element()
-		switch elem.Key() {
+func compareReply(t *testing.T, succeeded *event.CommandSucceededEvent, reply bsonx.Doc) {
+	for _, elem := range reply {
+		switch elem.Key {
 		case "ok":
 			var actualOk int32
 
@@ -378,40 +347,40 @@ func compareReply(t *testing.T, succeeded *event.CommandSucceededEvent, reply *b
 				actualOk = int32(actualOkVal.Double())
 			}
 
-			if actualOk != elem.Value().Int32() {
-				t.Errorf("ok value in reply does not match. expected %d got %d", elem.Value().Int32(), actualOk)
+			if actualOk != elem.Value.Int32() {
+				t.Errorf("ok value in reply does not match. expected %d got %d", elem.Value.Int32(), actualOk)
 				t.FailNow()
 			}
 		case "n":
 			actualNVal, err := succeeded.Reply.LookupErr("n")
 			testhelpers.RequireNil(t, err, "could not find key n in reply")
 
-			if int(actualNVal.Int32()) != int(elem.Value().Int32()) {
-				t.Errorf("n values do not match. expected %d got %d", elem.Value().Int32(), actualNVal.Int32())
+			if int(actualNVal.Int32()) != int(elem.Value.Int32()) {
+				t.Errorf("n values do not match. expected %d got %d", elem.Value.Int32(), actualNVal.Int32())
 				t.FailNow()
 			}
 		case "writeErrors":
 			actualArr, err := succeeded.Reply.LookupErr("writeErrors")
 			testhelpers.RequireNil(t, err, "could not find key writeErrors in reply")
 
-			compareWriteErrors(t, elem.Value().MutableArray(), actualArr.MutableArray())
+			compareWriteErrors(t, elem.Value.Array(), actualArr.Array())
 		case "cursor":
 			actualDoc, err := succeeded.Reply.LookupErr("cursor")
 			testhelpers.RequireNil(t, err, "could not find key cursor in reply")
 
-			compareCursors(t, elem.Value().MutableDocument(), actualDoc.MutableDocument())
+			compareCursors(t, elem.Value.Document(), actualDoc.Document())
 		case "upserted":
 			actualDoc, err := succeeded.Reply.LookupErr("upserted")
 			testhelpers.RequireNil(t, err, "could not find key upserted in reply")
 
-			compareUpserted(t, elem.Value().MutableArray(), actualDoc.MutableArray())
+			compareUpserted(t, elem.Value.Array(), actualDoc.Array())
 		default:
-			fmt.Printf("key %s does not match existing case\n", elem.Key())
+			fmt.Printf("key %s does not match existing case\n", elem.Key)
 		}
 	}
 }
 
-func compareValues(expected *bson.Value, actual *bson.Value) bool {
+func compareValues(expected bsonx.Val, actual bsonx.Val) bool {
 	if expected.IsNumber() {
 		if !actual.IsNumber() {
 			return false
@@ -470,40 +439,37 @@ func compareValues(expected *bson.Value, actual *bson.Value) bool {
 	return true
 }
 
-func compareDocs(t *testing.T, expected *bson.Document, actual *bson.Document) {
+func compareDocs(t *testing.T, expected bsonx.Doc, actual bsonx.Doc) {
 	// this is necessary even though Equal() exists for documents because types not match between commands and the BSON
 	// documents given in test cases. for example, all numbers in the test case JSON are parsed as int64, but many nubmers
 	// sent over the wire are type int32
-	if expected.Len() != actual.Len() {
-		t.Errorf("doc length mismatch. expected %d got %d", expected.Len(), actual.Len())
+	if len(expected) != len(actual) {
+		t.Errorf("doc length mismatch. expected %d got %d", len(expected), len(actual))
 		t.FailNow()
 	}
 
-	eIter := expected.Iterator()
+	for _, expectedElem := range expected {
 
-	for eIter.Next() {
-		expectedElem := eIter.Element()
+		aVal, err := actual.LookupErr(expectedElem.Key)
+		testhelpers.RequireNil(t, err, "docs not equal. key %s not found in actual", expectedElem.Key)
 
-		aVal, err := actual.LookupErr(expectedElem.Key())
-		testhelpers.RequireNil(t, err, "docs not equal. key %s not found in actual", expectedElem.Key())
+		eVal := expectedElem.Value
 
-		eVal := expectedElem.Value()
-
-		if doc, ok := eVal.MutableDocumentOK(); ok {
+		if doc, ok := eVal.DocumentOK(); ok {
 			// nested doc
-			compareDocs(t, doc, aVal.MutableDocument())
+			compareDocs(t, doc, aVal.Document())
 
 			// nested docs were equal
 			continue
 		}
 
 		if !compareValues(eVal, aVal) {
-			t.Errorf("docs not equal because value mismatch for key %s", expectedElem.Key())
+			t.Errorf("docs not equal because value mismatch for key %s", expectedElem.Key)
 		}
 	}
 }
 
-func compareStartedEvent(t *testing.T, expected *bson.Document) {
+func compareStartedEvent(t *testing.T, expected bsonx.Doc) {
 	// rules for command comparison (from spec):
 	// 1. the actual command can have extra fields not specified in the test case, but only as top level fields
 	// these fields cannot be in nested subdocuments
@@ -533,15 +499,13 @@ func compareStartedEvent(t *testing.T, expected *bson.Document) {
 		t.FailNow()
 	}
 
-	expectedCmd := expected.Lookup("command").MutableDocument()
+	expectedCmd := expected.Lookup("command").Document()
 	var identifier string
-	var expectedPayload *bson.Array
+	var expectedPayload bsonx.Arr
 
-	iter := expectedCmd.Iterator()
-	for iter.Next() {
-		elem := iter.Element()
-		key := elem.Key()
-		val := elem.Value()
+	for _, elem := range expectedCmd {
+		key := elem.Key
+		val := elem.Value
 
 		if key == "getMore" && expectedCmdName == "getMore" {
 			expectedCursorID := val.Int64()
@@ -561,7 +525,7 @@ func compareStartedEvent(t *testing.T, expected *bson.Document) {
 
 		// type 1 payload
 		if key == "documents" || key == "updates" || key == "deletes" {
-			expectedPayload = val.MutableArray()
+			expectedPayload = val.Array()
 			identifier = key
 			continue
 		}
@@ -594,22 +558,16 @@ func compareStartedEvent(t *testing.T, expected *bson.Document) {
 
 	actualArrayVal, err := started.Command.LookupErr(identifier)
 	testhelpers.RequireNil(t, err, "array with id %s not found in started command", identifier)
-	actualPayload := actualArrayVal.MutableArray()
+	actualPayload := actualArrayVal.Array()
 
-	if expectedPayload.Len() != actualPayload.Len() {
-		t.Errorf("payload length mismatch. expected %d, got %d", expectedPayload.Len(), actualPayload.Len())
+	if len(expectedPayload) != len(actualPayload) {
+		t.Errorf("payload length mismatch. expected %d, got %d", len(expectedPayload), len(actualPayload))
 		t.FailNow()
 	}
 
-	expectedIter, err := expectedPayload.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for expected payload: %s", err)
-
-	actualIter, err := actualPayload.Iterator()
-	testhelpers.RequireNil(t, err, "error creating iterator for actual payload: %s", err)
-
-	for expectedIter.Next() && actualIter.Next() {
-		expectedDoc := expectedIter.Value().MutableDocument()
-		actualDoc := actualIter.Value().MutableDocument()
+	for idx := range expectedPayload {
+		expectedDoc := expectedPayload[idx].Document()
+		actualDoc := actualPayload[idx].Document()
 
 		compareDocs(t, expectedDoc, actualDoc)
 	}
@@ -617,7 +575,7 @@ func compareStartedEvent(t *testing.T, expected *bson.Document) {
 	checkActualFields(t, expectedCmd, started.Command)
 }
 
-func compareSuccessEvent(t *testing.T, expected *bson.Document) {
+func compareSuccessEvent(t *testing.T, expected bsonx.Doc) {
 	if len(succeededChan) == 0 {
 		t.Errorf("no success event waiting")
 		t.FailNow()
@@ -635,10 +593,10 @@ func compareSuccessEvent(t *testing.T, expected *bson.Document) {
 		t.FailNow()
 	}
 
-	compareReply(t, succeeded, expected.Lookup("reply").MutableDocument())
+	compareReply(t, succeeded, expected.Lookup("reply").Document())
 }
 
-func compareFailureEvent(t *testing.T, expected *bson.Document) {
+func compareFailureEvent(t *testing.T, expected bsonx.Doc) {
 	if len(failedChan) == 0 {
 		t.Errorf("no failure event waiting")
 		t.FailNow()
@@ -653,50 +611,48 @@ func compareFailureEvent(t *testing.T, expected *bson.Document) {
 	}
 }
 
-func compareExpectations(t *testing.T, testCase *bson.Document) {
-	expectations := testCase.Lookup("expectations").MutableArray()
-	iter, err := expectations.Iterator()
-	testhelpers.RequireNil(t, err, "error creating expecations iterator: %s", err)
+func compareExpectations(t *testing.T, testCase bsonx.Doc) {
+	expectations := testCase.Lookup("expectations").Array()
 
-	for iter.Next() {
-		expectedDoc := iter.Value().MutableDocument()
+	for _, val := range expectations {
+		expectedDoc := val.Document()
 
 		if startDoc, err := expectedDoc.LookupErr("command_started_event"); err == nil {
-			compareStartedEvent(t, startDoc.MutableDocument())
+			compareStartedEvent(t, startDoc.Document())
 			continue
 		}
 
 		if successDoc, err := expectedDoc.LookupErr("command_succeeded_event"); err == nil {
-			compareSuccessEvent(t, successDoc.MutableDocument())
+			compareSuccessEvent(t, successDoc.Document())
 			continue
 		}
 
-		compareFailureEvent(t, expectedDoc.Lookup("command_failed_event").MutableDocument())
+		compareFailureEvent(t, expectedDoc.Lookup("command_failed_event").Document())
 	}
 }
 
-func cmFindOptions(arguments *bson.Document) []findopt.Find {
-	var opts []findopt.Find
+func cmFindOptions(arguments bsonx.Doc) *options.FindOptions {
+	opts := options.Find()
 
 	if sort, err := arguments.LookupErr("sort"); err == nil {
-		opts = append(opts, findopt.Sort(sort.MutableDocument()))
+		opts = opts.SetSort(sort.Document())
 	}
 
 	if skip, err := arguments.LookupErr("skip"); err == nil {
-		opts = append(opts, findopt.Skip(skip.Int64()))
+		opts = opts.SetSkip(skip.Int64())
 	}
 
 	if limit, err := arguments.LookupErr("limit"); err == nil {
-		opts = append(opts, findopt.Limit(limit.Int64()))
+		opts = opts.SetLimit(limit.Int64())
 	}
 
 	if batchSize, err := arguments.LookupErr("batchSize"); err == nil {
-		opts = append(opts, findopt.BatchSize(int32(batchSize.Int64())))
+		opts = opts.SetBatchSize(int32(batchSize.Int64()))
 	}
 
 	if collation, err := arguments.LookupErr("collation"); err == nil {
 		collMap := collation.Interface().(map[string]interface{})
-		opts = append(opts, findopt.Collation(collationFromMap(collMap)))
+		opts = opts.SetCollation(collationFromMap(collMap))
 	}
 
 	modifiersVal, err := arguments.LookupErr("modifiers")
@@ -704,39 +660,32 @@ func cmFindOptions(arguments *bson.Document) []findopt.Find {
 		return opts
 	}
 
-	iter := modifiersVal.MutableDocument().Iterator()
-	for iter.Next() {
-		elem := iter.Element()
-		val := elem.Value()
+	for _, elem := range modifiersVal.Document() {
+		val := elem.Value
 
-		var opt findopt.Find
-		switch elem.Key() {
+		switch elem.Key {
 		case "$comment":
-			opt = findopt.Comment(val.StringValue())
+			opts = opts.SetComment(val.StringValue())
 		case "$hint":
-			opt = findopt.Hint(val.MutableDocument())
+			opts = opts.SetHint(val.Document())
 		case "$max":
-			opt = findopt.Max(val.MutableDocument())
+			opts = opts.SetMax(val.Document())
 		case "$maxTimeMS":
 			ns := time.Duration(val.Int32()) * time.Millisecond
-			opt = findopt.MaxTime(ns)
+			opts = opts.SetMaxTime(ns)
 		case "$min":
-			opt = findopt.Min(val.MutableDocument())
+			opts = opts.SetMin(val.Document())
 		case "$returnKey":
-			opt = findopt.ReturnKey(val.Boolean())
+			opts = opts.SetReturnKey(val.Boolean())
 		case "$showDiskLoc":
-			opt = findopt.ShowRecordID(val.Boolean())
-		}
-
-		if opt != nil {
-			opts = append(opts, opt)
+			opts = opts.SetShowRecordID(val.Boolean())
 		}
 	}
 
 	return opts
 }
 
-func getRp(rpDoc *bson.Document) *readpref.ReadPref {
+func getRp(rpDoc bsonx.Doc) *readpref.ReadPref {
 	rpMode := rpDoc.Lookup("mode").StringValue()
 	switch rpMode {
 	case "primary":
@@ -752,39 +701,39 @@ func getRp(rpDoc *bson.Document) *readpref.ReadPref {
 	return nil
 }
 
-func cmInsertManyTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
+func cmInsertManyTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
 	t.Logf("RUNNING %s\n", testCase.Lookup("description").StringValue())
-	args := operation.Lookup("arguments").MutableDocument()
-	var opts []insertopt.Many
+	args := operation.Lookup("arguments").Document()
+	opts := options.InsertMany()
 	var orderedGiven bool
 
 	if optionsDoc, err := args.LookupErr("options"); err == nil {
-		if ordered, err := optionsDoc.MutableDocument().LookupErr("ordered"); err == nil {
+		if ordered, err := optionsDoc.Document().LookupErr("ordered"); err == nil {
 			orderedGiven = true
-			opts = append(opts, insertopt.Ordered(ordered.Boolean()))
+			opts = opts.SetOrdered(ordered.Boolean())
 		}
 	}
 
 	// TODO: ordered?
 	if !orderedGiven {
-		opts = append(opts, insertopt.Ordered(true))
+		opts = opts.SetOrdered(true)
 	}
 	// ignore errors because write errors constitute a successful command
-	_ = insertDocuments(args.Lookup("documents").MutableArray(), coll, opts...)
+	_ = insertDocuments(args.Lookup("documents").Array(), coll, opts)
 	compareExpectations(t, testCase)
 }
 
-func cmFindTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	arguments := operation.Lookup("arguments").MutableDocument()
-	filter := arguments.Lookup("filter").MutableDocument()
+func cmFindTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	arguments := operation.Lookup("arguments").Document()
+	filter := arguments.Lookup("filter").Document()
 	opts := cmFindOptions(arguments)
 
 	oldRp := coll.readPreference
 	if rpVal, err := operation.LookupErr("read_preference"); err == nil {
-		coll.readPreference = getRp(rpVal.MutableDocument())
+		coll.readPreference = getRp(rpVal.Document())
 	}
 
-	cursor, _ := coll.Find(context.Background(), filter, opts...) // ignore errors at this stage
+	cursor, _ := coll.Find(context.Background(), filter, opts) // ignore errors at this stage
 
 	if cursor != nil {
 		for cursor.Next(context.Background()) {
@@ -795,68 +744,66 @@ func cmFindTest(t *testing.T, testCase *bson.Document, operation *bson.Document,
 	compareExpectations(t, testCase)
 }
 
-func cmDeleteManyTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	args := operation.Lookup("arguments").MutableDocument()
-	filter := args.Lookup("filter").MutableDocument()
+func cmDeleteManyTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	args := operation.Lookup("arguments").Document()
+	filter := args.Lookup("filter").Document()
 
 	_, _ = coll.DeleteMany(context.Background(), filter)
 	compareExpectations(t, testCase)
 }
 
-func cmDeleteOneTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	args := operation.Lookup("arguments").MutableDocument()
-	filter := args.Lookup("filter").MutableDocument()
+func cmDeleteOneTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	args := operation.Lookup("arguments").Document()
+	filter := args.Lookup("filter").Document()
 
 	_, _ = coll.DeleteOne(context.Background(), filter)
 	compareExpectations(t, testCase)
 }
 
-func cmInsertOneTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
+func cmInsertOneTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
 	// ignore errors because write errors constitute a successful command
 	_, _ = coll.InsertOne(context.Background(),
-		operation.Lookup("arguments").MutableDocument().Lookup("document").MutableDocument())
+		operation.Lookup("arguments").Document().Lookup("document").Document())
 	compareExpectations(t, testCase)
 }
 
-func getUpdateParams(args *bson.Document) (*bson.Document, *bson.Document, []updateopt.Update) {
-	filter := args.Lookup("filter").MutableDocument()
-	update := args.Lookup("update").MutableDocument()
+func getUpdateParams(args bsonx.Doc) (bsonx.Doc, bsonx.Doc, []*options.UpdateOptions) {
+	filter := args.Lookup("filter").Document()
+	update := args.Lookup("update").Document()
 
-	opts := []updateopt.Update{
-		updateopt.Upsert(false), // can be overwritten by test options
-	}
+	opts := []*options.UpdateOptions{options.Update().SetUpsert(false)}
 	if upsert, err := args.LookupErr("upsert"); err == nil {
-		opts = append(opts, updateopt.Upsert(upsert.Boolean()))
+		opts = append(opts, options.Update().SetUpsert(upsert.Boolean()))
 	}
 
 	return filter, update, opts
 }
 
-func runUpdateOne(args *bson.Document, coll *Collection, updateOpts ...updateopt.Update) {
+func runUpdateOne(args bsonx.Doc, coll *Collection, updateOpts ...*options.UpdateOptions) {
 	filter, update, opts := getUpdateParams(args)
 	opts = append(opts, updateOpts...)
 	_, _ = coll.UpdateOne(context.Background(), filter, update, opts...)
 }
 
-func cmUpdateOneTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	args := operation.Lookup("arguments").MutableDocument()
+func cmUpdateOneTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	args := operation.Lookup("arguments").Document()
 	runUpdateOne(args, coll)
 	compareExpectations(t, testCase)
 }
 
-func cmUpdateManyTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	args := operation.Lookup("arguments").MutableDocument()
+func cmUpdateManyTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	args := operation.Lookup("arguments").Document()
 	filter, update, opts := getUpdateParams(args)
 	_, _ = coll.UpdateMany(context.Background(), filter, update, opts...)
 	compareExpectations(t, testCase)
 }
 
-func cmCountTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	filter := operation.Lookup("arguments").MutableDocument().Lookup("filter").MutableDocument()
+func cmCountTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	filter := operation.Lookup("arguments").Document().Lookup("filter").Document()
 
 	oldRp := coll.readPreference
 	if rpVal, err := operation.LookupErr("read_preference"); err == nil {
-		coll.readPreference = getRp(rpVal.MutableDocument())
+		coll.readPreference = getRp(rpVal.Document())
 	}
 
 	_, _ = coll.Count(context.Background(), filter)
@@ -865,14 +812,12 @@ func cmCountTest(t *testing.T, testCase *bson.Document, operation *bson.Document
 	compareExpectations(t, testCase)
 }
 
-func cmBulkWriteTest(t *testing.T, testCase *bson.Document, operation *bson.Document, coll *Collection) {
-	outerArguments := operation.Lookup("arguments").MutableDocument()
-	iter, err := outerArguments.Lookup("requests").MutableArray().Iterator()
-	testhelpers.RequireNil(t, err, "error creating bulk write iterator: %s", err)
+func cmBulkWriteTest(t *testing.T, testCase bsonx.Doc, operation bsonx.Doc, coll *Collection) {
+	outerArguments := operation.Lookup("arguments").Document()
 
 	var wc *writeconcern.WriteConcern
 	if collOpts, err := operation.LookupErr("collectionOptions"); err == nil {
-		wcDoc := collOpts.MutableDocument().Lookup("writeConcern").MutableDocument()
+		wcDoc := collOpts.Document().Lookup("writeConcern").Document()
 		wc = writeconcern.New(writeconcern.W(int(wcDoc.Lookup("w").Int32())))
 	}
 
@@ -881,14 +826,14 @@ func cmBulkWriteTest(t *testing.T, testCase *bson.Document, operation *bson.Docu
 		coll.writeConcern = wc
 	}
 
-	for iter.Next() {
-		requestDoc := iter.Value().MutableDocument()
-		args := requestDoc.Lookup("arguments").MutableDocument()
+	for _, val := range outerArguments.Lookup("requests").Array() {
+		requestDoc := val.Document()
+		args := requestDoc.Lookup("arguments").Document()
 
 		switch requestDoc.Lookup("name").StringValue() {
 		case "insertOne":
 			_, _ = coll.InsertOne(context.Background(),
-				args.Lookup("document").MutableDocument())
+				args.Lookup("document").Document())
 		case "updateOne":
 			runUpdateOne(args, coll)
 		}

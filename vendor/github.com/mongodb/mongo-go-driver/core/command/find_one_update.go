@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // FindOneAndUpdate represents the findOneAndUpdate operation.
@@ -23,9 +23,9 @@ import (
 // The findOneAndUpdate command modifies and returns a single document.
 type FindOneAndUpdate struct {
 	NS           Namespace
-	Query        *bson.Document
-	Update       *bson.Document
-	Opts         []option.FindOneAndUpdateOptioner
+	Query        bsonx.Doc
+	Update       bsonx.Doc
+	Opts         []bsonx.Elem
 	WriteConcern *writeconcern.WriteConcern
 	Clock        *session.ClusterClock
 	Session      *session.Client
@@ -49,21 +49,12 @@ func (f *FindOneAndUpdate) encode(desc description.SelectedServer) (*Write, erro
 		return nil, err
 	}
 
-	command := bson.NewDocument(
-		bson.EC.String("findAndModify", f.NS.Collection),
-		bson.EC.SubDocument("query", f.Query),
-		bson.EC.SubDocument("update", f.Update),
-	)
-
-	for _, opt := range f.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(command)
-		if err != nil {
-			return nil, err
-		}
+	command := bsonx.Doc{
+		{"findAndModify", bsonx.String(f.NS.Collection)},
+		{"query", bsonx.Document(f.Query)},
+		{"update", bsonx.Document(f.Update)},
 	}
+	command = append(command, f.Opts...)
 
 	return &Write{
 		Clock:        f.Clock,
@@ -86,7 +77,7 @@ func (f *FindOneAndUpdate) Decode(desc description.SelectedServer, wm wiremessag
 	return f.decode(desc, rdr)
 }
 
-func (f *FindOneAndUpdate) decode(desc description.SelectedServer, rdr bson.Reader) *FindOneAndUpdate {
+func (f *FindOneAndUpdate) decode(desc description.SelectedServer, rdr bson.Raw) *FindOneAndUpdate {
 	f.result, f.err = unmarshalFindAndModifyResult(rdr)
 	return f
 }

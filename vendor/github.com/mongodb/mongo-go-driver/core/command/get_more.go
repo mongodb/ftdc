@@ -11,9 +11,9 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // GetMore represents the getMore command.
@@ -22,11 +22,11 @@ import (
 type GetMore struct {
 	ID      int64
 	NS      Namespace
-	Opts    []option.CursorOptioner
+	Opts    []bsonx.Elem
 	Clock   *session.ClusterClock
 	Session *session.Client
 
-	result bson.Reader
+	result bson.Raw
 	err    error
 }
 
@@ -41,22 +41,17 @@ func (gm *GetMore) Encode(desc description.SelectedServer) (wiremessage.WireMess
 }
 
 func (gm *GetMore) encode(desc description.SelectedServer) (*Read, error) {
-	cmd := bson.NewDocument(
-		bson.EC.Int64("getMore", gm.ID),
-		bson.EC.String("collection", gm.NS.Collection),
-	)
-
-	var err error
+	cmd := bsonx.Doc{
+		{"getMore", bsonx.Int64(gm.ID)},
+		{"collection", bsonx.String(gm.NS.Collection)},
+	}
 
 	for _, opt := range gm.Opts {
-		switch t := opt.(type) {
-		case option.OptMaxAwaitTime:
-			err = option.OptMaxTime(t).Option(cmd)
+		switch opt.Key {
+		case "maxAwaitTimeMS":
+			cmd = append(cmd, bsonx.Elem{"maxTimeMs", opt.Value})
 		default:
-			err = opt.Option(cmd)
-		}
-		if err != nil {
-			return nil, err
+			cmd = append(cmd, opt)
 		}
 	}
 
@@ -80,13 +75,13 @@ func (gm *GetMore) Decode(desc description.SelectedServer, wm wiremessage.WireMe
 	return gm.decode(desc, rdr)
 }
 
-func (gm *GetMore) decode(desc description.SelectedServer, rdr bson.Reader) *GetMore {
+func (gm *GetMore) decode(desc description.SelectedServer, rdr bson.Raw) *GetMore {
 	gm.result = rdr
 	return gm
 }
 
 // Result returns the result of a decoded wire message and server description.
-func (gm *GetMore) Result() (bson.Reader, error) {
+func (gm *GetMore) Result() (bson.Raw, error) {
 	if gm.err != nil {
 		return nil, gm.err
 	}
@@ -98,7 +93,7 @@ func (gm *GetMore) Result() (bson.Reader, error) {
 func (gm *GetMore) Err() error { return gm.err }
 
 // RoundTrip handles the execution of this command using the provided wiremessage.ReadWriter.
-func (gm *GetMore) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Reader, error) {
+func (gm *GetMore) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Raw, error) {
 	cmd, err := gm.encode(desc)
 	if err != nil {
 		return nil, err

@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bsoncodec
 
 import (
@@ -10,12 +16,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/mongodb/mongo-go-driver/bson/bsoncore"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw/bsonrwtest"
 	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/mongodb/mongo-go-driver/bson/decimal"
 	"github.com/mongodb/mongo-go-driver/bson/objectid"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 )
 
 func TestDefaultValueEncoders(t *testing.T) {
@@ -44,6 +50,13 @@ func TestDefaultValueEncoders(t *testing.T) {
 	pjsnum := new(json.Number)
 	*pjsnum = json.Number("3.14159")
 	d128 := decimal.NewDecimal128(12345, 67890)
+
+	var ptimeNil *(time.Time)
+	var pobjectidNil *(objectid.ObjectID)
+	var pd128Nil *(decimal.Decimal128)
+	var pjsnumNil *(json.Number)
+	var purlNil *(url.URL)
+	var pbytesliceNil *[]byte
 
 	type subtest struct {
 		name   string
@@ -183,6 +196,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 				},
 				{"time.Time", now, nil, nil, bsonrwtest.WriteDateTime, nil},
 				{"*time.Time", &now, nil, nil, bsonrwtest.WriteDateTime, nil},
+				{"*time.Time/nil", ptimeNil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -311,6 +325,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 					&objectid.ObjectID{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C},
 					nil, nil, bsonrwtest.WriteObjectID, nil,
 				},
+				{"*objectid.ObjectID/nil/success", pobjectidNil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -331,6 +346,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 				},
 				{"Decimal128/success", d128, nil, nil, bsonrwtest.WriteDecimal128, nil},
 				{"*Decimal128/success", &d128, nil, nil, bsonrwtest.WriteDecimal128, nil},
+				{"*Decimal128/nil/success", pd128Nil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -369,6 +385,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 					pjsnum,
 					nil, nil, bsonrwtest.WriteDouble, nil,
 				},
+				{"*json.Number/nil/success", pjsnumNil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -389,6 +406,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 				},
 				{"url.URL", url.URL{Scheme: "http", Host: "example.com"}, nil, nil, bsonrwtest.WriteString, nil},
 				{"*url.URL", &url.URL{Scheme: "http", Host: "example.com"}, nil, nil, bsonrwtest.WriteString, nil},
+				{"*url.URL/nil", purlNil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -409,6 +427,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 				},
 				{"[]byte", []byte{0x01, 0x02, 0x03}, nil, nil, bsonrwtest.WriteBinary, nil},
 				{"*[]byte", &([]byte{0x01, 0x02, 0x03}), nil, nil, bsonrwtest.WriteBinary, nil},
+				{"*[]byte/nil", pbytesliceNil, nil, nil, bsonrwtest.WriteNull, nil},
 			},
 		},
 		{
@@ -449,6 +468,48 @@ func TestDefaultValueEncoders(t *testing.T) {
 					nil,
 					nil,
 					bsonrwtest.WriteString,
+					nil,
+				},
+			},
+		},
+		{
+			"ProxyEncodeValue",
+			ValueEncoderFunc(dve.ProxyEncodeValue),
+			[]subtest{
+				{
+					"wrong type",
+					wrong,
+					nil,
+					nil,
+					bsonrwtest.Nothing,
+					ValueEncoderError{
+						Name:     "ProxyEncodeValue",
+						Types:    []interface{}{(Proxy)(nil)},
+						Received: wrong,
+					},
+				},
+				{
+					"Proxy error",
+					testProxy{err: errors.New("proxy error")},
+					nil,
+					nil,
+					bsonrwtest.Nothing,
+					errors.New("proxy error"),
+				},
+				{
+					"Lookup error",
+					testProxy{ret: nil},
+					&EncodeContext{Registry: buildDefaultRegistry()},
+					nil,
+					bsonrwtest.Nothing,
+					ErrNilType,
+				},
+				{
+					"success",
+					testProxy{ret: int64(1234567890)},
+					&EncodeContext{Registry: buildDefaultRegistry()},
+					nil,
+					bsonrwtest.WriteInt64,
 					nil,
 				},
 			},
@@ -704,6 +765,8 @@ func TestDefaultValueEncoders(t *testing.T) {
 					AC decimal.Decimal128
 					AD *time.Time
 					AE testValueMarshaler
+					AF Proxy
+					AG testProxy
 				}{
 					A: true,
 					B: 123,
@@ -729,6 +792,8 @@ func TestDefaultValueEncoders(t *testing.T) {
 					AC: decimal128,
 					AD: &now,
 					AE: testValueMarshaler{t: bsontype.String, buf: bsoncore.AppendString(nil, "hello, world")},
+					AF: testProxy{ret: struct{ Hello string }{Hello: "world!"}},
+					AG: testProxy{ret: struct{ Pi float64 }{Pi: 3.14159}},
 				},
 				buildDocument(func(doc []byte) []byte {
 					doc = bsoncore.AppendBooleanElement(doc, "a", true)
@@ -753,6 +818,8 @@ func TestDefaultValueEncoders(t *testing.T) {
 					doc = bsoncore.AppendDecimal128Element(doc, "ac", decimal128)
 					doc = bsoncore.AppendDateTimeElement(doc, "ad", now.UnixNano()/int64(time.Millisecond))
 					doc = bsoncore.AppendStringElement(doc, "ae", "hello, world")
+					doc = bsoncore.AppendDocumentElement(doc, "af", buildDocument(bsoncore.AppendStringElement(nil, "hello", "world!")))
+					doc = bsoncore.AppendDocumentElement(doc, "ag", buildDocument(bsoncore.AppendDoubleElement(nil, "pi", 3.14159)))
 					return doc
 				}(nil)),
 				nil,
@@ -785,6 +852,8 @@ func TestDefaultValueEncoders(t *testing.T) {
 					AC []decimal.Decimal128
 					AD []*time.Time
 					AE []testValueMarshaler
+					AF []Proxy
+					AG []testProxy
 				}{
 					A: []bool{true},
 					B: []int32{123},
@@ -817,6 +886,14 @@ func TestDefaultValueEncoders(t *testing.T) {
 					AE: []testValueMarshaler{
 						{t: bsontype.String, buf: bsoncore.AppendString(nil, "hello")},
 						{t: bsontype.String, buf: bsoncore.AppendString(nil, "world")},
+					},
+					AF: []Proxy{
+						testProxy{ret: struct{ Hello string }{Hello: "world!"}},
+						testProxy{ret: struct{ Foo string }{Foo: "bar"}},
+					},
+					AG: []testProxy{
+						{ret: struct{ One int64 }{One: 1234567890}},
+						{ret: struct{ Pi float64 }{Pi: 3.14159}},
 					},
 				},
 				buildDocument(func(doc []byte) []byte {
@@ -867,6 +944,22 @@ func TestDefaultValueEncoders(t *testing.T) {
 					doc = appendArrayElement(doc, "ae",
 						bsoncore.AppendStringElement(bsoncore.AppendStringElement(nil, "0", "hello"), "1", "world"),
 					)
+					doc = appendArrayElement(doc, "af",
+						bsoncore.AppendDocumentElement(
+							bsoncore.AppendDocumentElement(nil, "0",
+								bsoncore.BuildDocument(nil, bsoncore.AppendStringElement(nil, "hello", "world!")),
+							), "1",
+							bsoncore.BuildDocument(nil, bsoncore.AppendStringElement(nil, "foo", "bar")),
+						),
+					)
+					doc = appendArrayElement(doc, "ag",
+						bsoncore.AppendDocumentElement(
+							bsoncore.AppendDocumentElement(nil, "0",
+								bsoncore.BuildDocument(nil, bsoncore.AppendInt64Element(nil, "one", 1234567890)),
+							), "1",
+							bsoncore.BuildDocument(nil, bsoncore.AppendDoubleElement(nil, "pi", 3.14159)),
+						),
+					)
 					return doc
 				}(nil)),
 				nil,
@@ -888,7 +981,7 @@ func TestDefaultValueEncoders(t *testing.T) {
 				if diff := cmp.Diff([]byte(b), tc.b); diff != "" {
 					t.Errorf("Bytes written differ: (-got +want)\n%s", diff)
 					t.Errorf("Bytes\ngot: %v\nwant:%v\n", b, tc.b)
-					t.Errorf("Readers\ngot: %v\nwant:%v\n", b, tc.b)
+					t.Errorf("Readers\ngot: %v\nwant:%v\n", bsoncore.Document(b), bsoncore.Document(tc.b))
 				}
 			})
 		}
@@ -904,3 +997,10 @@ type testValueMarshaler struct {
 func (tvm testValueMarshaler) MarshalBSONValue() (bsontype.Type, []byte, error) {
 	return tvm.t, tvm.buf, tvm.err
 }
+
+type testProxy struct {
+	ret interface{}
+	err error
+}
+
+func (tp testProxy) ProxyBSON() (interface{}, error) { return tp.ret, tp.err }

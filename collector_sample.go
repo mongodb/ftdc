@@ -3,7 +3,6 @@ package ftdc
 import (
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
 
@@ -24,7 +23,7 @@ func NewSamplingCollector(minimumInterval time.Duration, collector Collector) Co
 	}
 }
 
-func (c *samplingCollector) Add(d *bson.Document) error {
+func (c *samplingCollector) Add(d interface{}) error {
 	if time.Since(c.lastCollection) < c.minimumInterval {
 		return nil
 	}

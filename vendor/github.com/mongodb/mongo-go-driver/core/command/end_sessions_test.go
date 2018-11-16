@@ -9,16 +9,14 @@ package command
 import (
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 func TestEndSessions(t *testing.T) {
 	t.Run("TestSplitBatches", func(t *testing.T) {
-		ids := []*bson.Document{}
+		ids := []bsonx.Doc{}
 		for i := 0; i < 2*BatchSize; i++ {
-			ids = append(ids, bson.NewDocument(
-				bson.EC.Int32("x", int32(i)),
-			))
+			ids = append(ids, bsonx.Doc{{"x", bsonx.Int32(int32(i))}})
 		}
 
 		es := &EndSessions{

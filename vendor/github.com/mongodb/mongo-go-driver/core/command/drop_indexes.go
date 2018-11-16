@@ -11,10 +11,10 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // DropIndexes represents the dropIndexes command.
@@ -23,12 +23,12 @@ import (
 type DropIndexes struct {
 	NS           Namespace
 	Index        string
-	Opts         []option.DropIndexesOptioner
+	Opts         []bsonx.Elem
 	WriteConcern *writeconcern.WriteConcern
 	Clock        *session.ClusterClock
 	Session      *session.Client
 
-	result bson.Reader
+	result bson.Raw
 	err    error
 }
 
@@ -43,20 +43,11 @@ func (di *DropIndexes) Encode(desc description.SelectedServer) (wiremessage.Wire
 }
 
 func (di *DropIndexes) encode(desc description.SelectedServer) (*Write, error) {
-	cmd := bson.NewDocument(
-		bson.EC.String("dropIndexes", di.NS.Collection),
-		bson.EC.String("index", di.Index),
-	)
-
-	for _, opt := range di.Opts {
-		if opt == nil {
-			continue
-		}
-		err := opt.Option(cmd)
-		if err != nil {
-			return nil, err
-		}
+	cmd := bsonx.Doc{
+		{"dropIndexes", bsonx.String(di.NS.Collection)},
+		{"index", bsonx.String(di.Index)},
 	}
+	cmd = append(cmd, di.Opts...)
 
 	return &Write{
 		Clock:        di.Clock,
@@ -79,13 +70,13 @@ func (di *DropIndexes) Decode(desc description.SelectedServer, wm wiremessage.Wi
 	return di.decode(desc, rdr)
 }
 
-func (di *DropIndexes) decode(desc description.SelectedServer, rdr bson.Reader) *DropIndexes {
+func (di *DropIndexes) decode(desc description.SelectedServer, rdr bson.Raw) *DropIndexes {
 	di.result = rdr
 	return di
 }
 
 // Result returns the result of a decoded wire message and server description.
-func (di *DropIndexes) Result() (bson.Reader, error) {
+func (di *DropIndexes) Result() (bson.Raw, error) {
 	if di.err != nil {
 		return nil, di.err
 	}
@@ -97,7 +88,7 @@ func (di *DropIndexes) Result() (bson.Reader, error) {
 func (di *DropIndexes) Err() error { return di.err }
 
 // RoundTrip handles the execution of this command using the provided wiremessage.ReadWriter.
-func (di *DropIndexes) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Reader, error) {
+func (di *DropIndexes) RoundTrip(ctx context.Context, desc description.SelectedServer, rw wiremessage.ReadWriter) (bson.Raw, error) {
 	cmd, err := di.encode(desc)
 	if err != nil {
 		return nil, err

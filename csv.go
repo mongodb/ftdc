@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/pkg/errors"
 )
 
@@ -25,9 +25,9 @@ func (c *Chunk) getRecord(i int) []string {
 	fields := make([]string, len(c.metrics))
 	for idx, m := range c.metrics {
 		switch m.originalType {
-		case bson.TypeDouble, bson.TypeInt32, bson.TypeInt64, bson.TypeBoolean, bson.TypeTimestamp:
+		case bsonx.TypeDouble, bsonx.TypeInt32, bsonx.TypeInt64, bsonx.TypeBoolean, bsonx.TypeTimestamp:
 			fields[idx] = strconv.FormatInt(m.Values[i], 10)
-		case bson.TypeDateTime:
+		case bsonx.TypeDateTime:
 			fields[idx] = time.Unix(m.Values[i]/1000, 0).Format(time.RFC3339)
 		}
 	}

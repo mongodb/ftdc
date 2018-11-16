@@ -1,9 +1,16 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bson
 
 import (
 	"reflect"
 
 	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 type unmarshalingTestCase struct {
@@ -24,7 +31,7 @@ var unmarshalingTestCases = []unmarshalingTestCase{
 		&struct {
 			Foo bool
 		}{Foo: true},
-		docToBytes(NewDocument(EC.Boolean("foo", true))),
+		docToBytes(bsonx.Doc{{"foo", bsonx.Boolean(true)}}),
 	},
 	{
 		"nested document",
@@ -43,7 +50,7 @@ var unmarshalingTestCases = []unmarshalingTestCase{
 				Bar bool
 			}{Bar: true},
 		},
-		docToBytes(NewDocument(EC.SubDocumentFromElements("foo", EC.Boolean("bar", true)))),
+		docToBytes(bsonx.Doc{{"foo", bsonx.Document(bsonx.Doc{{"bar", bsonx.Boolean(true)}})}}),
 	},
 	{
 		"simple array",
@@ -56,6 +63,6 @@ var unmarshalingTestCases = []unmarshalingTestCase{
 		}{
 			Foo: []bool{true},
 		},
-		docToBytes(NewDocument(EC.ArrayFromElements("foo", VC.Boolean(true)))),
+		docToBytes(bsonx.Doc{{"foo", bsonx.Array(bsonx.Arr{bsonx.Boolean(true)})}}),
 	},
 }

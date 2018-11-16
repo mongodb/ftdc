@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
@@ -43,8 +44,8 @@ func (opts CollectJSONOptions) validate() error {
 	return nil
 }
 
-func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error) {
-	out := make(chan *bson.Document)
+func (opts CollectJSONOptions) getSource() (<-chan *bsonx.Document, <-chan error) {
+	out := make(chan *bsonx.Document)
 	errs := make(chan error)
 
 	switch {
@@ -54,7 +55,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			defer close(errs)
 
 			for stream.Scan() {
-				doc := bson.NewDocument()
+				doc := bsonx.NewDocument()
 				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
@@ -75,7 +76,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			stream := bufio.NewScanner(f)
 
 			for stream.Scan() {
-				doc := bson.NewDocument()
+				doc := bsonx.NewDocument()
 				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
@@ -98,7 +99,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bson.Document, <-chan error)
 			defer tail.Close()
 
 			for line := range tail.Lines() {
-				doc := bson.NewDocument()
+				doc := bsonx.NewDocument()
 				err := bson.UnmarshalExtJSON([]byte(line.String()), false, doc)
 				if err != nil {
 					errs <- err

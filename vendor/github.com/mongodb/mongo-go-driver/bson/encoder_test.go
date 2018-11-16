@@ -1,3 +1,9 @@
+// Copyright (C) MongoDB, Inc. 2017-present.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may
+// not use this file except in compliance with the License. You may obtain
+// a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
 package bson
 
 import (
@@ -9,6 +15,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/bson/bsoncodec"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw"
 	"github.com/mongodb/mongo-go-driver/bson/bsonrw/bsonrwtest"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 func TestBasicEncode(t *testing.T) {
@@ -121,3 +128,33 @@ type testMarshaler struct {
 }
 
 func (tm testMarshaler) MarshalBSON() ([]byte, error) { return tm.buf, tm.err }
+
+func docToBytes(d bsonx.Doc) []byte {
+	b, err := d.MarshalBSON()
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+func arrToBytes(a bsonx.Arr) []byte {
+	_, b, err := a.MarshalBSONValue()
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
+
+type byteMarshaler []byte
+
+func (bm byteMarshaler) MarshalBSON() ([]byte, error) { return bm, nil }
+
+type _Interface interface {
+	method()
+}
+
+type _impl struct {
+	Foo string
+}
+
+func (_impl) method() {}

@@ -3,29 +3,29 @@ package ftdc
 import (
 	"context"
 
-	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/ftdc/bsonx"
 )
 
 // sampleIterator provides an iterator for iterating through the
 // results of a FTDC data chunk as BSON documents.
 type sampleIterator struct {
 	closer   context.CancelFunc
-	stream   <-chan *bson.Document
-	sample   *bson.Document
-	metadata *bson.Document
+	stream   <-chan *bsonx.Document
+	sample   *bsonx.Document
+	metadata *bsonx.Document
 }
 
-func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document, 100)
+func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bsonx.Document {
+	out := make(chan *bsonx.Document, 100)
 
 	go func() {
 		defer close(out)
 		for i := 0; i < c.nPoints; i++ {
 
-			doc := bson.NewDocument()
+			doc := bsonx.NewDocument()
 
 			for _, m := range c.metrics {
-				doc.Append(bson.EC.Int64(m.Key(), m.Values[i]))
+				doc.Append(bsonx.EC.Int64(m.Key(), m.Values[i]))
 			}
 
 			select {
@@ -40,8 +40,8 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bson.Docum
 	return out
 }
 
-func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
-	out := make(chan *bson.Document, 100)
+func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bsonx.Document {
+	out := make(chan *bsonx.Document, 100)
 
 	go func() {
 		defer close(out)
@@ -64,12 +64,12 @@ func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bson.Document {
 func (iter *sampleIterator) Close()     { iter.closer() }
 func (iter *sampleIterator) Err() error { return nil }
 
-func (iter *sampleIterator) Metadata() *bson.Document { return iter.metadata }
+func (iter *sampleIterator) Metadata() *bsonx.Document { return iter.metadata }
 
 // Document returns the current document in the iterator. It is safe
 // to call this method more than once, and the result will only be nil
 // before the iterator is advanced.
-func (iter *sampleIterator) Document() *bson.Document { return iter.sample }
+func (iter *sampleIterator) Document() *bsonx.Document { return iter.sample }
 
 // Next advances the iterator one document. Returns true when there is
 // a document, and false otherwise.

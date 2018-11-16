@@ -17,6 +17,7 @@ import (
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // MONGODBCR is the mechanism name for MONGODB-CR.
@@ -56,7 +57,7 @@ func (a *MongoDBCRAuthenticator) Auth(ctx context.Context, desc description.Serv
 		db = defaultAuthDB
 	}
 
-	cmd := command.Read{DB: db, Command: bson.NewDocument(bson.EC.Int32("getnonce", 1))}
+	cmd := command.Read{DB: db, Command: bsonx.Doc{{"getnonce", bsonx.Int32(1)}}}
 	ssdesc := description.SelectedServer{Server: desc}
 	rdr, err := cmd.RoundTrip(ctx, ssdesc, rw)
 	if err != nil {
@@ -74,12 +75,12 @@ func (a *MongoDBCRAuthenticator) Auth(ctx context.Context, desc description.Serv
 
 	cmd = command.Read{
 		DB: db,
-		Command: bson.NewDocument(
-			bson.EC.Int32("authenticate", 1),
-			bson.EC.String("user", a.Username),
-			bson.EC.String("nonce", getNonceResult.Nonce),
-			bson.EC.String("key", a.createKey(getNonceResult.Nonce)),
-		),
+		Command: bsonx.Doc{
+			{"authenticate", bsonx.Int32(1)},
+			{"user", bsonx.String(a.Username)},
+			{"nonce", bsonx.String(getNonceResult.Nonce)},
+			{"key", bsonx.String(a.createKey(getNonceResult.Nonce))},
+		},
 	}
 	_, err = cmd.RoundTrip(ctx, ssdesc, rw)
 	if err != nil {

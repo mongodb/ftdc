@@ -20,18 +20,18 @@ import (
 	"path"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/mongodb/mongo-go-driver/core/command"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/event"
-	"github.com/mongodb/mongo-go-driver/core/readconcern"
-	"github.com/mongodb/mongo-go-driver/core/readpref"
 	"github.com/mongodb/mongo-go-driver/core/session"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
 	"github.com/mongodb/mongo-go-driver/internal/testutil"
 	"github.com/mongodb/mongo-go-driver/internal/testutil/helpers"
-	"github.com/mongodb/mongo-go-driver/mongo/collectionopt"
-	"github.com/mongodb/mongo-go-driver/mongo/sessionopt"
-	"github.com/mongodb/mongo-go-driver/mongo/transactionopt"
+	"github.com/mongodb/mongo-go-driver/mongo/readconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/readpref"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/options"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -153,10 +153,10 @@ func runTransactionsTestCase(t *testing.T, test *transTestCase, testfile transTe
 
 			defer func() {
 				// disable failpoint if specified
-				_, _ = dbAdmin.RunCommand(ctx, bson.NewDocument(
-					bson.EC.String("configureFailPoint", test.FailPoint.ConfigureFailPoint),
-					bson.EC.String("mode", "off"),
-				))
+				_, _ = dbAdmin.RunCommand(ctx, bsonx.Doc{
+					{"configureFailPoint", bsonx.String(test.FailPoint.ConfigureFailPoint)},
+					{"mode", bsonx.String("off")},
+				})
 			}()
 		}
 
@@ -172,9 +172,7 @@ func runTransactionsTestCase(t *testing.T, test *transTestCase, testfile transTe
 
 		_, err = db.RunCommand(
 			context.Background(),
-			bson.NewDocument(
-				bson.EC.String("create", collName),
-			),
+			bsonx.Doc{{"create", bsonx.String(collName)}},
 		)
 		require.NoError(t, err)
 
@@ -182,14 +180,14 @@ func runTransactionsTestCase(t *testing.T, test *transTestCase, testfile transTe
 		coll := db.Collection(collName)
 		docsToInsert := docSliceToInterfaceSlice(docSliceFromRaw(t, testfile.Data))
 		if len(docsToInsert) > 0 {
-			coll2, err := coll.Clone(collectionopt.WriteConcern(writeconcern.New(writeconcern.WMajority())))
+			coll2, err := coll.Clone(options.Collection().SetWriteConcern(writeconcern.New(writeconcern.WMajority())))
 			require.NoError(t, err)
 			_, err = coll2.InsertMany(context.Background(), docsToInsert)
 			require.NoError(t, err)
 		}
 
-		var sess0Opts *sessionopt.SessionBundle
-		var sess1Opts *sessionopt.SessionBundle
+		var sess0Opts *options.SessionOptions
+		var sess1Opts *options.SessionOptions
 		if test.SessionOptions != nil {
 			if test.SessionOptions["session0"] != nil {
 				sess0Opts = getSessionOptions(test.SessionOptions["session0"].(map[string]interface{}))
@@ -221,7 +219,7 @@ func runTransactionsTestCase(t *testing.T, test *transTestCase, testfile transTe
 
 		for _, op := range test.Operations {
 			// create collection with default read preference Primary (needed to prevent server selection fail)
-			coll = db.Collection(collName, collectionopt.ReadPreference(readpref.Primary()))
+			coll = db.Collection(collName, options.Collection().SetReadPreference(readpref.Primary()))
 			addCollectionOptions(coll, op.CollectionOptions)
 
 			// Arguments aren't marshaled directly into a map because runcommand
@@ -265,7 +263,7 @@ func runTransactionsTestCase(t *testing.T, test *transTestCase, testfile transTe
 
 		if test.Outcome != nil {
 			// Verify with primary read pref
-			coll2, err := coll.Clone(collectionopt.ReadPreference(readpref.Primary()))
+			coll2, err := coll.Clone(options.Collection().SetReadPreference(readpref.Primary()))
 			require.NoError(t, err)
 			verifyCollectionContents(t, coll2, test.Outcome.Collection.Data)
 		}
@@ -277,12 +275,10 @@ func killSessions(t *testing.T, client *Client) {
 	s, err := client.topology.SelectServer(ctx, description.WriteSelector())
 	require.NoError(t, err)
 
-	vals := make([]*bson.Value, 0, 0)
+	vals := make(bsonx.Arr, 0, 0)
 	cmd := command.Write{
-		DB: "admin",
-		Command: bson.NewDocument(
-			bson.EC.ArrayFromElements("killAllSessions", vals...),
-		),
+		DB:      "admin",
+		Command: bsonx.Doc{{"killAllSessions", bsonx.Array(vals)}},
 	}
 	conn, err := s.Connection(ctx)
 	require.NoError(t, err)
@@ -311,10 +307,8 @@ func createTransactionsMonitoredClient(t *testing.T, monitor *event.CommandMonit
 	return c
 }
 
-func createFailPointDoc(t *testing.T, failPoint *failPoint) *bson.Document {
-	failDoc := bson.NewDocument(
-		bson.EC.String("configureFailPoint", failPoint.ConfigureFailPoint),
-	)
+func createFailPointDoc(t *testing.T, failPoint *failPoint) bsonx.Doc {
+	failDoc := bsonx.Doc{{"configureFailPoint", bsonx.String(failPoint.ConfigureFailPoint)}}
 
 	modeBytes, err := failPoint.Mode.MarshalJSON()
 	require.NoError(t, err)
@@ -325,53 +319,51 @@ func createFailPointDoc(t *testing.T, failPoint *failPoint) *bson.Document {
 	}
 	err = json.Unmarshal(modeBytes, &modeStruct)
 	if err != nil {
-		failDoc.Append(bson.EC.String("mode", "alwaysOn"))
+		failDoc = append(failDoc, bsonx.Elem{"mode", bsonx.String("alwaysOn")})
 	} else {
-		modeDoc := bson.NewDocument()
+		modeDoc := bsonx.Doc{}
 		if modeStruct.Times != 0 {
-			modeDoc.Append(bson.EC.Int32("times", modeStruct.Times))
+			modeDoc = append(modeDoc, bsonx.Elem{"times", bsonx.Int32(modeStruct.Times)})
 		}
 		if modeStruct.Skip != 0 {
-			modeDoc.Append(bson.EC.Int32("skip", modeStruct.Skip))
+			modeDoc = append(modeDoc, bsonx.Elem{"skip", bsonx.Int32(modeStruct.Skip)})
 		}
-		failDoc.Append(bson.EC.SubDocument("mode", modeDoc))
+		failDoc = append(failDoc, bsonx.Elem{"mode", bsonx.Document(modeDoc)})
 	}
 
 	if failPoint.Data != nil {
-		dataDoc := bson.NewDocument()
+		dataDoc := bsonx.Doc{}
 
 		if failPoint.Data.FailCommands != nil {
-			failCommandElems := make([]*bson.Value, len(failPoint.Data.FailCommands))
+			failCommandElems := make(bsonx.Arr, len(failPoint.Data.FailCommands))
 			for i, str := range failPoint.Data.FailCommands {
-				failCommandElems[i] = bson.VC.String(str)
+				failCommandElems[i] = bsonx.String(str)
 			}
-			dataDoc.Append(bson.EC.ArrayFromElements("failCommands", failCommandElems...))
+			dataDoc = append(dataDoc, bsonx.Elem{"failCommands", bsonx.Array(failCommandElems)})
 		}
 
 		if failPoint.Data.CloseConnection {
-			dataDoc.Append(bson.EC.Boolean("closeConnection", failPoint.Data.CloseConnection))
+			dataDoc = append(dataDoc, bsonx.Elem{"closeConnection", bsonx.Boolean(failPoint.Data.CloseConnection)})
 		}
 
 		if failPoint.Data.ErrorCode != 0 {
-			dataDoc.Append(bson.EC.Int32("errorCode", failPoint.Data.ErrorCode))
+			dataDoc = append(dataDoc, bsonx.Elem{"errorCode", bsonx.Int32(failPoint.Data.ErrorCode)})
 		}
 
 		if failPoint.Data.WriteConcernError != nil {
-			dataDoc.Append(
-				bson.EC.SubDocument("writeConcernError", bson.NewDocument(
-					bson.EC.Int32("code", failPoint.Data.WriteConcernError.Code),
-					bson.EC.String("errmsg", failPoint.Data.WriteConcernError.Errmsg),
-				)),
+			dataDoc = append(dataDoc,
+				bsonx.Elem{"writeConcernError", bsonx.Document(bsonx.Doc{
+					{"code", bsonx.Int32(failPoint.Data.WriteConcernError.Code)},
+					{"errmsg", bsonx.String(failPoint.Data.WriteConcernError.Errmsg)},
+				})},
 			)
 		}
 
 		if failPoint.Data.FailBeforeCommitExceptionCode != 0 {
-			dataDoc.Append(
-				bson.EC.Int32("failBeforeCommitExceptionCode", failPoint.Data.FailBeforeCommitExceptionCode),
-			)
+			dataDoc = append(dataDoc, bsonx.Elem{"failBeforeCommitExceptionCode", bsonx.Int32(failPoint.Data.FailBeforeCommitExceptionCode)})
 		}
 
-		failDoc.Append(bson.EC.SubDocument("data", dataDoc))
+		failDoc = append(failDoc, bsonx.Elem{"data", bsonx.Document(dataDoc)})
 	}
 
 	return failDoc
@@ -381,7 +373,7 @@ func executeSessionOperation(op *transOperation, sess *sessionImpl) error {
 	switch op.Name {
 	case "startTransaction":
 		// options are only argument
-		var transOpts transactionopt.Transaction
+		var transOpts *options.TransactionOptions
 		if op.ArgMap["options"] != nil {
 			transOpts = getTransactionOptions(op.ArgMap["options"].(map[string]interface{}))
 		}
@@ -563,7 +555,7 @@ func getErrorFromResult(t *testing.T, result json.RawMessage) *transError {
 	return &expected
 }
 
-func checkExpectations(t *testing.T, expectations []*transExpectation, id0 *bson.Document, id1 *bson.Document) {
+func checkExpectations(t *testing.T, expectations []*transExpectation, id0 bsonx.Doc, id1 bsonx.Doc) {
 	for _, expectation := range expectations {
 		var evt *event.CommandStartedEvent
 		select {
@@ -578,22 +570,20 @@ func checkExpectations(t *testing.T, expectations []*transExpectation, id0 *bson
 		jsonBytes, err := expectation.CommandStartedEvent.Command.MarshalJSON()
 		require.NoError(t, err)
 
-		expected := bson.NewDocument()
+		expected := bsonx.Doc{}
 		err = bson.UnmarshalExtJSON(jsonBytes, true, &expected)
 		require.NoError(t, err)
 
 		actual := evt.Command
-		iter := expected.Iterator()
-		for iter.Next() {
-			elem := iter.Element()
-			key := elem.Key()
-			val := elem.Value()
+		for _, elem := range expected {
+			key := elem.Key
+			val := elem.Value
 
 			actualVal := actual.Lookup(key)
 
 			// Keys that may be nil
 			if val.Type() == bson.TypeNull {
-				require.Nil(t, actual.LookupElement(key), "Expected %s to be nil", key)
+				require.Equal(t, actual.LookupElement(key), bsonx.Elem{}, "Expected %s to be nil", key)
 				continue
 			} else if key == "ordered" {
 				// TODO: some tests specify that "ordered" must be a key in the event but ordered isn't a valid option for some of these cases (e.g. insertOne)
@@ -601,13 +591,13 @@ func checkExpectations(t *testing.T, expectations []*transExpectation, id0 *bson
 			}
 
 			// Keys that should not be nil
-			require.NotNil(t, actualVal, "Expected %v, got nil for key: %s", elem, key)
+			require.NotEqual(t, actualVal.Type(), bsontype.Null, "Expected %v, got nil for key: %s", elem, key)
 			if key == "lsid" {
 				if val.StringValue() == "session0" {
-					require.True(t, id0.Equal(actualVal.MutableDocument()), "Session ID mismatch")
+					require.True(t, id0.Equal(actualVal.Document()), "Session ID mismatch")
 				}
 				if val.StringValue() == "session1" {
-					require.True(t, id1.Equal(actualVal.MutableDocument()), "Session ID mismatch")
+					require.True(t, id1.Equal(actualVal.Document()), "Session ID mismatch")
 				}
 			} else if key == "getMore" {
 				require.NotNil(t, actualVal, "Expected %v, got nil for key: %s", elem, key)
@@ -617,14 +607,14 @@ func checkExpectations(t *testing.T, expectations []*transExpectation, id0 *bson
 					require.Equal(t, expectedCursorID, actualVal.Int64())
 				}
 			} else if key == "readConcern" {
-				rcExpectDoc := val.MutableDocument()
-				rcActualDoc := actualVal.MutableDocument()
+				rcExpectDoc := val.Document()
+				rcActualDoc := actualVal.Document()
 				clusterTime := rcExpectDoc.Lookup("afterClusterTime")
 				level := rcExpectDoc.Lookup("level")
-				if clusterTime != nil {
+				if clusterTime.Type() != bsontype.Null {
 					require.NotNil(t, rcActualDoc.Lookup("afterClusterTime"))
 				}
-				if level != nil {
+				if level.Type() != bsontype.Null {
 					compareElements(t, rcExpectDoc.LookupElement("level"), rcActualDoc.LookupElement("level"))
 				}
 			} else {
@@ -646,22 +636,22 @@ func getArgMap(t *testing.T, args json.RawMessage) map[string]interface{} {
 	return argmap
 }
 
-func getSessionOptions(opts map[string]interface{}) *sessionopt.SessionBundle {
-	sessOpts := sessionopt.BundleSession()
+func getSessionOptions(opts map[string]interface{}) *options.SessionOptions {
+	sessOpts := options.Session()
 	for name, opt := range opts {
 		switch name {
 		case "causalConsistency":
-			sessOpts = sessOpts.CausalConsistency(opt.(bool))
+			sessOpts = sessOpts.SetCausalConsistency(opt.(bool))
 		case "defaultTransactionOptions":
 			transOpts := opt.(map[string]interface{})
 			if transOpts["readConcern"] != nil {
-				sessOpts = sessOpts.DefaultReadConcern(getReadConcern(transOpts["readConcern"]))
+				sessOpts = sessOpts.SetDefaultReadConcern(getReadConcern(transOpts["readConcern"]))
 			}
 			if transOpts["writeConcern"] != nil {
-				sessOpts = sessOpts.DefaultWriteConcern(getWriteConcern(transOpts["writeConcern"]))
+				sessOpts = sessOpts.SetDefaultWriteConcern(getWriteConcern(transOpts["writeConcern"]))
 			}
 			if transOpts["readPreference"] != nil {
-				sessOpts = sessOpts.DefaultReadPreference(getReadPref(transOpts["readPreference"]))
+				sessOpts = sessOpts.SetDefaultReadPreference(getReadPref(transOpts["readPreference"]))
 			}
 		}
 	}
@@ -669,16 +659,16 @@ func getSessionOptions(opts map[string]interface{}) *sessionopt.SessionBundle {
 	return sessOpts
 }
 
-func getTransactionOptions(opts map[string]interface{}) *transactionopt.TransactionBundle {
-	transOpts := transactionopt.BundleTransaction()
+func getTransactionOptions(opts map[string]interface{}) *options.TransactionOptions {
+	transOpts := options.Transaction()
 	for name, opt := range opts {
 		switch name {
 		case "writeConcern":
-			transOpts = transOpts.WriteConcern(getWriteConcern(opt))
+			transOpts = transOpts.SetWriteConcern(getWriteConcern(opt))
 		case "readPreference":
-			transOpts = transOpts.ReadPreference(getReadPref(opt))
+			transOpts = transOpts.SetReadPreference(getReadPref(opt))
 		case "readConcern":
-			transOpts = transOpts.ReadConcern(getReadConcern(opt))
+			transOpts = transOpts.SetReadConcern(getReadConcern(opt))
 		}
 	}
 	return transOpts

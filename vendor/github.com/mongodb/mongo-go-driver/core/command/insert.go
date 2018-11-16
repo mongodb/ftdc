@@ -11,11 +11,11 @@ import (
 
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/mongodb/mongo-go-driver/core/description"
-	"github.com/mongodb/mongo-go-driver/core/option"
 	"github.com/mongodb/mongo-go-driver/core/result"
 	"github.com/mongodb/mongo-go-driver/core/session"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
-	"github.com/mongodb/mongo-go-driver/core/writeconcern"
+	"github.com/mongodb/mongo-go-driver/mongo/writeconcern"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
 )
 
 // this is the amount of reserved buffer space in a message that the
@@ -32,8 +32,8 @@ type Insert struct {
 	ContinueOnError bool
 	Clock           *session.ClusterClock
 	NS              Namespace
-	Docs            []*bson.Document
-	Opts            []option.InsertOptioner
+	Docs            []bsonx.Doc
+	Opts            []bsonx.Elem
 	WriteConcern    *writeconcern.WriteConcern
 	Session         *session.Client
 
@@ -52,22 +52,16 @@ func (i *Insert) Encode(desc description.SelectedServer) ([]wiremessage.WireMess
 	return batchesToWireMessage(i.batches, desc)
 }
 
-func (i *Insert) encodeBatch(docs []*bson.Document, desc description.SelectedServer) (*WriteBatch, error) {
-	opts := make([]option.Optioner, len(i.Opts))
-	for ind, opt := range i.Opts {
-		opts[ind] = opt
-	}
-
-	command, err := encodeBatch(docs, opts, InsertCommand, i.NS.Collection)
+func (i *Insert) encodeBatch(docs []bsonx.Doc, desc description.SelectedServer) (*WriteBatch, error) {
+	command, err := encodeBatch(docs, i.Opts, InsertCommand, i.NS.Collection)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, opt := range i.Opts {
-		if ordered, ok := opt.(option.OptOrdered); ok {
-			if !ordered {
-				i.ContinueOnError = true
-			}
+		if opt.Key == "ordered" && !opt.Value.Boolean() {
+			i.ContinueOnError = true
+			break
 		}
 	}
 
@@ -112,7 +106,7 @@ func (i *Insert) Decode(desc description.SelectedServer, wm wiremessage.WireMess
 	return i.decode(desc, rdr)
 }
 
-func (i *Insert) decode(desc description.SelectedServer, rdr bson.Reader) *Insert {
+func (i *Insert) decode(desc description.SelectedServer, rdr bson.Raw) *Insert {
 	i.err = bson.Unmarshal(rdr, &i.result)
 	return i
 }

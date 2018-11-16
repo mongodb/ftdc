@@ -12,10 +12,13 @@ import (
 	"testing"
 
 	"github.com/mongodb/mongo-go-driver/bson"
+	"github.com/mongodb/mongo-go-driver/bson/bsontype"
 	"github.com/mongodb/mongo-go-driver/core/connection"
 	"github.com/mongodb/mongo-go-driver/core/description"
 	"github.com/mongodb/mongo-go-driver/core/wiremessage"
 	"github.com/mongodb/mongo-go-driver/internal"
+	"github.com/mongodb/mongo-go-driver/x/bsonx"
+	"github.com/mongodb/mongo-go-driver/x/bsonx/bsoncore"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +30,12 @@ func TestCursorNextDoesNotPanicIfContextisNil(t *testing.T) {
 	// While more through testing might be ideal this check
 	// prevents a regression of GODRIVER-298
 
-	c := cursor{batch: bson.NewArray(bson.VC.String("a"), bson.VC.String("b"))}
+	c := cursor{
+		batch: []bson.RawValue{
+			{Type: bsontype.String, Value: bsoncore.AppendString(nil, "a")},
+			{Type: bsontype.String, Value: bsoncore.AppendString(nil, "b")},
+		},
+	}
 
 	var iterNext bool
 	assert.NotPanics(t, func() {
@@ -44,7 +52,7 @@ func TestCursorLoopsUntilDocAvailable(t *testing.T) {
 	s := createDefaultConnectedServer(t, false)
 	c := cursor{
 		id:     1,
-		batch:  bson.NewArray(),
+		batch:  []bson.RawValue{},
 		server: s,
 	}
 
@@ -58,7 +66,7 @@ func TestCursorReturnsFalseOnContextCancellation(t *testing.T) {
 	s := createDefaultConnectedServer(t, false)
 	c := cursor{
 		id:     1,
-		batch:  bson.NewArray(),
+		batch:  []bson.RawValue{},
 		server: s,
 	}
 
@@ -76,7 +84,7 @@ func TestCursorNextReturnsFalseIfErrorOccurred(t *testing.T) {
 	s := createDefaultConnectedServer(t, true)
 	c := cursor{
 		id:     1,
-		batch:  bson.NewArray(),
+		batch:  []bson.RawValue{},
 		server: s,
 	}
 	assert.False(t, c.Next(nil))
@@ -85,7 +93,7 @@ func TestCursorNextReturnsFalseIfErrorOccurred(t *testing.T) {
 func TestCursorNextReturnsFalseIfResIdZeroAndNoMoreDocs(t *testing.T) {
 	// Next should return false if the cursor id is 0 and there are no documents in the next batch
 
-	c := cursor{id: 0, batch: bson.NewArray()}
+	c := cursor{id: 0, batch: []bson.RawValue{}}
 	assert.False(t, c.Next(nil))
 }
 
@@ -99,14 +107,16 @@ func createDefaultConnectedServer(t *testing.T, willErr bool) *Server {
 	return s
 }
 
-func createOKBatchReplyDoc(id int64, batchDocs *bson.Array) *bson.Document {
-	return bson.NewDocument(
-		bson.EC.Int32("ok", 1),
-		bson.EC.SubDocument(
+func createOKBatchReplyDoc(id int64, batchDocs bsonx.Arr) bsonx.Doc {
+	return bsonx.Doc{
+		{"ok", bsonx.Int32(1)},
+		{
 			"cursor",
-			bson.NewDocument(
-				bson.EC.Int64("id", id),
-				bson.EC.Array("nextBatch", batchDocs))))
+			bsonx.Document(bsonx.Doc{
+				{"id", bsonx.Int64(id)},
+				{"nextBatch", bsonx.Array(batchDocs)},
+			}),
+		}}
 }
 
 // Mock Pool implementation
@@ -154,7 +164,7 @@ func (*mockConnection) WriteWireMessage(ctx context.Context, wm wiremessage.Wire
 func (m *mockConnection) ReadWireMessage(ctx context.Context) (wiremessage.WireMessage, error) {
 	if m.writes < 4 {
 		// write empty batch
-		d := createOKBatchReplyDoc(2, bson.NewArray())
+		d := createOKBatchReplyDoc(2, bsonx.Arr{})
 
 		return internal.MakeReply(m.t, d), nil
 	} else if m.willErr {
@@ -162,7 +172,7 @@ func (m *mockConnection) ReadWireMessage(ctx context.Context) (wiremessage.WireM
 		return nil, errors.New("intentional mock error")
 	} else {
 		// write non-empty batch
-		d := createOKBatchReplyDoc(2, bson.NewArray(bson.VC.String("a")))
+		d := createOKBatchReplyDoc(2, bsonx.Arr{bsonx.String("a")})
 
 		return internal.MakeReply(m.t, d), nil
 	}
