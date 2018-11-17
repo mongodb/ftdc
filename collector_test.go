@@ -461,3 +461,156 @@ func TestWriter(t *testing.T) {
 		assert.Error(t, collector.Close())
 	})
 }
+
+func TestTimestampHandling(t *testing.T) {
+	start := time.Now().Round(time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for _, test := range []struct {
+		Name   string
+		Values []time.Time
+	}{
+		{
+			Name: "One",
+			Values: []time.Time{
+				time.Now().Round(time.Millisecond),
+			},
+		},
+		{
+			Name: "Same",
+			Values: []time.Time{
+				start, start, start,
+			},
+		},
+		{
+			Name: "SecondSteps",
+			Values: []time.Time{
+				start.Add(time.Second),
+				start.Add(time.Second),
+				start.Add(time.Second),
+				start.Add(time.Second),
+				start.Add(time.Second),
+				start.Add(time.Second),
+			},
+		},
+		{
+			Name: "HundredMillis",
+			Values: []time.Time{
+				start.Add(100 * time.Millisecond),
+				start.Add(200 * time.Millisecond),
+				start.Add(300 * time.Millisecond),
+				start.Add(400 * time.Millisecond),
+				start.Add(500 * time.Millisecond),
+				start.Add(600 * time.Millisecond),
+			},
+		},
+		{
+			Name: "TenMillis",
+			Values: []time.Time{
+				start.Add(10 * time.Millisecond),
+				start.Add(20 * time.Millisecond),
+				start.Add(30 * time.Millisecond),
+				start.Add(40 * time.Millisecond),
+				start.Add(50 * time.Millisecond),
+				start.Add(60 * time.Millisecond),
+			},
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			t.Run("TimeValue", func(t *testing.T) {
+				collector := NewBaseCollector(100)
+				for _, ts := range test.Values {
+					require.NoError(t, collector.Add(bsonx.NewDocument(
+						bsonx.EC.Time("ts", ts),
+					)))
+				}
+
+				out, err := collector.Resolve()
+				require.NoError(t, err)
+
+				iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(out))
+				idx := 0
+				for iter.Next() {
+					doc := iter.Document()
+
+					val, ok := doc.Lookup("ts").TimeOK()
+					if assert.True(t, ok) {
+						assert.Equal(t, test.Values[idx], val)
+					}
+					fmt.Println(test.Values[idx], "-->", val)
+					idx++
+				}
+				require.NoError(t, iter.Err())
+
+				iter = ReadMetrics(ctx, bytes.NewBuffer(out))
+				idx = 0
+				for iter.Next() {
+					doc := iter.Document()
+
+					fmt.Println(idx, "-}", doc)
+					idx++
+				}
+
+				chunks := ReadChunks(ctx, bytes.NewBuffer(out))
+				idx = 0
+				for chunks.Next() {
+					chunk := chunks.Chunk()
+
+					grip.Info(chunk)
+					idx++
+				}
+
+			})
+			t.Run("UnixSecond", func(t *testing.T) {
+				collector := NewBaseCollector(100)
+				for _, ts := range test.Values {
+					require.NoError(t, collector.Add(bsonx.NewDocument(
+						bsonx.EC.Int64("ts", ts.Unix()),
+					)))
+				}
+
+				out, err := collector.Resolve()
+				require.NoError(t, err)
+
+				iter := ReadMetrics(ctx, bytes.NewBuffer(out))
+				idx := 0
+				for iter.Next() {
+					doc := iter.Document()
+
+					val, ok := doc.Lookup("ts").Int64OK()
+					if assert.True(t, ok) {
+						assert.Equal(t, test.Values[idx].Unix(), val)
+					}
+					idx++
+				}
+				require.NoError(t, iter.Err())
+			})
+			t.Run("UnixNano", func(t *testing.T) {
+				collector := NewBaseCollector(100)
+				for _, ts := range test.Values {
+					require.NoError(t, collector.Add(bsonx.NewDocument(
+						bsonx.EC.Int64("ts", ts.UnixNano()),
+					)))
+				}
+
+				out, err := collector.Resolve()
+				require.NoError(t, err)
+
+				iter := ReadMetrics(ctx, bytes.NewBuffer(out))
+				idx := 0
+				for iter.Next() {
+					doc := iter.Document()
+
+					val, ok := doc.Lookup("ts").Int64OK()
+					if assert.True(t, ok) {
+						assert.Equal(t, test.Values[idx].UnixNano(), val)
+					}
+
+					idx++
+				}
+				require.NoError(t, iter.Err())
+			})
+		})
+	}
+}

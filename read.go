@@ -102,23 +102,23 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 			metrics[i].Values = make([]int64, ndeltas)
 
 			for j := 0; j < ndeltas; j++ {
-				var delta int64
+				var delta uint64
 				if nzeroes != 0 {
 					delta = 0
 					nzeroes--
 				} else {
-					delta, err = binary.ReadVarint(buf)
+					delta, err = binary.ReadUvarint(buf)
 					if err != nil {
 						return errors.Wrap(err, "reached unexpected end of encoded integer")
 					}
 					if delta == 0 {
-						nzeroes, err = binary.ReadVarint(buf)
+						nzeroes, err = binary.ReadUvarint(buf)
 						if err != nil {
 							return err
 						}
 					}
 				}
-				metrics[i].Values[j] = delta
+				metrics[i].Values[j] = int64(delta)
 			}
 			metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
 		}

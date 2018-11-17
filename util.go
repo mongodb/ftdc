@@ -27,7 +27,7 @@ func encodeSizeValue(val uint32) []byte {
 
 func encodeValue(val int64) []byte {
 	tmp := make([]byte, binary.MaxVarintLen64)
-	num := binary.PutVarint(tmp, val)
+	num := binary.PutUvarint(tmp, uint64(val))
 	return tmp[:num]
 }
 
