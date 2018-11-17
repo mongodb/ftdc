@@ -277,11 +277,9 @@ func createTests() []customTest {
 				randFlatDocument(10),
 				randFlatDocument(10),
 				randFlatDocument(10),
-				randFlatDocument(10),
-				randFlatDocument(10),
 			},
 			randStats: true,
-			numStats:  12,
+			numStats:  10,
 		},
 		{
 			name: "SeveralLargeFlat",

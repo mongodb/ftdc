@@ -25,7 +25,7 @@ func readDocument(in interface{}) (*bsonx.Document, error) {
 			return nil, errors.Wrap(err, "problem with unmarshaler")
 		}
 		return bsonx.ReadDocument(data)
-	case map[string]interface{}, map[string]int, map[string]int64, map[string]string, map[string]uint64:
+	case map[string]interface{}, map[string]string, map[string]int, map[string]int64, map[string]uint, map[string]uint64:
 		return nil, errors.New("cannot use a map type as an ftdc value")
 	case bson.M, message.Fields:
 		return nil, errors.New("cannot use a custom map type as an ftdc value")
@@ -179,13 +179,15 @@ func rehydrateDocument(ref *bsonx.Document, sample int, metrics []Metric, idx in
 	if ref == nil {
 		return nil, 0
 	}
+
 	iter := ref.Iterator()
-	doc := &bsonx.Document{}
+	doc := bsonx.MakeDocument(ref.Len())
+
+	var elem *bsonx.Element
 
 	for iter.Next() {
 		refElem := iter.Element()
 
-		var elem *bsonx.Element
 		elem, idx = rehydrateElement(refElem, sample, metrics, idx)
 		if elem == nil {
 			continue
@@ -205,9 +207,11 @@ func rehydrateElement(ref *bsonx.Element, sample int, metrics []Metric, idx int)
 	case bsonx.TypeDecimal128:
 		return nil, idx
 	case bsonx.TypeArray:
-		iter := ref.Value().MutableArray().Iterator()
-		elems := []*bsonx.Element{}
+		array := ref.Value().MutableArray()
 
+		elems := make([]*bsonx.Element, 0, array.Len())
+
+		iter := array.Iterator()
 		for iter.Next() {
 			var item *bsonx.Element
 			// TODO avoid Interface

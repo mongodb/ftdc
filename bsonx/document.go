@@ -69,14 +69,7 @@ type Document struct {
 // NewDocument creates an empty Document. The numberOfElems parameter will
 // preallocate the underlying storage which can prevent extra allocations.
 func NewDocument(elems ...*Element) *Document {
-	doc := &Document{
-		elems: make([]*Element, 0, len(elems)),
-		index: make([]uint32, 0, len(elems)),
-	}
-
-	doc.Append(elems...)
-
-	return doc
+	return MakeDocument(len(elems)).Append(elems...)
 }
 
 // ReadDocument will create a Document using the provided slice of bytes. If the
