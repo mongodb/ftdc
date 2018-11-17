@@ -8,6 +8,7 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 )
@@ -24,8 +25,10 @@ func readDocument(in interface{}) (*bsonx.Document, error) {
 			return nil, errors.Wrap(err, "problem with unmarshaler")
 		}
 		return bsonx.ReadDocument(data)
-	case map[string]interface{}, map[string]int, map[string]int64, map[string]string:
+	case map[string]interface{}, map[string]int, map[string]int64, map[string]string, map[string]uint64:
 		return nil, errors.New("cannot use a map type as an ftdc value")
+	case bson.M, message.Fields:
+		return nil, errors.New("cannot use a custom map type as an ftdc value")
 	default:
 		data, err := bson.Marshal(in)
 		if err != nil {

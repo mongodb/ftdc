@@ -96,7 +96,7 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 		}
 
 		// now go back and populate the delta numbers
-		var nzeroes int64
+		var nzeroes uint64
 		for i, v := range metrics {
 			metrics[i].startingValue = v.startingValue
 			metrics[i].Values = make([]int64, ndeltas)

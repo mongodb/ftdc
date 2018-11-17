@@ -528,38 +528,44 @@ func TestTimestampHandling(t *testing.T) {
 
 				out, err := collector.Resolve()
 				require.NoError(t, err)
+				t.Run("Structured", func(t *testing.T) {
+					iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(out))
+					idx := 0
+					for iter.Next() {
+						doc := iter.Document()
 
-				iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(out))
-				idx := 0
-				for iter.Next() {
-					doc := iter.Document()
-
-					val, ok := doc.Lookup("ts").TimeOK()
-					if assert.True(t, ok) {
-						assert.Equal(t, test.Values[idx], val)
+						val, ok := doc.Lookup("ts").TimeOK()
+						if !assert.True(t, ok) {
+							assert.Equal(t, test.Values[idx], val)
+						}
+						idx++
 					}
-					fmt.Println(test.Values[idx], "-->", val)
-					idx++
-				}
-				require.NoError(t, iter.Err())
-
-				iter = ReadMetrics(ctx, bytes.NewBuffer(out))
-				idx = 0
-				for iter.Next() {
-					doc := iter.Document()
-
-					fmt.Println(idx, "-}", doc)
-					idx++
-				}
-
-				chunks := ReadChunks(ctx, bytes.NewBuffer(out))
-				idx = 0
-				for chunks.Next() {
-					chunk := chunks.Chunk()
-
-					grip.Info(chunk)
-					idx++
-				}
+					require.NoError(t, iter.Err())
+				})
+				t.Run("Flattened", func(t *testing.T) {
+					iter := ReadMetrics(ctx, bytes.NewBuffer(out))
+					idx := 0
+					for iter.Next() {
+						doc := iter.Document()
+						val, ok := doc.Lookup("ts").Int64OK()
+						if assert.True(t, ok) {
+							assert.Equal(t, epochMs(test.Values[idx]), val)
+						}
+						idx++
+					}
+					require.NoError(t, iter.Err())
+				})
+				t.Run("Chunks", func(t *testing.T) {
+					chunks := ReadChunks(ctx, bytes.NewBuffer(out))
+					idx := 0
+					for chunks.Next() {
+						chunk := chunks.Chunk()
+						assert.NotNil(t, chunk)
+						assert.Equal(t, len(test.Values), chunk.nPoints)
+						idx++
+					}
+					require.NoError(t, chunks.Err())
+				})
 
 			})
 			t.Run("UnixSecond", func(t *testing.T) {
