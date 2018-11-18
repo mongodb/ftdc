@@ -547,9 +547,9 @@ func TestTimestampHandling(t *testing.T) {
 					idx := 0
 					for iter.Next() {
 						doc := iter.Document()
-						val, ok := doc.Lookup("ts").Int64OK()
+						val, ok := doc.Lookup("ts").TimeOK()
 						if assert.True(t, ok) {
-							assert.Equal(t, epochMs(test.Values[idx]), val)
+							assert.EqualValues(t, test.Values[idx], val)
 						}
 						idx++
 					}

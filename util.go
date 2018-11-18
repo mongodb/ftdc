@@ -4,9 +4,20 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
+	"math"
 )
 
 func getOffset(count, sample, metric int) int { return metric*count + sample }
+
+func undeltaFloats(value int64, deltas []int64) []int64 {
+	out := make([]int64, len(deltas)+1)
+	out[0] = value
+
+	for idx, delta := range deltas {
+		out[idx+1] = normalizeFloat(restoreFloat(out[idx]) + restoreFloat(delta))
+	}
+	return out
+}
 
 func undelta(value int64, deltas []int64) []int64 {
 	out := make([]int64, len(deltas)+1)
@@ -51,3 +62,6 @@ func compressBuffer(input []byte) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+func normalizeFloat(in float64) int64 { return int64(math.Float64bits(in)) }
+func restoreFloat(in int64) float64   { return math.Float64frombits(uint64(in)) }

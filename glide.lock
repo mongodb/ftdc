@@ -14,6 +14,6 @@ imports:
   version: 03d16bbe636981a408ff359412697fa9ff16ec83
 
 - name: github.com/mongodb/grip
-  version: 5d6dffc047e01c5553d48459d68a2d4f6c11a6ff
+  version: 1f64f878ff63db69d7b94d7ab9cdbec0c4e9d017
 
 devImports: []

@@ -132,6 +132,7 @@ func randComplexDocument(numKeys, otherNum int) *bsonx.Document {
 
 	for i := 0; i < numKeys; i++ {
 		doc.Append(bsonx.EC.Int64(fmt.Sprintln(numKeys, otherNum), rand.Int63n(int64(numKeys)*1)))
+		doc.Append(bsonx.EC.Double(fmt.Sprintln("float", numKeys, otherNum), rand.Float64()))
 
 		if otherNum%5 == 0 {
 			ar := bsonx.NewArray()

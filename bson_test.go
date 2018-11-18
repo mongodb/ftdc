@@ -309,7 +309,7 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "Double",
 			Value:     bsonx.VC.Double(42.42),
 			OutputLen: 1,
-			Expected:  42,
+			Expected:  normalizeFloat(42.42),
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
@@ -317,7 +317,7 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "OtherDouble",
 			Value:     bsonx.VC.Double(42.0),
 			OutputLen: 1,
-			Expected:  int64(42.0),
+			Expected:  normalizeFloat(42.0),
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
@@ -590,13 +590,6 @@ func TestExtractingMetrics(t *testing.T) {
 			FirstEncodedValue: 40,
 		},
 		{
-			Name:              "DoubleTruncate",
-			Value:             bsonx.VC.Double(40.20),
-			NumEncodedValues:  1,
-			ExpectedCount:     1,
-			FirstEncodedValue: 40,
-		},
-		{
 			Name:              "DateTime",
 			Value:             bsonx.EC.Time("", now).Value(),
 			ExpectedCount:     1,
@@ -611,7 +604,7 @@ func TestExtractingMetrics(t *testing.T) {
 
 			keys, num := isMetricsValue("keyname", test.Value)
 			if test.NumEncodedValues > 0 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
 				assert.True(t, len(keys) >= 1)
 				assert.True(t, strings.HasPrefix(keys[0], "keyname"))
 			} else {
@@ -673,7 +666,7 @@ func TestDocumentExtraction(t *testing.T) {
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 			if len(metrics) > 0 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
 			}
 		})
 	}
@@ -724,7 +717,7 @@ func TestArrayExtraction(t *testing.T) {
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
 			if test.NumEncodedValues >= 1 {
-				assert.Equal(t, test.FirstEncodedValue, metrics[0])
+				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
 			}
 		})
 	}
@@ -937,9 +930,9 @@ func TestMetricsToElement(t *testing.T) {
 			name: "Double",
 			ref:  bsonx.EC.Double("foo", 4.42),
 			metrics: []Metric{
-				{Values: []int64{4}},
+				{Values: []int64{normalizeFloat(4.42)}},
 			},
-			expected: bsonx.EC.Double("foo", 4.0),
+			expected: bsonx.EC.Double("foo", 4.42),
 			outNum:   1,
 		},
 		{

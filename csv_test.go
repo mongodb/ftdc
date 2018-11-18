@@ -84,13 +84,13 @@ func TestReadCSVIntegration(t *testing.T) {
 			Name:   "Complex",
 			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
 			Rows:   1000,
-			Fields: 80,
+			Fields: 100,
 		},
 		{
-			Name:   "LargerComplex",
+			Name:   "LargComplex",
 			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(100, 10) }),
 			Rows:   1000,
-			Fields: 100,
+			Fields: 190,
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {

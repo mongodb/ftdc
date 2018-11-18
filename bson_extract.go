@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
@@ -10,13 +11,13 @@ import (
 //
 // Helpers for encoding values from bsonx documents
 
-func extractMetricsFromDocument(doc *bsonx.Document) ([]int64, error) {
+func extractMetricsFromDocument(doc *bsonx.Document) ([]*bsonx.Value, error) {
 	iter := doc.Iterator()
 
 	var (
 		err     error
-		data    []int64
-		metrics []int64
+		data    []*bsonx.Value
+		metrics []*bsonx.Value
 	)
 
 	catcher := grip.NewBasicCatcher()
@@ -32,11 +33,11 @@ func extractMetricsFromDocument(doc *bsonx.Document) ([]int64, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromArray(array *bsonx.Array) ([]int64, error) {
+func extractMetricsFromArray(array *bsonx.Array) ([]*bsonx.Value, error) {
 	var (
 		err     error
-		data    []int64
-		metrics []int64
+		data    []*bsonx.Value
+		metrics []*bsonx.Value
 	)
 
 	catcher := grip.NewBasicCatcher()
@@ -53,7 +54,7 @@ func extractMetricsFromArray(array *bsonx.Array) ([]int64, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromValue(val *bsonx.Value) ([]int64, error) {
+func extractMetricsFromValue(val *bsonx.Value) ([]*bsonx.Value, error) {
 	btype := val.Type()
 	switch btype {
 	case bsonx.TypeObjectID:
@@ -70,21 +71,40 @@ func extractMetricsFromValue(val *bsonx.Value) ([]int64, error) {
 		return metrics, errors.WithStack(err)
 	case bsonx.TypeBoolean:
 		if val.Boolean() {
-			return []int64{1}, nil
+			return []*bsonx.Value{bsonx.VC.Int64(1)}, nil
 		}
-		return []int64{0}, nil
+		return []*bsonx.Value{bsonx.VC.Int64(0)}, nil
 	case bsonx.TypeDouble:
-		return []int64{int64(val.Double())}, nil
+		return []*bsonx.Value{val}, nil
 	case bsonx.TypeInt32:
-		return []int64{int64(val.Int32())}, nil
+		return []*bsonx.Value{bsonx.VC.Int64(int64(val.Int32()))}, nil
 	case bsonx.TypeInt64:
-		return []int64{val.Int64()}, nil
+		return []*bsonx.Value{val}, nil
 	case bsonx.TypeDateTime:
-		return []int64{epochMs(val.Time())}, nil
+		return []*bsonx.Value{bsonx.VC.Int64(epochMs(val.Time()))}, nil
 	case bsonx.TypeTimestamp:
 		t, i := val.Timestamp()
-		return []int64{int64(t), int64(i)}, nil
+
+		return []*bsonx.Value{
+			bsonx.VC.Int64(int64(t)),
+			bsonx.VC.Int64(int64(i)),
+		}, nil
 	default:
 		return nil, nil
+	}
+}
+
+func extractDelta(current *bsonx.Value, previous *bsonx.Value) (int64, error) {
+	if current.Type() != previous.Type() {
+		return 0, errors.New("schema change: sample type mismatch")
+	}
+
+	switch current.Type() {
+	case bsontype.Double:
+		return normalizeFloat(current.Double() - previous.Double()), nil
+	case bsontype.Int64:
+		return current.Int64() - previous.Int64(), nil
+	default:
+		return 0, errors.Errorf("invalid type %s", current.Type())
 	}
 }

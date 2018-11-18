@@ -1,9 +1,11 @@
 package ftdc
 
 import (
+	"math"
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
@@ -84,9 +86,8 @@ func rehydrateElement(ref *bsonx.Element, sample int, metrics []Metric, idx int)
 			return bsonx.EC.Boolean(ref.Key(), false), idx + 1
 		}
 		return bsonx.EC.Boolean(ref.Key(), true), idx + 1
-
 	case bsonx.TypeDouble:
-		return bsonx.EC.Double(ref.Key(), float64(metrics[idx].Values[sample])), idx + 1
+		return bsonx.EC.Double(ref.Key(), restoreFloat(metrics[idx].Values[sample])), idx + 1
 	case bsonx.TypeInt32:
 		return bsonx.EC.Int32(ref.Key(), int32(metrics[idx].Values[sample])), idx + 1
 	case bsonx.TypeInt64:
@@ -97,6 +98,24 @@ func rehydrateElement(ref *bsonx.Element, sample int, metrics []Metric, idx int)
 		return bsonx.EC.Timestamp(ref.Key(), uint32(metrics[idx].Values[sample]), uint32(metrics[idx+1].Values[sample])), idx + 2
 	default:
 		return nil, idx
+	}
+}
+
+func rehydrateFlat(t bsontype.Type, key string, value int64) (*bsonx.Element, bool) {
+	switch t {
+	case bsonx.TypeBoolean:
+		if value == 0 {
+			return bsonx.EC.Boolean(key, false), true
+		}
+		return bsonx.EC.Boolean(key, true), true
+	case bsonx.TypeDouble:
+		return bsonx.EC.Double(key, math.Float64frombits(uint64(value))), true
+	case bsonx.TypeInt32:
+		return bsonx.EC.Int32(key, int32(value)), true
+	case bsonx.TypeDateTime:
+		return bsonx.EC.Time(key, timeEpocMs(value)), true
+	default:
+		return bsonx.EC.Int64(key, value), true
 	}
 }
 
