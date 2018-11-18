@@ -242,17 +242,14 @@ func TestArray(t *testing.T) {
 					a.Prepend(elems...)
 				}
 
-				iter, err := a.Iterator()
-				if err != nil {
-					t.Errorf("Got error creating array iterator: %s", err)
-				}
+				iter := a.Iterator()
 
 				for _, elem := range tc.values {
 					if !iter.Next() {
 						t.Errorf("ArrayIterator.Next() returned false")
 					}
 
-					if err = iter.Err(); err != nil {
+					if err := iter.Err(); err != nil {
 						t.Errorf("ArrayIterator.Err() returned non-nil error: %s", err)
 					}
 
@@ -268,7 +265,7 @@ func TestArray(t *testing.T) {
 					t.Errorf("ArrayIterator.Next() returned true. expected false")
 				}
 
-				if err = iter.Err(); err != nil {
+				if err := iter.Err(); err != nil {
 					t.Errorf("ArrayIterator.Err() returned non-nil error: %s", err)
 				}
 			})

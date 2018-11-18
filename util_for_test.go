@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -87,6 +88,34 @@ func newMixedChunk(num int64) []byte {
 
 	return out
 
+}
+
+func produceMockChunkIter(ctx context.Context, samples int, newDoc func() *bsonx.Document) *ChunkIterator {
+	collector := NewBaseCollector(samples)
+	for i := 0; i < samples; i++ {
+		if err := collector.Add(newDoc()); err != nil {
+			panic(err)
+		}
+	}
+	payload, err := collector.Resolve()
+	if err != nil {
+		panic(err)
+	}
+
+	return ReadChunks(ctx, bytes.NewBuffer(payload))
+
+}
+
+func produceMockMetrics(ctx context.Context, samples int, newDoc func() *bsonx.Document) []Metric {
+	iter := produceMockChunkIter(ctx, samples, newDoc)
+
+	if !iter.Next() {
+		panic("could not iterate")
+	}
+
+	metrics := iter.Chunk().metrics
+	iter.Close()
+	return metrics
 }
 
 func randFlatDocumentWithFloats(numKeys int) *bsonx.Document {

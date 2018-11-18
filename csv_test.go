@@ -3,17 +3,19 @@ package ftdc
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCSVIntegration(t *testing.T) {
+func TestWriteCSVIntegration(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -53,5 +55,89 @@ func TestCSVIntegration(t *testing.T) {
 		err := WriteCSV(ctx, iter, out)
 
 		require.Error(t, err)
+	})
+}
+
+func TestReadCSVIntegration(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for _, test := range []struct {
+		Name   string
+		Iter   *ChunkIterator
+		Rows   int
+		Fields int
+	}{
+		{
+			Name:   "SimpleFlat",
+			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randFlatDocument(15) }),
+			Rows:   1000,
+			Fields: 15,
+		},
+		{
+			Name:   "LargerFlat",
+			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randFlatDocument(50) }),
+			Rows:   1000,
+			Fields: 50,
+		},
+		{
+			Name:   "Complex",
+			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
+			Rows:   1000,
+			Fields: 80,
+		},
+		{
+			Name:   "LargerComplex",
+			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(100, 10) }),
+			Rows:   1000,
+			Fields: 100,
+		},
+	} {
+		t.Run(test.Name, func(t *testing.T) {
+			buf := &bytes.Buffer{}
+			err := WriteCSV(ctx, test.Iter, buf)
+			require.NoError(t, err)
+
+			out := &bytes.Buffer{}
+			err = ConvertFromCSV(ctx, test.Rows, buf, out)
+			require.NoError(t, err)
+
+			iter := ReadMetrics(ctx, out)
+			count := 0
+			for iter.Next() {
+				count++
+				doc := iter.Document()
+				assert.Equal(t, test.Fields, doc.Len())
+			}
+			assert.Equal(t, test.Rows, count)
+		})
+	}
+	t.Run("SchemaChangeGrow", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		csvw := csv.NewWriter(buf)
+		require.NoError(t, csvw.Write([]string{"a", "b", "c", "d"}))
+		for j := 0; j < 2; j++ {
+			for i := 0; i < 10; i++ {
+				require.NoError(t, csvw.Write([]string{"1", "2", "3", "4"}))
+			}
+			require.NoError(t, csvw.Write([]string{"1", "2", "3", "4", "5"}))
+		}
+		csvw.Flush()
+
+		assert.Error(t, ConvertFromCSV(ctx, 1000, buf, &bytes.Buffer{}))
+	})
+	t.Run("SchemaChangeShrink", func(t *testing.T) {
+		buf := &bytes.Buffer{}
+		csvw := csv.NewWriter(buf)
+		require.NoError(t, csvw.Write([]string{"a", "b", "c", "d"}))
+		for j := 0; j < 2; j++ {
+			for i := 0; i < 10; i++ {
+				require.NoError(t, csvw.Write([]string{"1", "2", "3", "4"}))
+			}
+			require.NoError(t, csvw.Write([]string{"1", "2"}))
+		}
+		csvw.Flush()
+
+		assert.Error(t, ConvertFromCSV(ctx, 1000, buf, &bytes.Buffer{}))
 	})
 }

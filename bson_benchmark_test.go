@@ -1,7 +1,6 @@
 package ftdc
 
 import (
-	"bytes"
 	"context"
 	"testing"
 
@@ -83,28 +82,6 @@ func BenchmarkHashBSON(b *testing.B) {
 			}
 		})
 	}
-}
-
-func produceMockMetrics(ctx context.Context, samples int, newDoc func() *bsonx.Document) []Metric {
-	collector := NewBaseCollector(samples)
-	for i := 0; i < samples; i++ {
-		if err := collector.Add(newDoc()); err != nil {
-			panic(err)
-		}
-	}
-	payload, err := collector.Resolve()
-	if err != nil {
-		panic(err)
-	}
-
-	iter := ReadChunks(ctx, bytes.NewBuffer(payload))
-	if !iter.Next() {
-		panic("could not iterate")
-	}
-
-	metrics := iter.Chunk().metrics
-	iter.Close()
-	return metrics
 }
 
 func BenchmarkDocumentCreation(b *testing.B) {
