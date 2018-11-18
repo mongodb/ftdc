@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"hash/fnv"
 	"strings"
 	"testing"
 	"time"
@@ -787,7 +788,7 @@ func TestMetricsHashValue(t *testing.T) {
 		},
 		{
 			name:        "Int32Negative",
-			value:       bsonx.VC.Int32(42),
+			value:       bsonx.VC.Int32(-42),
 			expectedNum: 1,
 			keyElems:    1,
 		},
@@ -805,7 +806,7 @@ func TestMetricsHashValue(t *testing.T) {
 		},
 		{
 			name:        "Int64Negative",
-			value:       bsonx.VC.Int64(42),
+			value:       bsonx.VC.Int64(-142),
 			expectedNum: 1,
 			keyElems:    1,
 		},
@@ -895,9 +896,14 @@ func TestMetricsHashValue(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			keys, num := isMetricsValue("key", test.value)
-			assert.Equal(t, test.expectedNum, num)
-			assert.Equal(t, test.keyElems, len(keys))
+			t.Run("Legacy", func(t *testing.T) {
+				keys, num := isMetricsValue("key", test.value)
+				assert.Equal(t, test.expectedNum, num)
+				assert.Equal(t, test.keyElems, len(keys))
+			})
+			t.Run("Checksum", func(t *testing.T) {
+				assert.Equal(t, test.expectedNum, metricKeyHashValue(fnv.New128(), "key", test.value))
+			})
 		})
 	}
 }

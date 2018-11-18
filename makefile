@@ -9,6 +9,7 @@ testArgs := -v
 ifneq (,$(RUN_TEST))
 testArgs += -run='$(RUN_TEST)'
 endif
+
 ifneq (,$(RUN_COUNT))
 testArgs += -count='$(RUN_COUNT)'
 endif
@@ -20,6 +21,14 @@ testArgs += -cover
 endif
 ifneq (,$(RACE_DETECTOR))
 testArgs += -race
+endif
+
+ifneq (,$(RUN_BENCH))
+benchArgs += -bench="$(RUN_BENCH)"
+benchArgs += -run='$(RUN_BENCH)'
+else
+benchArgs += -bench=.
+benchArgs += -run='Benchmark.*'
 endif
 
 
@@ -34,7 +43,7 @@ coverage:$(buildDir)/cover.out
 coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
 
 benchmark:
-	go test -v -benchmem -bench=. -run="Benchmark.*" -timeout=20m
+	go test -v -benchmem $(benchArgs) -timeout=20m
 
 
 $(buildDir):$(srcFiles) compile

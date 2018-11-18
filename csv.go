@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
 
@@ -154,4 +155,42 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 
 	}
 	return nil
+}
+
+func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output io.Writer) error {
+	csvr := csv.NewReader(input)
+
+	header, err := csvr.Read()
+	if err != nil {
+		return errors.Wrap(err, "problem reading error")
+	}
+
+	collector := NewStreamingDynamicCollector(bucketSize, output)
+	defer func() { grip.Error(FlushCollector(collector, output)) }()
+
+	record := make([]string, 0, len(header))
+	for {
+		record, err = csvr.Read()
+		if err == io.EOF {
+			return nil
+		}
+		if err == csv.ErrFieldCount {
+			header = record
+			record = make([]string, 0, len(header))
+			continue
+		}
+
+		elems := make([]*bsonx.Element, 0, len(header))
+		for idx := range record {
+			val, err := strconv.Atoi(record[idx])
+			if err != nil {
+				continue
+			}
+			elems = append(elems, bsonx.EC.Int64(header[idx], int64(val)))
+		}
+
+		if err := collector.Add(bsonx.NewDocument(elems...)); err != nil {
+			return err
+		}
+	}
 }

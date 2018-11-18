@@ -106,7 +106,7 @@ func (c *streamingDynamicCollector) Add(in interface{}) error {
 		return errors.WithStack(err)
 	}
 
-	docHash, num := metricsHash(doc)
+	docHash, num := metricKeyHash(doc)
 	if c.hash == "" {
 		c.hash = docHash
 		c.metricCount = num

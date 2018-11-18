@@ -56,7 +56,7 @@ func (c *dynamicCollector) Add(in interface{}) error {
 	}
 
 	if len(c.hahes) == 0 {
-		docHash, num := metricsHash(doc)
+		docHash, num := metricKeyHash(doc)
 		c.hahes = append(c.hahes, docHash)
 		c.currentNum = num
 		return errors.WithStack(c.chunks[0].Add(doc))
