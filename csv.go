@@ -183,7 +183,7 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 
 	record := make([]string, 0, len(header))
 	for {
-		if ctx.Err(); ctx != nil {
+		if ctx.Err() != nil {
 			return errors.New("operation aborted")
 		}
 
