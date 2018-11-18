@@ -98,7 +98,7 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 		csvw      *csv.Writer
 	)
 	for iter.Next() {
-		if ctx != nil {
+		if ctx.Err() != nil {
 			return errors.New("operation aborted")
 		}
 

@@ -25,7 +25,7 @@ func metricKeySHA1(doc *bsonx.Document) (string, int) {
 }
 
 func metricKeyHash(doc *bsonx.Document) (string, int) {
-	checksum := fnv.New128()
+	checksum := fnv.New64()
 	seen := metricKeyHashDocument(checksum, "", doc)
 	return fmt.Sprintf("%x", checksum.Sum(nil)), seen
 }
