@@ -11,13 +11,13 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
-	"errors"
 	"math"
 	"reflect"
 	"testing"
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/parser/ast"
+	"github.com/pkg/errors"
 )
 
 func TestBSONParser(t *testing.T) {

@@ -8,10 +8,11 @@ package bsonx
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // ErrNilReader indicates that an operation was attempted on a nil bson.Reader.

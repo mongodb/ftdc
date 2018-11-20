@@ -101,7 +101,7 @@ func extractDelta(current *bsonx.Value, previous *bsonx.Value) (int64, error) {
 
 	switch current.Type() {
 	case bsontype.Double:
-		return normalizeFloat(current.Double()), nil
+		return normalizeFloat(current.Double() - previous.Double()), nil
 	case bsontype.Int64:
 		return current.Int64() - previous.Int64(), nil
 	default:

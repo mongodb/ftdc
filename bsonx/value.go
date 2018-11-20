@@ -8,7 +8,6 @@ package bsonx
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/pkg/errors"
 )
 
 // Value represents a BSON value. It can be obtained as part of a bson.Element or created for use
@@ -932,7 +932,7 @@ func (v *Value) asString() (string, error) {
 	case TypeNull:
 		str = "null"
 	default:
-		err = fmt.Errorf("cannot Stringify %s yet", v.Type())
+		err = errors.Errorf("cannot Stringify %s yet", v.Type())
 	}
 	return str, err
 }
@@ -1044,7 +1044,7 @@ func (v *Value) Add(v2 *Value) error {
 		return nil
 	}
 
-	return fmt.Errorf("cannot Add values of types %s and %s yet", v.Type(), v2.Type())
+	return errors.Errorf("cannot Add values of types %s and %s yet", v.Type(), v2.Type())
 }
 
 // Equal compares v to v2 and returns true if they are equal. This method will

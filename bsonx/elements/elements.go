@@ -17,11 +17,11 @@ package elements
 
 import (
 	"encoding/binary"
-	"errors"
 	"math"
 	"unsafe"
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/pkg/errors"
 )
 
 // ErrTooSmall indicates that slice provided to encode into is not large enough to fit the data.

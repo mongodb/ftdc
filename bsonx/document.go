@@ -8,13 +8,13 @@ package bsonx
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
 	"strconv"
 
 	"github.com/mongodb/ftdc/bsonx/elements"
+	"github.com/pkg/errors"
 )
 
 // ErrInvalidReadOnlyDocument indicates that the underlying bytes of a bson.Reader are invalid.

@@ -7,13 +7,13 @@
 package bsonx
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
 
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/elements"
+	"github.com/pkg/errors"
 )
 
 const validateMaxDepthDefault = 2048

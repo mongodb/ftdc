@@ -9,12 +9,12 @@ package parser
 import (
 	"bufio"
 	"encoding/binary"
-	"errors"
 	"io"
 	"math"
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/parser/ast"
+	"github.com/pkg/errors"
 )
 
 // ErrCorruptDocument is returned when the parser reaches a corrupt point

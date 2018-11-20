@@ -8,14 +8,13 @@ package bsonx
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"math"
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/elements"
 	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/pkg/errors"
 )
 
 // EC is a convenience variable provided for access to the ElementConstructor methods.
@@ -31,9 +30,10 @@ type ElementConstructor struct{}
 type ValueConstructor struct{}
 
 // Interface will attempt to turn the provided key and value into an Element.
-// For common types, type casting is used, if the type is more complex, such as
-// a map or struct, reflection is used. If the value cannot be converted either
-// by typecasting or through reflection, a null Element is constructed with the
+// For common types, type casting is used, for all slices and all
+// other complex types, this relies on the Marshaler interface.
+//
+// If the value cannot be converted to bson, a null Element is constructed with the
 // key. This method will never return a nil *Element. If an error turning the
 // value into an Element is desired, use the InterfaceErr method.
 func (ElementConstructor) Interface(key string, value interface{}) *Element {
@@ -101,6 +101,17 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		if elem == nil {
 			elem = EC.Null(key)
 		}
+	case time.Time:
+		elem = EC.Time(key, t)
+	case Timestamp:
+		elem = EC.Timestamp(key, t.T, t.I)
+	case Marshaler:
+		doc, err := t.MarshalBSON()
+		if err != nil {
+			elem = EC.Null(key)
+		} else {
+			elem = EC.SubDocumentFromReader(key, doc)
+		}
 	default:
 		elem = EC.Null(key)
 	}
@@ -115,14 +126,17 @@ func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Elemen
 	var err error
 	switch t := value.(type) {
 	case bool, int8, int16, int32, int, int64, uint8, uint16,
-		uint32, float32, float64, string, *Element, *Document, Reader:
+		uint32, float32, float64, string,
+		*Element, *Document, Reader, Timestamp,
+		time.Time:
+
 		elem = c.Interface(key, value)
 	case uint:
 		switch {
 		case t < math.MaxInt32:
 			elem = EC.Int32(key, int32(t))
 		case uint64(t) > math.MaxInt64:
-			err = fmt.Errorf("BSON only has signed integer types and %d overflows an int64", t)
+			err = errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
 		default:
 			elem = EC.Int64(key, int64(t))
 		}
@@ -131,7 +145,7 @@ func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Elemen
 		case t < math.MaxInt32:
 			elem = EC.Int32(key, int32(t))
 		case uint64(t) > math.MaxInt64:
-			err = fmt.Errorf("BSON only has signed integer types and %d overflows an int64", t)
+			err = errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
 		default:
 			elem = EC.Int64(key, int64(t))
 		}
@@ -140,8 +154,14 @@ func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Elemen
 		if elem == nil {
 			err = errors.New("invalid *Value provided, cannot convert to *Element")
 		}
+	case Marshaler:
+		var payload []byte
+		payload, err = t.MarshalBSON()
+		if err == nil {
+			elem = EC.SubDocumentFromReader(key, payload)
+		}
 	default:
-		err = fmt.Errorf("Cannot create element for type %T, try using bsoncodec.ConstructElementErr", value)
+		err = errors.Errorf("Cannot create element for type %T, try using bsoncodec.ConstructElementErr", value)
 	}
 
 	if err != nil {
@@ -567,6 +587,18 @@ func (ElementConstructor) FromBytesErr(src []byte) (*Element, error) {
 		return nil, err
 	}
 	return elem, nil
+}
+
+func (ValueConstructor) Interface(in interface{}) *Value {
+	return EC.Interface("", in).value
+}
+
+func (ValueConstructor) InterfaceErr(in interface{}) (*Value, error) {
+	elem, err := EC.InterfaceErr("", in)
+	if err != nil {
+		return nil, err
+	}
+	return elem.value, nil
 }
 
 // Double creates a double element with the given value.

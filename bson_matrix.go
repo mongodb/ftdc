@@ -35,6 +35,7 @@ func rehydrateMatrixExperimental(metrics []Metric, sample int) (bson.E, int, err
 	default:
 		return bson.E{}, sample, errors.New("invalid data type")
 	}
+
 	sample++
 	return bson.E{Key: key, Value: vals}, sample, nil
 }
@@ -47,37 +48,37 @@ func rehydrateMatrix(metrics []Metric, sample int) (*bsonx.Element, int, error) 
 	// the bsonx library's representation of arrays is more
 	// efficent when constructing arrays from documents,
 	// otherwise.
-	vals := make([]*bsonx.Element, 0, len(metrics[sample].Values))
+	array := bsonx.MakeArray(len(metrics[sample].Values))
 	key := metrics[sample].Key()
 	switch metrics[sample].originalType {
 	case bsonx.TypeBoolean:
 		for _, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Boolean("", p != 0))
+			array.AppendInterface(p != 0)
 		}
 	case bsonx.TypeDouble:
 		for _, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Double("", restoreFloat(p)))
+			array.AppendInterface(restoreFloat(p))
 		}
 	case bsonx.TypeInt64:
 		for _, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Int64("", p))
+			array.AppendInterface(p)
 		}
 	case bsonx.TypeInt32:
 		for _, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Int32("", int32(p)))
+			array.AppendInterface(int32(p))
 		}
 	case bsonx.TypeDateTime:
 		for _, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Time("", timeEpocMs(p)))
+			array.AppendInterface(timeEpocMs(p))
 		}
 	case bsonx.TypeTimestamp:
 		for idx, p := range metrics[sample].Values {
-			vals = append(vals, bsonx.EC.Timestamp("", uint32(p), uint32(metrics[sample+1].Values[idx])))
+			array.AppendInterface(bsonx.Timestamp{T: uint32(p), I: uint32(metrics[sample+1].Values[idx])})
 		}
 		sample++
 	default:
 		return nil, sample, errors.New("invalid data type")
 	}
 	sample++
-	return bsonx.EC.Array(key, bsonx.ArrayFromDocument(bsonx.NewDocument(vals...))), sample, nil
+	return bsonx.EC.Array(key, array), sample, nil
 }

@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/mongodb/ftdc/bsonx/elements"
+	"github.com/pkg/errors"
 )
 
 // Array represents an array in BSON. The methods of this type are more
@@ -38,6 +39,10 @@ func NewArray(values ...*Value) *Array {
 func ArrayFromDocument(doc *Document) *Array {
 	return &Array{doc: doc}
 }
+
+// MakeArray creates a new array with the size hint (capacity)
+// specified.
+func MakeArray(size int) *Array { return &Array{doc: MakeDocument(size)} }
 
 // Len returns the number of elements in the array.
 func (a *Array) Len() int {
@@ -125,6 +130,26 @@ func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
 func (a *Array) Append(values ...*Value) *Array {
 	a.doc.Append(elemsFromValues(values)...)
 
+	return a
+}
+
+// AppendInterfaceErr uses the ElementConstructor's InterfaceErr to
+// convert an arbitrary type to a BSON value (typically via
+// typecasting, but is compatible with the Marshaler interface).
+func (a *Array) AppendInterfaceErr(elem interface{}) error {
+	e, err := EC.InterfaceErr("", elem)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	a.doc.Append(e)
+	return nil
+}
+
+// AppendInterface uses the ElementConstructor's Interface to
+// convert an arbitrary type to a BSON value (typically via
+// typecasting, but is compatible with the Marshaler interface).
+func (a *Array) AppendInterface(elem interface{}) *Array {
+	a.doc.Append(EC.Interface("", elem))
 	return a
 }
 
