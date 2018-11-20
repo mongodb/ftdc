@@ -46,6 +46,15 @@ func TestReadPathIntegration(t *testing.T) {
 		docLen          int
 	}{
 		{
+			name:            "PerfMockSmall",
+			path:            "perf_metrics_small.ftdc",
+			docLen:          4,
+			expectedNum:     10,
+			expectedChunks:  10,
+			expectedMetrics: 100,
+			reportInterval:  1000,
+		},
+		{
 			name:            "PerfMock",
 			path:            "perf_metrics.ftdc",
 			docLen:          4,
@@ -53,6 +62,7 @@ func TestReadPathIntegration(t *testing.T) {
 			expectedChunks:  10,
 			expectedMetrics: 100000,
 			reportInterval:  100000,
+			skipSlow:        true,
 		},
 		{
 			name:            "ServerStatus",
@@ -183,7 +193,7 @@ func TestReadPathIntegration(t *testing.T) {
 				})
 			})
 			t.Run("Matrix", func(t *testing.T) {
-				if testing.Short() {
+				if test.skipSlow && testing.Short() {
 					t.Skip("skipping slow read integration tests")
 				}
 

@@ -19,6 +19,10 @@ func BenchmarkIterator(b *testing.B) {
 		Path string
 	}{
 		{
+			Name: "PerfMockSmall",
+			Path: "perf_metrics_small.ftdc",
+		},
+		{
 			Name: "PerfMock",
 			Path: "perf_metrics.ftdc",
 		},
