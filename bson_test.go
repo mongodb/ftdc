@@ -1038,7 +1038,7 @@ func TestMetricsToElement(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			elem, num := rehydrateElement(test.ref, 0, test.metrics, 0)
+			elem, num := restoreElement(test.ref, 0, test.metrics, 0)
 			assert.Equal(t, test.outNum, num)
 			if !test.isDocument {
 				assert.Equal(t, test.expected, elem)

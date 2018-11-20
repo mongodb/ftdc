@@ -183,9 +183,9 @@ func TestReadPathIntegration(t *testing.T) {
 				})
 			})
 			t.Run("Matrix", func(t *testing.T) {
-				// if testing.Short() {
-				// 	t.Skip("skipping slow read integration tests")
-				// }
+				if testing.Short() {
+					t.Skip("skipping slow read integration tests")
+				}
 
 				startAt := time.Now()
 				iter := ReadMatrix(ctx, bytes.NewBuffer(data))
