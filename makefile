@@ -3,7 +3,7 @@ srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name 
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-_testPackages := ./ 
+_testPackages := ./ ./events
 
 testArgs := -v
 ifneq (,$(RUN_TEST))
@@ -53,16 +53,16 @@ $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
 $(buildDir)/cover.html:$(buildDir)/cover.out
 	go tool cover -html=$< -o $@
 
-test-bsonx:
+test-%:
 	@mkdir -p $(buildDir)
-	go test $(testArgs) ./bsonx | tee $(buildDir)/test.bsonx.out
-	@grep -s -q -e "^PASS" $(buildDir)/test.bsonx.out
-coverage-bsonx:$(buildDir)/cover.bsonx.out
+	go test $(testArgs) ./$* | tee $(buildDir)/test.*.out
+	@grep -s -q -e "^PASS" $(buildDir)/test.*.out
+coverage-%:$(buildDir)/cover.%.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
-coverage-bsonx-html:$(buildDir)/cover.bsonx.html
-$(buildDir)/cover.bsonx.out:$(buildDir) $(bsonxFiles) .FORCE
-	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./bsonx
-$(buildDir)/cover.bsonx.html:$(buildDir)/cover.bsonx.out
+coverage-%-html:$(buildDir)/cover.%.html
+$(buildDir)/cover.%.out:$(buildDir) $(testFiles) .FORCE
+	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./$*
+$(buildDir)/cover.%.html:$(buildDir)/cover.%.out
 	go tool cover -html=$< -o $@
 
 .FORCE:
@@ -83,4 +83,11 @@ vendor-clean:
 	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/pmezard/
 	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/google/go-cmp/
 	rm -rf vendor/github.com/mongodb/mongo-go-driver/vendor/github.com/kr/
+	rm -rf vendor/gopkg.in/mgo.v2/harness/
+	rm -rf vendor/gopkg.in/mgo.v2/testdb/
+	rm -rf vendor/gopkg.in/mgo.v2/testserver/
+	rm -rf vendor/gopkg.in/mgo.v2/internal/json/testdata
+	rm -rf vendor/gopkg.in/mgo.v2/.git/
+	rm -rf vendor/gopkg.in/mgo.v2/txn/
 	sed -ri 's/bson:"(.*),omitempty"/bson:"\1"/' `find vendor/github.com/mongodb/grip/vendor/github.com/shirou/gopsutil/ -name "*go"` || true
+	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
