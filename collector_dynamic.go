@@ -9,7 +9,7 @@ import (
 type dynamicCollector struct {
 	maxSamples int
 	chunks     []*batchCollector
-	hahes      []string
+	hash       string
 	currentNum int
 }
 
@@ -42,7 +42,7 @@ func (c *dynamicCollector) Info() CollectorInfo {
 
 func (c *dynamicCollector) Reset() {
 	c.chunks = []*batchCollector{newBatchCollector(c.maxSamples)}
-	c.hahes = []string{}
+	c.hash = ""
 }
 
 func (c *dynamicCollector) SetMetadata(in interface{}) error {
@@ -55,32 +55,22 @@ func (c *dynamicCollector) Add(in interface{}) error {
 		return errors.WithStack(err)
 	}
 
-	if len(c.hahes) == 0 {
+	if c.hash == "" {
 		docHash, num := metricKeyHash(doc)
-		c.hahes = append(c.hahes, docHash)
+		c.hash = docHash
 		c.currentNum = num
 		return errors.WithStack(c.chunks[0].Add(doc))
 	}
 
-	if len(c.hahes) != len(c.chunks) {
-		// this is (maybe) panic worthy
-		return errors.New("collector is corrupt")
-	}
+	lastChunk := c.chunks[len(c.chunks)-1]
 
-	lastIdx := len(c.hahes) - 1
-
-	lastChunk := c.chunks[lastIdx]
-	lastHash := c.hahes[lastIdx]
-
-	docHash, num := metricsHash(doc)
-
-	if lastHash == docHash && c.currentNum == num {
+	docHash, _ := metricKeyHash(doc)
+	if c.hash == docHash {
 		return errors.WithStack(lastChunk.Add(doc))
 	}
 
 	chunk := newBatchCollector(c.maxSamples)
 	c.chunks = append(c.chunks, chunk)
-	c.hahes = append(c.hahes, docHash)
 
 	return errors.WithStack(chunk.Add(doc))
 }

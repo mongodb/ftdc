@@ -205,7 +205,7 @@ func createCollectors() []*customCollector {
 		},
 		{
 			name:      "SmallStreaming",
-			factory:   func() Collector { return NewStreamingCollector(10, &bytes.Buffer{}) },
+			factory:   func() Collector { return NewStreamingCollector(100, &bytes.Buffer{}) },
 			skipBench: true,
 		},
 		{
@@ -217,9 +217,8 @@ func createCollectors() []*customCollector {
 			factory: func() Collector { return NewStreamingCollector(10000, &bytes.Buffer{}) },
 		},
 		{
-			name:      "SmallStreamingDynamic",
-			factory:   func() Collector { return NewStreamingDynamicCollector(10, &bytes.Buffer{}) },
-			skipBench: true,
+			name:    "SmallStreamingDynamic",
+			factory: func() Collector { return NewStreamingDynamicCollector(100, &bytes.Buffer{}) },
 		},
 		{
 			name:    "MediumStreamingDynamic",

@@ -21,6 +21,18 @@ func init() {
 	grip.SetName("ftdc")
 }
 
+// Map converts the chunk to a map representation. Each key in the map
+// is a "composite" key with a dot-separated fully qualified document
+// path. The values in this map include all of the values collected
+// for this chunk.
+func (c *Chunk) renderMap() map[string]Metric {
+	m := make(map[string]Metric)
+	for _, metric := range c.metrics {
+		m[metric.Key()] = metric
+	}
+	return m
+}
+
 func TestReadPathIntegration(t *testing.T) {
 	for _, test := range []struct {
 		name            string
@@ -69,8 +81,8 @@ func TestReadPathIntegration(t *testing.T) {
 			expectedSamples := test.expectedChunks * test.expectedMetrics
 
 			t.Run("Original", func(t *testing.T) {
+				startAt := time.Now()
 				iter := ReadChunks(ctx, bytes.NewBuffer(data))
-
 				counter := 0
 				num := 0
 				hasSeries := 0
@@ -104,10 +116,7 @@ func TestReadPathIntegration(t *testing.T) {
 					// check to see if our public accesors for the data
 					// perform as expected
 					if counter%100 == 0 {
-						data := c.Expand()
-						assert.Len(t, data, test.expectedMetrics)
-
-						for _, v := range c.Map() {
+						for _, v := range c.renderMap() {
 							assert.Len(t, v.Values, test.expectedMetrics)
 							assert.Equal(t, v.startingValue, v.Values[0], "key=%s", metric.Key())
 						}
@@ -123,6 +132,22 @@ func TestReadPathIntegration(t *testing.T) {
 							}
 						}
 						assert.Equal(t, test.expectedMetrics, numSamples)
+
+						data, err := c.export()
+						require.NoError(t, err)
+
+						assert.True(t, len(c.metrics) >= data.Len())
+						docIter := data.Iterator()
+						elems := 0
+						for docIter.Next() {
+							array := docIter.Element().Value().MutableArray()
+							require.Equal(t, test.expectedMetrics, array.Len())
+							elems++
+						}
+						// this is inexact
+						// because of timestamps...
+						assert.True(t, len(c.metrics) >= elems)
+						assert.Equal(t, elems, data.Len())
 					}
 				}
 
@@ -134,8 +159,48 @@ func TestReadPathIntegration(t *testing.T) {
 				assert.Equal(t, counter, hasSeries)
 
 				grip.Notice(message.Fields{
-					"series": num,
-					"iters":  counter,
+					"parser":   "original",
+					"series":   num,
+					"iters":    counter,
+					"dur_secs": time.Since(startAt).Seconds(),
+				})
+			})
+			t.Run("MatrixSeries", func(t *testing.T) {
+				startAt := time.Now()
+				iter := ReadSeries(ctx, bytes.NewBuffer(data))
+				counter := 0
+				for iter.Next() {
+					doc := iter.Document()
+					require.NotNil(t, doc)
+					assert.True(t, doc.Len() > 0)
+					counter++
+				}
+				assert.Equal(t, test.expectedChunks, counter)
+				grip.Notice(message.Fields{
+					"parser":   "matrix_series",
+					"iters":    counter,
+					"dur_secs": time.Since(startAt).Seconds(),
+				})
+			})
+			t.Run("Matrix", func(t *testing.T) {
+				// if testing.Short() {
+				// 	t.Skip("skipping slow read integration tests")
+				// }
+
+				startAt := time.Now()
+				iter := ReadMatrix(ctx, bytes.NewBuffer(data))
+				counter := 0
+				for iter.Next() {
+					doc := iter.Document()
+					require.NotNil(t, doc)
+					assert.True(t, doc.Len() > 0)
+					counter++
+				}
+				assert.Equal(t, test.expectedChunks, counter)
+				grip.Notice(message.Fields{
+					"parser":   "matrix",
+					"iters":    counter,
+					"dur_secs": time.Since(startAt).Seconds(),
 				})
 			})
 			t.Run("Combined", func(t *testing.T) {

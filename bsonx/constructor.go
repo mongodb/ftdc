@@ -629,6 +629,11 @@ func (ValueConstructor) Boolean(b bool) *Value {
 	return EC.Boolean("", b).value
 }
 
+// Time creates a datetime value from the argument.
+func (ValueConstructor) Time(t time.Time) *Value {
+	return EC.Time("", t).value
+}
+
 // DateTime creates a datetime value from the argument.
 func (ValueConstructor) DateTime(dt int64) *Value {
 	return EC.DateTime("", dt).value

@@ -10,13 +10,10 @@ import (
 func getOffset(count, sample, metric int) int { return metric*count + sample }
 
 func undeltaFloats(value int64, deltas []int64) []int64 {
-	out := make([]int64, len(deltas)+1)
+	out := make([]int64, 1, len(deltas)+1)
 	out[0] = value
 
-	for idx, delta := range deltas {
-		out[idx+1] = normalizeFloat(restoreFloat(out[idx]) + restoreFloat(delta))
-	}
-	return out
+	return append(out, deltas...)
 }
 
 func undelta(value int64, deltas []int64) []int64 {

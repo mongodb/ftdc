@@ -20,39 +20,6 @@ func (c *Chunk) GetMetadata() *bsonx.Document {
 	return c.metadata
 }
 
-// Map converts the chunk to a map representation. Each key in the map
-// is a "composite" key with a dot-separated fully qualified document
-// path. The values in this map include all of the values collected
-// for this chunk.
-func (c *Chunk) Map() map[string]Metric {
-	m := make(map[string]Metric)
-	for _, metric := range c.metrics {
-		m[metric.Key()] = metric
-	}
-	return m
-}
-
-// Expand provides a more natural map-based interface to metrics
-// data. Each map in the return slice represents a data collection
-// point.
-func (c *Chunk) Expand() []map[string]int64 {
-	// Initialize data structures
-	deltas := []map[string]int64{}
-
-	// Expand deltas
-	for i := 0; i < c.nPoints; i++ {
-		d := make(map[string]int64)
-
-		for _, m := range c.metrics {
-			d[m.Key()] = m.Values[i]
-		}
-
-		deltas = append(deltas, d)
-	}
-
-	return deltas
-}
-
 // Iterator returns an iterator that you can use to read documents for
 // each sample period in the chunk. Documents are returned in collection
 // order, with keys flattened and dot-seperated fully qualified
@@ -68,6 +35,10 @@ func (c *Chunk) Iterator(ctx context.Context) Iterator {
 	}
 }
 
+// StructuredIterator returns the contents of the chunk as a sequence
+// of documents that (mostly) resemble the original source documents
+// (with the non-metrics fields omitted.) The output documents mirror
+// the structure of the input documents.
 func (c *Chunk) StructuredIterator(ctx context.Context) Iterator {
 	sctx, cancel := context.WithCancel(ctx)
 	return &sampleIterator{

@@ -118,14 +118,14 @@ func BenchmarkDocumentCreation(b *testing.B) {
 		{
 			Name:      "Complex",
 			Samples:   1000,
-			Length:    40,
+			Length:    60,
 			Reference: randComplexDocument(20, 3),
 			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
 		},
 		{
 			Name:      "SmallComplex",
 			Samples:   1000,
-			Length:    5,
+			Length:    10,
 			Reference: randComplexDocument(5, 1),
 			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(5, 1) }),
 		},
