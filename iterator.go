@@ -27,8 +27,8 @@ func ReadMetrics(ctx context.Context, r io.Reader) Iterator {
 		pipe:    make(chan *bsonx.Document, 100),
 		catcher: grip.NewBasicCatcher(),
 	}
-	go iter.worker(iterctx)
 
+	go iter.worker(iterctx)
 	return iter
 }
 
@@ -43,6 +43,64 @@ func ReadStructuredMetrics(ctx context.Context, r io.Reader) Iterator {
 		flatten: false,
 		pipe:    make(chan *bsonx.Document, 100),
 		catcher: grip.NewBasicCatcher(),
+	}
+
+	go iter.worker(iterctx)
+	return iter
+}
+
+// ReadMatrix returns a "matrix format" for the data in a chunk. The
+// ducments returned by the iterator represent the entire chunk, in
+// flattened form, with each field representing a single metric as an
+// array of all values for the event.
+//
+// The matrix documents have full type fidelity, but are not
+// substantially less expensive to produce than full iteration.
+func ReadMatrix(ctx context.Context, r io.Reader) Iterator {
+	iterctx, cancel := context.WithCancel(ctx)
+	iter := &matrixIterator{
+		closer:  cancel,
+		chunks:  ReadChunks(iterctx, r),
+		pipe:    make(chan *bsonx.Document, 25),
+		catcher: grip.NewBasicCatcher(),
+	}
+
+	go iter.worker(iterctx)
+	return iter
+}
+
+// ReadSeries is similar to the ReadMatrix format, and produces a
+// single document per chunk, that contains the flattented keys for
+// that chunk, mapped to arrays of all the values of the chunk.
+//
+// The matrix documents have better type fidelity than raw chunks but
+// do not properly collapse the bson timestamp type. To use these
+// values produced by the iterator, consider marshaling them directly
+// to map[string]interface{} and use a case statement, on the values
+// in the map, such as:
+//
+//     switch v.(type) {
+//     case []int32:
+//            // ...
+//     case []int64:
+//            // ...
+//     case []bool:
+//            // ...
+//     case []time.Time:
+//            // ...
+//     case []float64:
+//            // ...
+//     }
+//
+// Although the *bsonx.Document type does support iteration directly.
+func ReadSeries(ctx context.Context, r io.Reader) Iterator {
+	iterctx, cancel := context.WithCancel(ctx)
+	iter := &matrixIterator{
+		closer:  cancel,
+		chunks:  ReadChunks(iterctx, r),
+		pipe:    make(chan *bsonx.Document, 25),
+		catcher: grip.NewBasicCatcher(),
+		reflect: true,
 	}
 
 	go iter.worker(iterctx)

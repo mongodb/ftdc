@@ -118,14 +118,14 @@ func BenchmarkDocumentCreation(b *testing.B) {
 		{
 			Name:      "Complex",
 			Samples:   1000,
-			Length:    40,
+			Length:    60,
 			Reference: randComplexDocument(20, 3),
 			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
 		},
 		{
 			Name:      "SmallComplex",
 			Samples:   1000,
-			Length:    5,
+			Length:    10,
 			Reference: randComplexDocument(5, 1),
 			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(5, 1) }),
 		},
@@ -134,7 +134,7 @@ func BenchmarkDocumentCreation(b *testing.B) {
 		b.Run(test.Name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				for i := 0; i < test.Samples; i++ {
-					doc, _ = rehydrateDocument(test.Reference, i, test.Metrics, 0)
+					doc, _ = restoreDocument(test.Reference, i, test.Metrics, 0)
 					require.NotNil(b, doc)
 					require.Equal(b, test.Length, doc.Len())
 				}

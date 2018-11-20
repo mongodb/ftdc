@@ -86,7 +86,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 			{
 				ParentPath:    path,
 				KeyName:       key,
-				startingValue: int64(val.Double()),
+				startingValue: normalizeFloat(val.Double()),
 				originalType:  val.Type(),
 			},
 		}

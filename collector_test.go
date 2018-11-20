@@ -41,18 +41,16 @@ func TestCollectorInterface(t *testing.T) {
 					assert.Zero(t, info)
 
 					for _, d := range test.docs {
-						assert.NoError(t, collector.Add(d))
+						require.NoError(t, collector.Add(d))
 					}
 					info = collector.Info()
 
 					if test.randStats {
-						assert.True(t, info.MetricsCount >= test.numStats,
+						require.True(t, info.MetricsCount >= test.numStats,
 							"%d >= %d", info.MetricsCount, test.numStats)
 					} else {
-						if !assert.Equal(t, test.numStats, info.MetricsCount) {
-							fmt.Println(test.docs)
-							fmt.Println(info)
-						}
+						require.Equal(t, test.numStats, info.MetricsCount,
+							"info=%+v, %v", info, test.docs)
 					}
 
 					out, err := collector.Resolve()
@@ -547,9 +545,9 @@ func TestTimestampHandling(t *testing.T) {
 					idx := 0
 					for iter.Next() {
 						doc := iter.Document()
-						val, ok := doc.Lookup("ts").Int64OK()
+						val, ok := doc.Lookup("ts").TimeOK()
 						if assert.True(t, ok) {
-							assert.Equal(t, epochMs(test.Values[idx]), val)
+							assert.EqualValues(t, test.Values[idx], val)
 						}
 						idx++
 					}

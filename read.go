@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/pkg/errors"
 )
 
@@ -120,7 +121,12 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 				}
 				metrics[i].Values[j] = int64(delta)
 			}
-			metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
+			if metrics[i].originalType == bsontype.Double {
+				metrics[i].Values = undeltaFloats(v.startingValue, metrics[i].Values)
+			} else {
+				metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
+			}
+
 		}
 		select {
 		case o <- &Chunk{

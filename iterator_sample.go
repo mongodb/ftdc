@@ -24,7 +24,12 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bsonx.Docu
 
 			doc := bsonx.MakeDocument(len(c.metrics))
 			for _, m := range c.metrics {
-				doc.Append(bsonx.EC.Int64(m.Key(), m.Values[i]))
+				elem, ok := restoreFlat(m.originalType, m.Key(), m.Values[i])
+				if !ok {
+					continue
+				}
+
+				doc.Append(elem)
 			}
 
 			select {
@@ -46,7 +51,7 @@ func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bsonx.Document {
 		defer close(out)
 
 		for i := 0; i < c.nPoints; i++ {
-			doc, _ := rehydrateDocument(c.reference, i, c.metrics, 0)
+			doc, _ := restoreDocument(c.reference, i, c.metrics, 0)
 			select {
 			case <-ctx.Done():
 				return

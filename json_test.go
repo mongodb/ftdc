@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,13 +76,12 @@ func TestCollectJSONOptions(t *testing.T) {
 	}
 }
 
-func makeSysInfoDocuments(num int) ([][]byte, error) {
+func makeJSONRandComplex(num int) ([][]byte, error) {
 	out := [][]byte{}
 
 	for i := 0; i < num; i++ {
-		info := message.CollectSystemInfo().(*message.SystemInfo)
-		info.Base = message.Base{} // avoid collecting data from the base package.
-		data, err := json.Marshal(info)
+		doc := randComplexDocument(100, 2)
+		data, err := json.Marshal(doc)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -120,7 +118,7 @@ func TestCollectJSON(t *testing.T) {
 		require.NoError(t, os.RemoveAll(dir))
 	}()
 
-	hundredDocs, err := makeSysInfoDocuments(100)
+	hundredDocs, err := makeJSONRandComplex(100)
 	require.NoError(t, err)
 
 	t.Run("SingleReaderIdealCase", func(t *testing.T) {
@@ -145,7 +143,8 @@ func TestCollectJSON(t *testing.T) {
 	})
 	t.Run("SingleReaderBotchedDocument", func(t *testing.T) {
 		buf := &bytes.Buffer{}
-		docs, err := makeSysInfoDocuments(10)
+
+		docs, err := makeJSONRandComplex(10)
 		require.NoError(t, err)
 
 		docs[2] = docs[len(docs)-1][1:] // break the last document docuemnt
@@ -272,7 +271,7 @@ func TestCollectJSON(t *testing.T) {
 			assert.Equal(t, 2, s.Len())
 			for k, v := range inputs[idx] {
 				out := s.Lookup(k)
-				assert.Equal(t, v, out.Interface())
+				assert.EqualValues(t, v, out.Interface())
 			}
 		}
 		require.NoError(t, iter.Err())

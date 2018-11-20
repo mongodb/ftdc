@@ -6,11 +6,7 @@ import (
 	"github.com/shirou/gopsutil/internal/common"
 )
 
-var invoke common.Invoker
-
-func init() {
-	invoke = common.Invoke{}
-}
+var invoke common.Invoker = common.Invoke{}
 
 type UsageStat struct {
 	Path              string  `json:"path" bson:"path"`
@@ -46,6 +42,7 @@ type IOCountersStat struct {
 	WeightedIO       uint64 `json:"weightedIO" bson:"weightedIO"`
 	Name             string `json:"name" bson:"name"`
 	SerialNumber     string `json:"serialNumber" bson:"serialNumber"`
+	Label            string `json:"label" bson:"label"`
 }
 
 func (d UsageStat) String() string {

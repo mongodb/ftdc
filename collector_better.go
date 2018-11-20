@@ -12,7 +12,7 @@ type betterCollector struct {
 	metadata   *bsonx.Document
 	reference  *bsonx.Document
 	startedAt  time.Time
-	lastSample []int64
+	lastSample []*bsonx.Value
 	deltas     []int64
 	numSamples int
 	maxDeltas  int
@@ -60,10 +60,11 @@ func (c *betterCollector) Add(in interface{}) error {
 		return errors.WithStack(err)
 	}
 
+	var metrics []*bsonx.Value
 	if c.reference == nil {
 		c.startedAt = time.Now()
 		c.reference = doc
-		metrics, err := extractMetricsFromDocument(doc)
+		metrics, err = extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -76,7 +77,7 @@ func (c *betterCollector) Add(in interface{}) error {
 		return errors.New("collector is overfull")
 	}
 
-	metrics, err := extractMetricsFromDocument(doc)
+	metrics, err = extractMetricsFromDocument(doc)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -87,8 +88,13 @@ func (c *betterCollector) Add(in interface{}) error {
 		)
 	}
 
+	var delta int64
 	for idx := range metrics {
-		c.deltas[getOffset(c.maxDeltas, c.numSamples, idx)] = metrics[idx] - c.lastSample[idx]
+		delta, err = extractDelta(metrics[idx], c.lastSample[idx])
+		if err != nil {
+			return errors.Wrap(err, "problem parsing data")
+		}
+		c.deltas[getOffset(c.maxDeltas, c.numSamples, idx)] = delta
 	}
 
 	c.numSamples++
