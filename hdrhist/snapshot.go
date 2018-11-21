@@ -3,7 +3,6 @@ package hdrhist
 import (
 	"encoding/json"
 
-	"github.com/mongodb/ftdc/hdrhist"
 	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
 	mgobson "gopkg.in/mgo.v2/bson"
@@ -28,17 +27,17 @@ func (h *Histogram) UnmarshalBSON(in []byte) error {
 		return errors.WithStack(err)
 	}
 
-	*h = *hdrhist.Import(s)
+	*h = *Import(s)
 	return nil
 }
 
-func (h *Histogram) MarshalJSON() ([]byte, error) {
+func (h *Histogram) UnmarshalJSON(in []byte) error {
 	s := &Snapshot{}
 	if err := json.Unmarshal(in, s); err != nil {
 		return errors.WithStack(err)
 	}
 
-	*h = *hdrhist.Import(s)
+	*h = *Import(s)
 	return nil
 }
 
@@ -48,6 +47,6 @@ func (h *Histogram) SetBSON(raw mgobson.Raw) error {
 		return errors.WithStack(err)
 	}
 
-	*h = *hdrhist.Import(s)
+	*h = *Import(s)
 	return nil
 }
