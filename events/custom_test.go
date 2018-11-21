@@ -49,5 +49,4 @@ func TestRollupRoundTrip(t *testing.T) {
 		assert.Equal(t, 45.0, rt[1].Value)
 		assert.Equal(t, 100, rt[2].Value)
 	})
-
 }
