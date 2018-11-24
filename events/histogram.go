@@ -35,8 +35,8 @@ type PerformanceTimersHDR struct {
 	Total    *hdrhist.Histogram
 }
 
-func newPerformanceHDR(g PerformanceGauges) PerformanceHDR {
-	return PerformanceHDR{
+func newPerformanceHDR(g PerformanceGauges) *PerformanceHDR {
+	return &PerformanceHDR{
 		Gauges: g,
 		Counters: PerformanceCountersHDR{
 			Number:     newCounterHistogram(),

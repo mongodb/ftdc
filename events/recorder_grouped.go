@@ -49,7 +49,7 @@ func (r *groupStream) Record(dur time.Duration) {
 	r.point.Timers.Duration += dur
 
 	if time.Since(r.lastCollected) >= r.interval {
-		r.catcher.Add(r.collector.Add(&r.point))
+		r.catcher.Add(r.collector.Add(r.point))
 		r.lastCollected = time.Now()
 	}
 }
@@ -57,7 +57,7 @@ func (r *groupStream) Record(dur time.Duration) {
 func (r *groupStream) Flush() error {
 	r.point.Counters.Number++
 	r.point.Timers.Total = time.Since(r.started)
-	r.catcher.Add(r.collector.Add(&r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 	r.lastCollected = time.Now()
 
 	err := r.catcher.Resolve()

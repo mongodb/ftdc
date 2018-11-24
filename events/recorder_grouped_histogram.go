@@ -8,7 +8,7 @@ import (
 )
 
 type histogramGroupedStream struct {
-	point         PerformanceHDR
+	point         *PerformanceHDR
 	lastCollected time.Time
 	started       time.Time
 	interval      time.Duration
@@ -18,7 +18,8 @@ type histogramGroupedStream struct {
 
 // NewHistogramGroupedRecorder captures data and stores them with a histogramGrouped
 // format. Like the Grouped Recorder, it persists an event if the specified
-// interval has elapsed since the last time an event was captured.
+// interval has elapsed since the last time an event was captured. The
+// reset method also resets the last-collected time.
 //
 // The timer histgrams have a minimum value of 1 microsecond, and a
 // maximum value of 20 minutes, with 5 significant digits. The counter
@@ -56,7 +57,7 @@ func (r *histogramGroupedStream) Record(dur time.Duration) {
 	}
 
 	if time.Since(r.lastCollected) >= r.interval {
-		r.catcher.Add(r.collector.Add(&r.point))
+		r.catcher.Add(r.collector.Add(r.point))
 		r.lastCollected = time.Now()
 	}
 }
@@ -66,6 +67,7 @@ func (r *histogramGroupedStream) Begin() { r.started = time.Now() }
 func (r *histogramGroupedStream) Reset() { r.started = time.Now(); r.lastCollected = time.Now() }
 
 func (r *histogramGroupedStream) Flush() error {
+	// TODO save things in flush
 	r.Begin()
 	r.point = newPerformanceHDR(r.point.Gauges)
 	r.started = time.Time{}

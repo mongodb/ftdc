@@ -41,7 +41,7 @@ func (r *rawStream) Record(dur time.Duration) {
 	}
 
 	r.point.Timers.Duration += dur
-	r.catcher.Add(r.collector.Add(&r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 	r.started = time.Now()
 }
 
@@ -50,7 +50,7 @@ func (r *rawStream) Flush() error {
 	if !r.started.IsZero() {
 		r.point.Timers.Total = time.Since(r.started)
 	}
-	r.catcher.Add(r.collector.Add(&r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewExtendedCatcher()

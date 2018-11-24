@@ -8,7 +8,7 @@ import (
 )
 
 type histogramStream struct {
-	point     PerformanceHDR
+	point     *PerformanceHDR
 	started   time.Time
 	collector ftdc.Collector
 	catcher   grip.Catcher

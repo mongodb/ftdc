@@ -43,13 +43,13 @@ func (r *collapsedStream) Begin() {
 	}
 
 	r.point.Timers.Total = time.Since(r.started)
-	r.catcher.Add(r.collector.Add(&r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 	r.started = time.Now()
 }
 
 func (r *collapsedStream) Flush() error {
 	r.point.Timers.Total = time.Since(r.started)
-	r.catcher.Add(r.collector.Add(&r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 	r.point = Performance{
 		Gauges: r.point.Gauges,
 	}
