@@ -11,6 +11,8 @@ package hdrhist
 import (
 	"fmt"
 	"math"
+
+	"github.com/pkg/errors"
 )
 
 // A Bracket is a part of a cumulative distribution.
@@ -42,7 +44,7 @@ type Histogram struct {
 // range and with the given amount of precision.
 func New(minValue, maxValue int64, sigfigs int) *Histogram {
 	if sigfigs < 1 || 5 < sigfigs {
-		panic(fmt.Errorf("sigfigs must be [1,5] (was %d)", sigfigs))
+		panic(errors.Errorf("sigfigs must be [1,5] (was %d)", sigfigs))
 	}
 
 	largestValueWithSingleUnitResolution := 2 * math.Pow10(sigfigs)
@@ -227,7 +229,7 @@ func (h *Histogram) RecordCorrectedValue(v, expectedInterval int64) error {
 func (h *Histogram) RecordValues(v, n int64) error {
 	idx := h.countsIndexFor(v)
 	if idx < 0 || int(h.countsLen) <= idx {
-		return fmt.Errorf("value %d is too large to be recorded", v)
+		return errors.Errorf("value %d is too large to be recorded", v)
 	}
 	h.counts[idx] += n
 	h.totalCount += n
