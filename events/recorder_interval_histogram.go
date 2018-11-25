@@ -36,7 +36,7 @@ func NewIntervalHistogramRecorder(ctx context.Context, collector ftdc.Collector,
 		rootCtx:   ctx,
 		catcher:   grip.NewExtendedCatcher(),
 		interval:  interval,
-		point:     newPerformanceHDR(PerformanceGauges{}),
+		point:     NewHistogramMillisecond(PerformanceGauges{}),
 	}
 }
 
@@ -51,7 +51,7 @@ func (r *intervalHistogramStream) worker(ctx context.Context, interval time.Dura
 		case <-ticker.C:
 			r.Lock()
 			r.catcher.Add(r.collector.Add(r.point))
-			r.point = newPerformanceHDR(r.point.Gauges)
+			r.point = NewHistogramMillisecond(r.point.Gauges)
 			r.Unlock()
 		}
 	}
@@ -94,7 +94,7 @@ func (r *intervalHistogramStream) Flush() error {
 	r.catcher.Add(r.collector.Add(r.point))
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewExtendedCatcher()
-	r.point = newPerformanceHDR(r.point.Gauges)
+	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 
 	r.Unlock()

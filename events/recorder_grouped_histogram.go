@@ -30,7 +30,7 @@ type histogramGroupedStream struct {
 // synchronixed wrapper.
 func NewHistogramGroupedRecorder(collector ftdc.Collector, interval time.Duration) Recorder {
 	return &histogramGroupedStream{
-		point:     newPerformanceHDR(PerformanceGauges{}),
+		point:     NewHistogramMillisecond(PerformanceGauges{}),
 		collector: collector,
 		catcher:   grip.NewExtendedCatcher(),
 	}
@@ -69,7 +69,7 @@ func (r *histogramGroupedStream) Reset() { r.started = time.Now(); r.lastCollect
 func (r *histogramGroupedStream) Flush() error {
 	// TODO save things in flush
 	r.Begin()
-	r.point = newPerformanceHDR(r.point.Gauges)
+	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewBasicCatcher()

@@ -27,7 +27,7 @@ type histogramStream struct {
 // synchronixed wrapper.
 func NewHistogramRecorder(collector ftdc.Collector) Recorder {
 	return &histogramStream{
-		point:     newPerformanceHDR(PerformanceGauges{}),
+		point:     NewHistogramMillisecond(PerformanceGauges{}),
 		collector: collector,
 		catcher:   grip.NewExtendedCatcher(),
 	}
@@ -63,7 +63,7 @@ func (r *histogramStream) Reset() { r.started = time.Now() }
 
 func (r *histogramStream) Flush() error {
 	r.Begin()
-	r.point = newPerformanceHDR(r.point.Gauges)
+	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewBasicCatcher()

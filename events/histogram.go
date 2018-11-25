@@ -35,26 +35,50 @@ type PerformanceTimersHDR struct {
 	Total    *hdrhist.Histogram
 }
 
-func newPerformanceHDR(g PerformanceGauges) *PerformanceHDR {
+func NewHistogramSecond(g PerformanceGauges) *PerformanceHDR {
 	return &PerformanceHDR{
 		Gauges: g,
 		Counters: PerformanceCountersHDR{
-			Number:     newCounterHistogram(),
-			Operations: newCounterHistogram(),
-			Size:       newCounterHistogram(),
-			Errors:     newCounterHistogram(),
+			Number:     newSecondCounterHistogram(),
+			Operations: newSecondCounterHistogram(),
+			Size:       newSecondCounterHistogram(),
+			Errors:     newSecondCounterHistogram(),
 		},
 		Timers: PerformanceTimersHDR{
-			Duration: newDurationHistogram(),
-			Total:    newDurationHistogram(),
+			Duration: newSecondDurationHistogram(),
+			Total:    newSecondDurationHistogram(),
 		},
 	}
 }
 
-func newDurationHistogram() *hdrhist.Histogram {
+func newSecondDurationHistogram() *hdrhist.Histogram {
 	return hdrhist.New(int64(time.Microsecond), int64(20*time.Minute), 5)
 }
 
-func newCounterHistogram() *hdrhist.Histogram {
+func newSecondCounterHistogram() *hdrhist.Histogram {
 	return hdrhist.New(0, 10*100*1000, 5)
+}
+
+func NewHistogramMillisecond(g PerformanceGauges) *PerformanceHDR {
+	return &PerformanceHDR{
+		Gauges: g,
+		Counters: PerformanceCountersHDR{
+			Number:     newMillisecondCounterHistogram(),
+			Operations: newMillisecondCounterHistogram(),
+			Size:       newMillisecondCounterHistogram(),
+			Errors:     newMillisecondCounterHistogram(),
+		},
+		Timers: PerformanceTimersHDR{
+			Duration: newMillisecondDurationHistogram(),
+			Total:    newMillisecondDurationHistogram(),
+		},
+	}
+}
+
+func newMillisecondDurationHistogram() *hdrhist.Histogram {
+	return hdrhist.New(int64(time.Microsecond), int64(time.Minute), 5)
+}
+
+func newMillisecondCounterHistogram() *hdrhist.Histogram {
+	return hdrhist.New(0, 10*1000, 5)
 }

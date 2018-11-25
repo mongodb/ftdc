@@ -43,7 +43,7 @@ coverage:$(buildDir)/cover.out
 coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
 
 benchmark:
-	go test -v -benchmem $(benchArgs) -timeout=20m
+	go test -v -benchmem $(benchArgs) -timeout=20m ./...
 
 
 $(buildDir):$(srcFiles) compile
