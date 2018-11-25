@@ -68,6 +68,14 @@ func TestRecorder(t *testing.T) {
 			},
 		},
 		{
+			Name:    "SinglePerformance",
+			Factory: NewSingleRecorder,
+		},
+		{
+			Name:    "SingleHistogram",
+			Factory: NewSingleHistogramRecorder,
+		},
+		{
 			Name: "RawSync",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewSynchronizedRecorder(NewRawRecorder(c))
