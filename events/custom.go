@@ -20,14 +20,25 @@ import (
 	mgobson "gopkg.in/mgo.v2/bson"
 )
 
+// CustomPoint represents a computed statistic as a key value
+// pair. Use with the Custom type to ensure that the Value types refer
+// to number values and ensure consistent round trip semantics through BSON
+// and FTDC.
 type CustomPoint struct {
 	Name  string
 	Value interface{}
 }
 
+// Custom is a collection of data points designed to store computed
+// statistics at an interval. In general you will add a set of
+// rolled-up data values to the custom object on an interval and then
+// pass that sequence to an ftdc.Collector. Custom implements
+// sort.Interface, and the CustomPoint type implements custom bson
+// marshalling so that Points are marshaled as an object to facilitate
+// their use with the ftdc format.
 type Custom []CustomPoint
 
-// MakeCustom creates a Custom document with the specified document
+// MakeCustom creates a Custom slice with the specified size hint.
 func MakeCustom(size int) Custom { return make(Custom, 0, size) }
 
 // Add appends a key to the Custom metric. Only accepts go native
@@ -43,10 +54,18 @@ func (ps *Custom) Add(key string, value interface{}) error {
 	}
 }
 
-func (ps Custom) Len() int           { return len(ps) }
+// Len is a component of the sort.Interface.
+func (ps Custom) Len() int { return len(ps) }
+
+// Less is a component of the sort.Interface.
 func (ps Custom) Less(i, j int) bool { return ps[i].Name < ps[j].Name }
-func (ps Custom) Swap(i, j int)      { ps[i], ps[j] = ps[j], ps[i] }
-func (ps Custom) Sort()              { sort.Stable(ps) }
+
+// Swap is a component of the sort.Interface.
+func (ps Custom) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
+
+// Sort is a convenience function around a stable sort for the custom
+// array.
+func (ps Custom) Sort() { sort.Stable(ps) }
 
 func (ps Custom) MarshalBSON() ([]byte, error) {
 	ps.Sort()

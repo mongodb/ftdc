@@ -43,7 +43,7 @@ coverage:$(buildDir)/cover.out
 coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
 
 benchmark:
-	go test -v -benchmem $(benchArgs) -timeout=20m
+	go test -v -benchmem $(benchArgs) -timeout=20m ./...
 
 
 $(buildDir):$(srcFiles) compile
@@ -53,13 +53,14 @@ $(buildDir)/cover.out:$(buildDir) $(testFiles) .FORCE
 $(buildDir)/cover.html:$(buildDir)/cover.out
 	go tool cover -html=$< -o $@
 
+
 test-%:
 	@mkdir -p $(buildDir)
 	go test $(testArgs) ./$* | tee $(buildDir)/test.*.out
 	@grep -s -q -e "^PASS" $(buildDir)/test.*.out
 coverage-%:$(buildDir)/cover.%.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
-coverage-%-html:$(buildDir)/cover.%.html
+html-coverage-%:coverage-%
 $(buildDir)/cover.%.out:$(buildDir) $(testFiles) .FORCE
 	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./$*
 $(buildDir)/cover.%.html:$(buildDir)/cover.%.out

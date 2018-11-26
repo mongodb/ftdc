@@ -1,3 +1,16 @@
+// Performance Points
+//
+// The Performance type represents a unified event to track an
+// operation in a performance test. These events record three types of
+// metrics: counters, timers, and gauges. Counters record the number
+// of operations in different ways, including test iterations, logical
+// operations counts, operation size (bytes,) and error rate. Timers
+// include both the latency of the core operation, for use in
+// calculating latencies as well as the total taken which may be
+// useful in calculating throughput. Finally gauges, capture changes
+// in state or other information about the environment including the
+// number threads used in the test, or a failed Boolean when a test is
+// aware of its own failure.
 package events
 
 import "time"
@@ -10,7 +23,7 @@ type Performance struct {
 	Timestamp time.Time           `bson:"ts" json:"ts" yaml:"ts"`
 	Counters  PerformanceCounters `bson:"counters" json:"counters" yaml:"counters"`
 	Timers    PerformanceTimers   `bson:"timers" json:"timers" yaml:"timers"`
-	Guages    PerformanceGuages   `bson:"guages" json:"guages" yaml:"guages"`
+	Gauges    PerformanceGauges   `bson:"gauges" json:"gauges" yaml:"gauges"`
 }
 
 // PerformanceCounters refer to the number of operations/events or total
@@ -31,11 +44,11 @@ type PerformanceTimers struct {
 	Total    time.Duration `bson:"total" json:"total" yaml:"total"`
 }
 
-// PerformanceGuages holds simple counters that aren't
+// PerformanceGauges holds simple counters that aren't
 // expected to change between points, but are useful as
 // annotations of the experiment or descriptions of events in
 // the system configuration.
-type PerformanceGuages struct {
+type PerformanceGauges struct {
 	State   int64 `bson:"state" json:"state" yaml:"state"`
 	Workers int64 `bson:"workers" json:"workers" yaml:"workers"`
 	Failed  bool  `bson:"failed" json:"failed" yaml:"failed"`
