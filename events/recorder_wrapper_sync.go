@@ -14,7 +14,7 @@ type syncRecorder struct {
 // concurrent safe in a recorder implementation that provides safe
 // concurrent access without modifying the semantics of the recorder.
 //
-// Most Recorder implementations are not only safe for concurrent,
+// Most Recorder implementations are not safe for concurrent,
 // although some have this property as a result of persisting data on
 // an interval.
 func NewSynchronizedRecorder(r Recorder) Recorder {

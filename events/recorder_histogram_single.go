@@ -18,7 +18,7 @@ type histogramSingle struct {
 // format. Like the Single recorder, the implementation flushes the
 // histogram every time you call the flush recorder.
 //
-// The timer histgrams have a minimum value of 1 microsecond, and a
+// The timer histograms have a minimum value of 1 microsecond, and a
 // maximum value of 1 minute, with 5 significant digits. The counter
 // histograms store between 0 and 10 thousand, with 5 significant
 // digits. The gauges are not stored as integers.

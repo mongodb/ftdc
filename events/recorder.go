@@ -20,7 +20,7 @@ import "time"
 //
 // Choose the implementation of Recorder that will capture all
 // required data used by your test with sufficient resolution for use
-// later. Additional consider the data volume produced by the
+// later. Additionally, consider the data volume produced by the
 // recorder.
 type Recorder interface {
 	// The Inc<> operations add values to the specified counters

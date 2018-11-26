@@ -63,7 +63,8 @@ func (ps Custom) Less(i, j int) bool { return ps[i].Name < ps[j].Name }
 // Swap is a component of the sort.Interface.
 func (ps Custom) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 
-// Sort is a convince function around a stable sort for the custom array.
+// Sort is a convenience function around a stable sort for the custom
+// array.
 func (ps Custom) Sort() { sort.Stable(ps) }
 
 func (ps Custom) MarshalBSON() ([]byte, error) {
