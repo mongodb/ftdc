@@ -67,7 +67,6 @@ func (r *histogramGroupedStream) Begin() { r.started = time.Now() }
 func (r *histogramGroupedStream) Reset() { r.started = time.Now(); r.lastCollected = time.Now() }
 
 func (r *histogramGroupedStream) Flush() error {
-	// TODO save things in flush
 	r.Begin()
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
