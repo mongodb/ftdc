@@ -58,13 +58,14 @@ func (r *histogramGroupedStream) Record(dur time.Duration) {
 
 	if time.Since(r.lastCollected) >= r.interval {
 		r.catcher.Add(r.collector.Add(r.point))
+		r.point.Timestamp = time.Time{}
 		r.lastCollected = time.Now()
 	}
 }
 
-func (r *histogramGroupedStream) Begin() { r.started = time.Now() }
-
-func (r *histogramGroupedStream) Reset() { r.started = time.Now(); r.lastCollected = time.Now() }
+func (r *histogramGroupedStream) SetTime(t time.Time) { r.point.Timestamp = t }
+func (r *histogramGroupedStream) Begin()              { r.started = time.Now() }
+func (r *histogramGroupedStream) Reset()              { r.started = time.Now(); r.lastCollected = time.Now() }
 
 func (r *histogramGroupedStream) Flush() error {
 	r.Begin()

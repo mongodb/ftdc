@@ -47,6 +47,28 @@ func TestRecorder(t *testing.T) {
 			Factory: NewRawRecorder,
 			Cases: []recorderTestCase{
 				{
+					Name: "SetTime",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						ts := time.Now().Add(time.Hour).Round(time.Second)
+						r.Begin()
+						r.SetTime(ts)
+						r.Record(time.Second)
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.EqualValues(t, ts, data.Timestamp)
+						case *PerformanceHDR:
+							assert.EqualValues(t, ts, data.Timestamp)
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
 					Name: "IncOpsFullCycle",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						r.Begin()
@@ -74,6 +96,30 @@ func TestRecorder(t *testing.T) {
 		{
 			Name:    "SingleHistogram",
 			Factory: NewSingleHistogramRecorder,
+			Cases: []recorderTestCase{
+				{
+					Name: "SetTime",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						ts := time.Now().Add(time.Hour).Round(time.Second)
+						r.Begin()
+						r.SetTime(ts)
+						r.Record(time.Second)
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.EqualValues(t, ts, data.Timestamp)
+						case *PerformanceHDR:
+							assert.EqualValues(t, ts, data.Timestamp)
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+			},
 		},
 		{
 			Name: "RawSync",
@@ -81,6 +127,7 @@ func TestRecorder(t *testing.T) {
 				return NewSynchronizedRecorder(NewRawRecorder(c))
 			},
 			Cases: []recorderTestCase{
+
 				{
 					Name: "IncOpsFullCycle",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
@@ -107,13 +154,33 @@ func TestRecorder(t *testing.T) {
 			Factory: NewHistogramRecorder,
 		},
 		{
-			Name:    "Collapsed",
-			Factory: NewCollapsedRecorder,
-		},
-		{
 			Name: "GroupedShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewGroupedRecorder(c, 100*time.Millisecond)
+			},
+			Cases: []recorderTestCase{
+				{
+					Name: "SetTime",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						ts := time.Now().Add(time.Hour).Round(time.Second)
+						r.Begin()
+						r.SetTime(ts)
+						r.Record(time.Second)
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.EqualValues(t, ts, data.Timestamp)
+						case *PerformanceHDR:
+							assert.EqualValues(t, ts, data.Timestamp)
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
 			},
 		},
 		{
@@ -121,42 +188,49 @@ func TestRecorder(t *testing.T) {
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewGroupedRecorder(c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalRecorder(ctx, c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalRecorder(ctx, c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "GroupedHistogramShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewHistogramGroupedRecorder(c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "GroupedHistogramLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewHistogramGroupedRecorder(c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalHistogramShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalHistogramRecorder(ctx, c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalHistogramLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalHistogramRecorder(ctx, c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 	} {
 		t.Run(impl.Name, func(t *testing.T) {
@@ -257,7 +331,6 @@ func TestRecorder(t *testing.T) {
 						}
 					},
 				},
-
 				{
 					Name: "ResetCall",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
@@ -296,7 +369,6 @@ func TestRecorder(t *testing.T) {
 						default:
 							assert.True(t, false, "%T", data)
 						}
-
 					},
 				},
 				{

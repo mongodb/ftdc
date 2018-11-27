@@ -14,7 +14,7 @@ type syncRecorder struct {
 // concurrent safe in a recorder implementation that provides safe
 // concurrent access without modifying the semantics of the recorder.
 //
-// Most Recorder implementations are not safe for concurrent,
+// Most Recorder implementations are not safe for concurrent us,e
 // although some have this property as a result of persisting data on
 // an interval.
 func NewSynchronizedRecorder(r Recorder) Recorder {
@@ -30,6 +30,12 @@ func (r *syncRecorder) doOpInt(val int, op func(int)) {
 }
 
 func (r *syncRecorder) doOpDur(val time.Duration, op func(time.Duration)) {
+	r.Lock()
+	op(val)
+	r.Unlock()
+}
+
+func (r *syncRecorder) doOpTime(val time.Time, op func(time.Time)) {
 	r.Lock()
 	op(val)
 	r.Unlock()
@@ -54,6 +60,7 @@ func (r *syncRecorder) doOp(op func()) {
 	r.Unlock()
 }
 
+func (r *syncRecorder) SetTime(t time.Time)      { r.doOpTime(t, r.recorder.SetTime) }
 func (r *syncRecorder) IncOps(val int)           { r.doOpInt(val, r.recorder.IncOps) }
 func (r *syncRecorder) IncSize(val int)          { r.doOpInt(val, r.recorder.IncSize) }
 func (r *syncRecorder) IncError(val int)         { r.doOpInt(val, r.recorder.IncError) }
