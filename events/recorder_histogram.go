@@ -1,7 +1,6 @@
 package events
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/mongodb/ftdc"
@@ -52,15 +51,15 @@ func (r *histogramStream) Record(dur time.Duration) {
 	if !r.started.IsZero() {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
 	}
-
 }
+
 func (r *histogramStream) Begin() {
 	if r.point.Timestamp.IsZero() {
 		r.point.Timestamp = r.started
 	}
+
 	if !r.started.IsZero() {
-		r.catcher.Add(r.collector.Add(r.point))
-		fmt.Println(r.point.Timestamp)
+		r.catcher.Add(r.collector.Add(*r.point))
 		r.point.Timestamp = time.Time{}
 	}
 

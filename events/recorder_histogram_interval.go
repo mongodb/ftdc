@@ -50,7 +50,7 @@ func (r *intervalHistogramStream) worker(ctx context.Context, interval time.Dura
 			return
 		case <-ticker.C:
 			r.Lock()
-			r.catcher.Add(r.collector.Add(r.point))
+			r.catcher.Add(r.collector.Add(*r.point))
 			r.point.Timestamp = time.Time{}
 			r.point = NewHistogramMillisecond(r.point.Gauges)
 			r.Unlock()
@@ -102,7 +102,7 @@ func (r *intervalHistogramStream) Flush() error {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
 	}
 
-	r.catcher.Add(r.collector.Add(r.point))
+	r.catcher.Add(r.collector.Add(*r.point))
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewExtendedCatcher()
 	r.point = NewHistogramMillisecond(r.point.Gauges)

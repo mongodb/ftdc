@@ -56,10 +56,14 @@ func (r *histogramGroupedStream) Record(dur time.Duration) {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
 	}
 
+	if r.point.Timestamp.IsZero() {
+		r.point.Timestamp = r.started
+	}
+
 	if time.Since(r.lastCollected) >= r.interval {
-		r.catcher.Add(r.collector.Add(r.point))
-		r.point.Timestamp = time.Time{}
+		r.catcher.Add(r.collector.Add(*r.point))
 		r.lastCollected = time.Now()
+		r.point.Timestamp = time.Time{}
 	}
 }
 

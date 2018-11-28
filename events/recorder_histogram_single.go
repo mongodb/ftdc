@@ -58,7 +58,7 @@ func (r *histogramSingle) Begin()              { r.started = time.Now() }
 func (r *histogramSingle) Reset()              { r.started = time.Now() }
 
 func (r *histogramSingle) Flush() error {
-	r.catcher.Add(r.collector.Add(r.point))
+	r.catcher.Add(r.collector.Add(*r.point))
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
