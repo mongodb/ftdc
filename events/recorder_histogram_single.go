@@ -45,7 +45,12 @@ func (r *histogramSingle) IncSize(val int) {
 func (r *histogramSingle) IncError(val int) {
 	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
 }
-func (r *histogramSingle) Record(dur time.Duration) {
+
+func (r *histogramSingle) IncIterations(val int) {
+	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
+}
+
+func (r *histogramSingle) End(dur time.Duration) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 	if !r.started.IsZero() {
@@ -53,8 +58,11 @@ func (r *histogramSingle) Record(dur time.Duration) {
 	}
 }
 
-func (r *histogramSingle) SetDuration(dur time.Duration) {
+func (r *histogramSingle) SetTotalDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+func (r *histogramSingle) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 }
 
 func (r *histogramSingle) SetTime(t time.Time) { r.point.Timestamp = t }

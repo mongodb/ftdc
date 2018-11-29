@@ -48,7 +48,7 @@ func (r *histogramGroupedStream) IncSize(val int) {
 func (r *histogramGroupedStream) IncError(val int) {
 	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
 }
-func (r *histogramGroupedStream) Record(dur time.Duration) {
+func (r *histogramGroupedStream) End(dur time.Duration) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 
@@ -67,8 +67,16 @@ func (r *histogramGroupedStream) Record(dur time.Duration) {
 	}
 }
 
-func (r *histogramGroupedStream) SetDuration(dur time.Duration) {
+func (r *histogramGroupedStream) SetTotalDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+
+func (r *histogramGroupedStream) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
+}
+
+func (r *histogramGroupedStream) IncIterations(val int) {
+	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
 }
 
 func (r *histogramGroupedStream) SetTime(t time.Time) { r.point.Timestamp = t }

@@ -72,7 +72,7 @@ func (r *intervalHistogramStream) Begin() {
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) Record(dur time.Duration) {
+func (r *intervalHistogramStream) End(dur time.Duration) {
 	r.Lock()
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
@@ -96,9 +96,15 @@ func (r *intervalHistogramStream) SetTime(t time.Time) {
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) SetDuration(dur time.Duration) {
+func (r *intervalHistogramStream) SetTotalDuration(dur time.Duration) {
 	r.Lock()
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+	r.Unlock()
+}
+
+func (r *intervalHistogramStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 	r.Unlock()
 }
 
@@ -125,6 +131,12 @@ func (r *intervalHistogramStream) Flush() error {
 func (r *intervalHistogramStream) IncOps(val int) {
 	r.Lock()
 	r.catcher.Add(r.point.Counters.Operations.RecordValue(int64(val)))
+	r.Unlock()
+}
+
+func (r *intervalHistogramStream) IncIterations(val int) {
+	r.Lock()
+	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
 	r.Unlock()
 }
 

@@ -26,7 +26,8 @@ type Recorder interface {
 	// The Inc<> operations add values to the specified counters
 	// tracked by the collector. There is an additional
 	// "iteration" counter that the recorder tracks based on the
-	// number of times that Begin/Record are called.
+	// number of times that Begin/End are called, but is also
+	// accessible via the IncIter counter.
 	//
 	// In general, ops should refer to the number of logical
 	// operations collected. This differs from the iteration
@@ -42,6 +43,7 @@ type Recorder interface {
 	IncOps(int)
 	IncSize(int)
 	IncError(int)
+	IncIterations(int)
 
 	// The Set<> operations replace existing values for the state,
 	// workers, and failed gauges. Workers should typically report
@@ -53,7 +55,7 @@ type Recorder interface {
 	SetWorkers(int)
 	SetFailed(bool)
 
-	// The Begin and Record methods mark the beginning and end of
+	// The Begin and End methods mark the beginning and end of
 	// a tests's iteration. Typically calling record records the
 	// duration specified as its argument and increments the
 	// counter for number of iterations. Additionally there is a
@@ -72,9 +74,9 @@ type Recorder interface {
 	// Begin, but does not record any other values, as some
 	// recorders use begin to persist the previous iteration.
 	Begin()
-	Record(time.Duration)
-	Flush() error
 	Reset()
+	End(time.Duration)
+	Flush() error
 
 	// SetTime defines the timestamp of the current point. SetTime
 	// is ususally not needed: Begin will set the time to the
@@ -82,12 +84,21 @@ type Recorder interface {
 	// of post-processing, you will want to use SetTime directly.
 	SetTime(time.Time)
 
-	// SetDuration allows you to set the total time covered by
+	// SetTotalDuration allows you to set the total time covered by
 	// the event in question. The total time is usually derived by
 	// the difference between the time set in Begin (or reset) and the time
 	// when record is called. Typically the duration passed to
-	// Record() refers to a subset of this time (i.e. the amount
+	// End() refers to a subset of this time (i.e. the amount
 	// of time that the operations in question took,) and the
 	// total time, includes some period of overhead.
+	//
+	// In simplest terms, this should typically be the time since
+	// the last event was recorded.
+	SetTotalDuration(time.Duration)
+
+	// SetDuration allows you to define the duration of a the
+	// operation, this is likely a subset of the total duration,
+	// with the difference between the duration and the total
+	// duration, representing some kind of operational overhead.
 	SetDuration(time.Duration)
 }
