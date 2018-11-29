@@ -70,10 +70,12 @@ func TestRecorder(t *testing.T) {
 		{
 			Name:    "SinglePerformance",
 			Factory: NewSingleRecorder,
+			Cases:   []recorderTestCase{},
 		},
 		{
 			Name:    "SingleHistogram",
 			Factory: NewSingleHistogramRecorder,
+			Cases:   []recorderTestCase{},
 		},
 		{
 			Name: "RawSync",
@@ -107,56 +109,60 @@ func TestRecorder(t *testing.T) {
 			Factory: NewHistogramRecorder,
 		},
 		{
-			Name:    "Collapsed",
-			Factory: NewCollapsedRecorder,
-		},
-		{
 			Name: "GroupedShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewGroupedRecorder(c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "GroupedLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewGroupedRecorder(c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalRecorder(ctx, c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalRecorder(ctx, c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "GroupedHistogramShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewHistogramGroupedRecorder(c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "GroupedHistogramLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewHistogramGroupedRecorder(c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalHistogramShort",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalHistogramRecorder(ctx, c, 100*time.Millisecond)
 			},
+			Cases: []recorderTestCase{},
 		},
 		{
 			Name: "IntervalHistogramLong",
 			Factory: func(c ftdc.Collector) Recorder {
 				return NewIntervalHistogramRecorder(ctx, c, time.Second)
 			},
+			Cases: []recorderTestCase{},
 		},
 	} {
 		t.Run(impl.Name, func(t *testing.T) {
@@ -185,7 +191,7 @@ func TestRecorder(t *testing.T) {
 							assert.True(t, data.Timers.Duration >= 9*time.Second, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
 							assert.EqualValues(t, data.Counters.Operations, 10)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -216,7 +222,7 @@ func TestRecorder(t *testing.T) {
 							assert.True(t, data.Timers.Duration >= time.Second, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
 							assert.EqualValues(t, data.Counters.Size, 10*1024)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -246,7 +252,7 @@ func TestRecorder(t *testing.T) {
 						case Performance:
 							assert.True(t, data.Timers.Duration >= 100*time.Millisecond, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -257,7 +263,6 @@ func TestRecorder(t *testing.T) {
 						}
 					},
 				},
-
 				{
 					Name: "ResetCall",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
@@ -291,12 +296,11 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							assert.EqualValues(t, data.Gauges.State, 422)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.EqualValues(t, data.Gauges.State, 422, "%+v", data.Gauges)
 						default:
 							assert.True(t, false, "%T", data)
 						}
-
 					},
 				},
 				{
@@ -314,7 +318,7 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							assert.EqualValues(t, data.Gauges.Workers, 422)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.EqualValues(t, data.Gauges.Workers, 422, "%+v", data.Gauges)
 						default:
 							assert.True(t, false, "%T", data)
@@ -335,7 +339,7 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							assert.False(t, data.Gauges.Failed)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.False(t, data.Gauges.Failed)
 						default:
 							assert.True(t, false, "%T", data)
@@ -357,7 +361,7 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							assert.True(t, data.Gauges.Failed)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.True(t, data.Gauges.Failed)
 						default:
 							assert.True(t, false, "%T", data)
@@ -381,8 +385,53 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							assert.True(t, data.Gauges.Failed)
-						case *PerformanceHDR:
+						case PerformanceHDR:
 							assert.True(t, data.Gauges.Failed)
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
+					Name: "SetDuration",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						r.Begin()
+						r.SetDuration(time.Minute)
+
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.Equal(t, time.Minute, data.Timers.Total.Round(time.Millisecond), "(%s)", time.Duration(data.Timers.Total))
+						case PerformanceHDR:
+							count := data.Timers.Total.TotalCount()
+							assert.True(t, int64(1) <= count, "count=%d", count)
+							assert.Equal(t, time.Minute, time.Duration(data.Timers.Total.Max()).Round(time.Millisecond))
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
+					Name: "SetTime",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						ts := time.Now().Add(time.Hour).Round(time.Second)
+						r.Begin()
+						r.SetTime(ts)
+						r.Record(time.Second)
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.EqualValues(t, ts, data.Timestamp)
+						case PerformanceHDR:
+							assert.EqualValues(t, ts, data.Timestamp)
 						default:
 							assert.True(t, false, "%T", data)
 						}

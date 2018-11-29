@@ -48,6 +48,10 @@ func (r *intervalStream) worker(ctx context.Context, interval time.Duration) {
 			return
 		case <-ticker.C:
 			r.Lock()
+			if r.point.Timestamp.IsZero() {
+				r.point.Timestamp = r.started
+			}
+
 			r.catcher.Add(r.collector.Add(r.point))
 			r.point = Performance{
 				Gauges: r.point.Gauges,
@@ -60,6 +64,12 @@ func (r *intervalStream) worker(ctx context.Context, interval time.Duration) {
 func (r *intervalStream) Reset() {
 	r.Lock()
 	r.started = time.Time{}
+	r.Unlock()
+}
+
+func (r *intervalStream) SetTime(t time.Time) {
+	r.Lock()
+	r.point.Timestamp = t
 	r.Unlock()
 }
 
@@ -94,20 +104,27 @@ func (r *intervalStream) Flush() error {
 	r.canceler()
 	r.canceler = nil
 
-	// capture the current point and reset error tracking
-	if !r.started.IsZero() {
-		r.point.Timers.Total += time.Since(r.started)
+	if r.point.Timestamp.IsZero() {
+		r.point.Timestamp = r.started
 	}
 
 	r.catcher.Add(r.collector.Add(r.point))
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewExtendedCatcher()
-	r.point = Performance{}
+	r.point = Performance{
+		Gauges: r.point.Gauges,
+	}
 	r.started = time.Time{}
 
 	r.Unlock()
 
 	return err
+}
+
+func (r *intervalStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.point.Timers.Total += dur
+	r.Unlock()
 }
 
 func (r *intervalStream) IncOps(val int) {

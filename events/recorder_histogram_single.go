@@ -48,13 +48,21 @@ func (r *histogramSingle) IncError(val int) {
 func (r *histogramSingle) Record(dur time.Duration) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
-	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
+	if !r.started.IsZero() {
+		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
+	}
 }
-func (r *histogramSingle) Begin() { r.started = time.Now() }
-func (r *histogramSingle) Reset() { r.started = time.Now() }
+
+func (r *histogramSingle) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+
+func (r *histogramSingle) SetTime(t time.Time) { r.point.Timestamp = t }
+func (r *histogramSingle) Begin()              { r.started = time.Now() }
+func (r *histogramSingle) Reset()              { r.started = time.Now() }
 
 func (r *histogramSingle) Flush() error {
-	r.catcher.Add(r.collector.Add(r.point))
+	r.catcher.Add(r.collector.Add(*r.point))
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()

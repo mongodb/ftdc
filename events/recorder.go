@@ -75,4 +75,19 @@ type Recorder interface {
 	Record(time.Duration)
 	Flush() error
 	Reset()
+
+	// SetTime defines the timestamp of the current point. SetTime
+	// is ususally not needed: Begin will set the time to the
+	// current time; however, if you're using a recorder as part
+	// of post-processing, you will want to use SetTime directly.
+	SetTime(time.Time)
+
+	// SetDuration allows you to set the total time covered by
+	// the event in question. The total time is usually derived by
+	// the difference between the time set in Begin (or reset) and the time
+	// when record is called. Typically the duration passed to
+	// Record() refers to a subset of this time (i.e. the amount
+	// of time that the operations in question took,) and the
+	// total time, includes some period of overhead.
+	SetDuration(time.Duration)
 }

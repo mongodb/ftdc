@@ -26,29 +26,37 @@ func NewRawRecorder(collector ftdc.Collector) Recorder {
 	}
 }
 
-func (r *rawStream) Reset()             { r.started = time.Now() }
-func (r *rawStream) Begin()             { r.started = time.Now() }
-func (r *rawStream) IncOps(val int)     { r.point.Counters.Operations += int64(val) }
-func (r *rawStream) IncSize(val int)    { r.point.Counters.Size += int64(val) }
-func (r *rawStream) IncError(val int)   { r.point.Counters.Errors += int64(val) }
-func (r *rawStream) SetState(val int)   { r.point.Gauges.State = int64(val) }
-func (r *rawStream) SetWorkers(val int) { r.point.Gauges.Workers = int64(val) }
-func (r *rawStream) SetFailed(val bool) { r.point.Gauges.Failed = val }
+func (r *rawStream) Reset()                        { r.started = time.Now() }
+func (r *rawStream) Begin()                        { r.started = time.Now() }
+func (r *rawStream) SetTime(t time.Time)           { r.point.Timestamp = t }
+func (r *rawStream) SetDuration(dur time.Duration) { r.point.Timers.Total = dur }
+func (r *rawStream) IncOps(val int)                { r.point.Counters.Operations += int64(val) }
+func (r *rawStream) IncSize(val int)               { r.point.Counters.Size += int64(val) }
+func (r *rawStream) IncError(val int)              { r.point.Counters.Errors += int64(val) }
+func (r *rawStream) SetState(val int)              { r.point.Gauges.State = int64(val) }
+func (r *rawStream) SetWorkers(val int)            { r.point.Gauges.Workers = int64(val) }
+func (r *rawStream) SetFailed(val bool)            { r.point.Gauges.Failed = val }
 func (r *rawStream) Record(dur time.Duration) {
 	r.point.Counters.Number++
-	if !r.started.IsZero() {
+	if r.point.Timers.Total == 0 && !r.started.IsZero() {
 		r.point.Timers.Total = time.Since(r.started)
+	}
+
+	if r.point.Timestamp.IsZero() {
+		r.point.Timestamp = r.started
 	}
 
 	r.point.Timers.Duration += dur
 	r.catcher.Add(r.collector.Add(r.point))
-	r.started = time.Now()
+	r.point.Timestamp = time.Time{}
+	r.started = time.Time{}
 }
 
 func (r *rawStream) Flush() error {
 	r.point.Counters.Number++
-	if !r.started.IsZero() {
-		r.point.Timers.Total = time.Since(r.started)
+
+	if r.point.Timestamp.IsZero() {
+		r.point.Timestamp = r.started
 	}
 	r.catcher.Add(r.collector.Add(r.point))
 

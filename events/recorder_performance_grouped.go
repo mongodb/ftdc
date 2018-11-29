@@ -32,14 +32,16 @@ func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Record
 	}
 }
 
-func (r *groupStream) Reset()             { r.started = time.Now(); r.lastCollected = time.Now() }
-func (r *groupStream) Begin()             { r.started = time.Now() }
-func (r *groupStream) IncOps(val int)     { r.point.Counters.Operations += int64(val) }
-func (r *groupStream) IncSize(val int)    { r.point.Counters.Size += int64(val) }
-func (r *groupStream) IncError(val int)   { r.point.Counters.Errors += int64(val) }
-func (r *groupStream) SetState(val int)   { r.point.Gauges.State = int64(val) }
-func (r *groupStream) SetWorkers(val int) { r.point.Gauges.Workers = int64(val) }
-func (r *groupStream) SetFailed(val bool) { r.point.Gauges.Failed = val }
+func (r *groupStream) Reset()                        { r.started = time.Now(); r.lastCollected = time.Now() }
+func (r *groupStream) Begin()                        { r.started = time.Now() }
+func (r *groupStream) IncOps(val int)                { r.point.Counters.Operations += int64(val) }
+func (r *groupStream) IncSize(val int)               { r.point.Counters.Size += int64(val) }
+func (r *groupStream) IncError(val int)              { r.point.Counters.Errors += int64(val) }
+func (r *groupStream) SetState(val int)              { r.point.Gauges.State = int64(val) }
+func (r *groupStream) SetWorkers(val int)            { r.point.Gauges.Workers = int64(val) }
+func (r *groupStream) SetFailed(val bool)            { r.point.Gauges.Failed = val }
+func (r *groupStream) SetTime(t time.Time)           { r.point.Timestamp = t }
+func (r *groupStream) SetDuration(dur time.Duration) { r.point.Timers.Total += dur }
 func (r *groupStream) Record(dur time.Duration) {
 	r.point.Counters.Number++
 	if !r.started.IsZero() {
@@ -49,14 +51,21 @@ func (r *groupStream) Record(dur time.Duration) {
 	r.point.Timers.Duration += dur
 
 	if time.Since(r.lastCollected) >= r.interval {
+		if r.point.Timestamp.IsZero() {
+			r.point.Timestamp = r.started
+		}
+
 		r.catcher.Add(r.collector.Add(r.point))
 		r.lastCollected = time.Now()
+		r.point.Timestamp = time.Time{}
 	}
 }
 
 func (r *groupStream) Flush() error {
-	r.point.Counters.Number++
-	r.point.Timers.Total = time.Since(r.started)
+	if r.point.Timestamp.IsZero() {
+		r.point.Timestamp = r.started
+	}
+
 	r.catcher.Add(r.collector.Add(r.point))
 	r.lastCollected = time.Now()
 

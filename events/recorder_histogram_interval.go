@@ -50,7 +50,8 @@ func (r *intervalHistogramStream) worker(ctx context.Context, interval time.Dura
 			return
 		case <-ticker.C:
 			r.Lock()
-			r.catcher.Add(r.collector.Add(r.point))
+			r.catcher.Add(r.collector.Add(*r.point))
+			r.point.Timestamp = time.Time{}
 			r.point = NewHistogramMillisecond(r.point.Gauges)
 			r.Unlock()
 		}
@@ -59,10 +60,6 @@ func (r *intervalHistogramStream) worker(ctx context.Context, interval time.Dura
 
 func (r *intervalHistogramStream) Begin() {
 	r.Lock()
-	if !r.started.IsZero() {
-		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
-	}
-
 	if r.canceler == nil {
 		// start new background ticker
 		var newCtx context.Context
@@ -75,9 +72,33 @@ func (r *intervalHistogramStream) Begin() {
 	r.Unlock()
 }
 
+func (r *intervalHistogramStream) Record(dur time.Duration) {
+	r.Lock()
+	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
+	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
+
+	if !r.started.IsZero() {
+		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
+	}
+
+	r.Unlock()
+}
+
 func (r *intervalHistogramStream) Reset() {
 	r.Lock()
 	r.started = time.Now()
+	r.Unlock()
+}
+
+func (r *intervalHistogramStream) SetTime(t time.Time) {
+	r.Lock()
+	r.point.Timestamp = t
+	r.Unlock()
+}
+
+func (r *intervalHistogramStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
 	r.Unlock()
 }
 
@@ -91,7 +112,7 @@ func (r *intervalHistogramStream) Flush() error {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
 	}
 
-	r.catcher.Add(r.collector.Add(r.point))
+	r.catcher.Add(r.collector.Add(*r.point))
 	err := r.catcher.Resolve()
 	r.catcher = grip.NewExtendedCatcher()
 	r.point = NewHistogramMillisecond(r.point.Gauges)
@@ -99,13 +120,6 @@ func (r *intervalHistogramStream) Flush() error {
 
 	r.Unlock()
 	return err
-}
-
-func (r *intervalHistogramStream) Record(dur time.Duration) {
-	r.Lock()
-	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
-	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
-	r.Unlock()
 }
 
 func (r *intervalHistogramStream) IncOps(val int) {
