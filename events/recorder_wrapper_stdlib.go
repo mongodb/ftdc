@@ -36,7 +36,7 @@ func (r *stdShim) Begin() {
 	r.b.StartTimer()
 	r.Recorder.Begin()
 }
-func (r *stdShim) Record(dur time.Duration) {
+func (r *stdShim) End(dur time.Duration) {
 	r.b.StopTimer()
-	r.Recorder.Record(dur)
+	r.Recorder.End(dur)
 }

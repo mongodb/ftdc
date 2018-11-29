@@ -87,7 +87,7 @@ func (r *intervalStream) Begin() {
 	r.Unlock()
 }
 
-func (r *intervalStream) Record(dur time.Duration) {
+func (r *intervalStream) End(dur time.Duration) {
 	r.Lock()
 
 	if !r.started.IsZero() {
@@ -121,9 +121,21 @@ func (r *intervalStream) Flush() error {
 	return err
 }
 
-func (r *intervalStream) SetDuration(dur time.Duration) {
+func (r *intervalStream) SetTotalDuration(dur time.Duration) {
 	r.Lock()
 	r.point.Timers.Total += dur
+	r.Unlock()
+}
+
+func (r *intervalStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.point.Timers.Duration += dur
+	r.Unlock()
+}
+
+func (r *intervalStream) IncIterations(val int) {
+	r.Lock()
+	r.point.Counters.Number += int64(val)
 	r.Unlock()
 }
 

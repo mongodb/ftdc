@@ -53,7 +53,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						r.IncOps(10)
 						assert.Len(t, c.Data, 0)
-						r.Record(time.Minute)
+						r.End(time.Minute)
 						require.Len(t, c.Data, 1)
 
 						payload, ok := c.Data[0].(Performance)
@@ -90,7 +90,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						r.IncOps(10)
 						assert.Len(t, c.Data, 0)
-						r.Record(time.Minute)
+						r.End(time.Minute)
 						require.Len(t, c.Data, 1)
 
 						payload, ok := c.Data[0].(Performance)
@@ -181,7 +181,7 @@ func TestRecorder(t *testing.T) {
 						for i := 0; i < 10; i++ {
 							r.Begin()
 							r.IncOps(1)
-							r.Record(time.Second)
+							r.End(time.Second)
 						}
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) > 0)
@@ -212,7 +212,7 @@ func TestRecorder(t *testing.T) {
 						for i := 0; i < 10; i++ {
 							r.Begin()
 							r.IncSize(1024)
-							r.Record(100 * time.Millisecond)
+							r.End(100 * time.Millisecond)
 						}
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) > 0)
@@ -243,7 +243,7 @@ func TestRecorder(t *testing.T) {
 						for i := 0; i < 10; i++ {
 							r.Begin()
 							r.IncError(3)
-							r.Record(10 * time.Millisecond)
+							r.End(10 * time.Millisecond)
 						}
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) > 0)
@@ -288,7 +288,7 @@ func TestRecorder(t *testing.T) {
 						r.Begin()
 						r.SetState(20)
 						r.SetState(422)
-						r.Record(time.Second)
+						r.End(time.Second)
 						r.Begin()
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -310,7 +310,7 @@ func TestRecorder(t *testing.T) {
 						r.Begin()
 						r.SetWorkers(20)
 						r.SetWorkers(422)
-						r.Record(time.Second)
+						r.End(time.Second)
 						r.Begin()
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -331,7 +331,7 @@ func TestRecorder(t *testing.T) {
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						assert.Len(t, c.Data, 0)
 						r.Begin()
-						r.Record(time.Second)
+						r.End(time.Second)
 						r.Begin()
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -353,7 +353,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						r.Begin()
 						r.SetFailed(true)
-						r.Record(time.Second)
+						r.End(time.Second)
 						r.Begin()
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -377,7 +377,7 @@ func TestRecorder(t *testing.T) {
 						r.SetFailed(true)
 						r.SetFailed(false)
 						r.SetFailed(true)
-						r.Record(time.Second)
+						r.End(time.Second)
 						r.Begin()
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -394,11 +394,11 @@ func TestRecorder(t *testing.T) {
 					},
 				},
 				{
-					Name: "SetDuration",
+					Name: "SetTotalDuration",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						assert.Len(t, c.Data, 0)
 						r.Begin()
-						r.SetDuration(time.Minute)
+						r.SetTotalDuration(time.Minute)
 
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
@@ -417,13 +417,62 @@ func TestRecorder(t *testing.T) {
 					},
 				},
 				{
+					Name: "SetDuration",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						r.Begin()
+						r.SetDuration(time.Minute)
+						r.End(0)
+
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.Equal(t, time.Minute, data.Timers.Duration.Round(time.Millisecond), "(%s)", time.Duration(data.Timers.Total))
+						case PerformanceHDR:
+							count := data.Timers.Total.TotalCount()
+							assert.True(t, int64(1) <= count, "count=%d", count)
+							assert.Equal(t, time.Minute, time.Duration(data.Timers.Duration.Max()).Round(time.Millisecond))
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
+					Name: "IncIterations",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						r.Begin()
+						r.IncIterations(42)
+						r.End(0)
+
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							// it's 42 or 53 depending on the behavior of end
+							assert.True(t, 42 == data.Counters.Number || 43 == data.Counters.Number)
+						case PerformanceHDR:
+							count := data.Counters.Number.TotalCount()
+							assert.True(t, 1 <= count, "count=%d", count)
+							assert.EqualValues(t, 42, data.Counters.Number.Max())
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
 					Name: "SetTime",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						assert.Len(t, c.Data, 0)
 						ts := time.Now().Add(time.Hour).Round(time.Second)
 						r.Begin()
 						r.SetTime(ts)
-						r.Record(time.Second)
+						r.End(time.Second)
 						require.NoError(t, r.Flush())
 						require.True(t, len(c.Data) >= 1)
 
