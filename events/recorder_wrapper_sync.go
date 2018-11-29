@@ -60,14 +60,15 @@ func (r *syncRecorder) doOp(op func()) {
 	r.Unlock()
 }
 
-func (r *syncRecorder) SetTime(t time.Time)      { r.doOpTime(t, r.recorder.SetTime) }
-func (r *syncRecorder) IncOps(val int)           { r.doOpInt(val, r.recorder.IncOps) }
-func (r *syncRecorder) IncSize(val int)          { r.doOpInt(val, r.recorder.IncSize) }
-func (r *syncRecorder) IncError(val int)         { r.doOpInt(val, r.recorder.IncError) }
-func (r *syncRecorder) SetState(val int)         { r.doOpInt(val, r.recorder.SetState) }
-func (r *syncRecorder) SetWorkers(val int)       { r.doOpInt(val, r.recorder.SetWorkers) }
-func (r *syncRecorder) SetFailed(val bool)       { r.doOpBool(val, r.recorder.SetFailed) }
-func (r *syncRecorder) Begin()                   { r.doOp(r.recorder.Begin) }
-func (r *syncRecorder) Reset()                   { r.doOp(r.recorder.Reset) }
-func (r *syncRecorder) Record(val time.Duration) { r.doOpDur(val, r.recorder.Record) }
-func (r *syncRecorder) Flush() error             { return r.doOpErr(r.recorder.Flush) }
+func (r *syncRecorder) SetTime(t time.Time)           { r.doOpTime(t, r.recorder.SetTime) }
+func (r *syncRecorder) SetDuration(val time.Duration) { r.doOpDur(val, r.recorder.SetDuration) }
+func (r *syncRecorder) IncOps(val int)                { r.doOpInt(val, r.recorder.IncOps) }
+func (r *syncRecorder) IncSize(val int)               { r.doOpInt(val, r.recorder.IncSize) }
+func (r *syncRecorder) IncError(val int)              { r.doOpInt(val, r.recorder.IncError) }
+func (r *syncRecorder) SetState(val int)              { r.doOpInt(val, r.recorder.SetState) }
+func (r *syncRecorder) SetWorkers(val int)            { r.doOpInt(val, r.recorder.SetWorkers) }
+func (r *syncRecorder) SetFailed(val bool)            { r.doOpBool(val, r.recorder.SetFailed) }
+func (r *syncRecorder) Begin()                        { r.doOp(r.recorder.Begin) }
+func (r *syncRecorder) Reset()                        { r.doOp(r.recorder.Reset) }
+func (r *syncRecorder) Record(val time.Duration)      { r.doOpDur(val, r.recorder.Record) }
+func (r *syncRecorder) Flush() error                  { return r.doOpErr(r.recorder.Flush) }

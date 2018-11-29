@@ -5,7 +5,10 @@ bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -no
 
 _testPackages := ./ ./events
 
+ifeq (,$(SILENT))
 testArgs := -v
+endif
+
 ifneq (,$(RUN_TEST))
 testArgs += -run='$(RUN_TEST)'
 endif

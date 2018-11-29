@@ -90,7 +90,17 @@ func (r *intervalHistogramStream) Reset() {
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) SetTime(t time.Time) { r.point.Timestamp = t }
+func (r *intervalHistogramStream) SetTime(t time.Time) {
+	r.Lock()
+	r.point.Timestamp = t
+	r.Unlock()
+}
+
+func (r *intervalHistogramStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+	r.Unlock()
+}
 
 func (r *intervalHistogramStream) Flush() error {
 	r.Lock()

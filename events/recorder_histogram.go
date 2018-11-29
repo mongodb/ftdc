@@ -66,6 +66,10 @@ func (r *histogramStream) Begin() {
 	r.started = time.Now()
 }
 
+func (r *histogramStream) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+
 func (r *histogramStream) SetTime(t time.Time) { r.point.Timestamp = t }
 func (r *histogramStream) Reset()              { r.started = time.Now() }
 

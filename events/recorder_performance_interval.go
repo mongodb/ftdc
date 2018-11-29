@@ -121,6 +121,12 @@ func (r *intervalStream) Flush() error {
 	return err
 }
 
+func (r *intervalStream) SetDuration(dur time.Duration) {
+	r.Lock()
+	r.point.Timers.Total += dur
+	r.Unlock()
+}
+
 func (r *intervalStream) IncOps(val int) {
 	r.Lock()
 	r.point.Counters.Operations += int64(val)

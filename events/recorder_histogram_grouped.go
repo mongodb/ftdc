@@ -67,12 +67,16 @@ func (r *histogramGroupedStream) Record(dur time.Duration) {
 	}
 }
 
+func (r *histogramGroupedStream) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+
 func (r *histogramGroupedStream) SetTime(t time.Time) { r.point.Timestamp = t }
 func (r *histogramGroupedStream) Begin()              { r.started = time.Now() }
 func (r *histogramGroupedStream) Reset()              { r.started = time.Now(); r.lastCollected = time.Now() }
 
 func (r *histogramGroupedStream) Flush() error {
-	r.Begin()
+	r.catcher.Add(r.collector.Add(*r.point))
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()

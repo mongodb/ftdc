@@ -53,6 +53,10 @@ func (r *histogramSingle) Record(dur time.Duration) {
 	}
 }
 
+func (r *histogramSingle) SetDuration(dur time.Duration) {
+	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
+}
+
 func (r *histogramSingle) SetTime(t time.Time) { r.point.Timestamp = t }
 func (r *histogramSingle) Begin()              { r.started = time.Now() }
 func (r *histogramSingle) Reset()              { r.started = time.Now() }

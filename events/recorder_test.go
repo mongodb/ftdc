@@ -394,6 +394,29 @@ func TestRecorder(t *testing.T) {
 					},
 				},
 				{
+					Name: "SetDuration",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						r.Begin()
+						r.SetDuration(time.Minute)
+
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.Equal(t, time.Minute, data.Timers.Total.Round(time.Millisecond), "(%s)", time.Duration(data.Timers.Total))
+						case PerformanceHDR:
+							count := data.Timers.Total.TotalCount()
+							assert.True(t, int64(1) <= count, "count=%d", count)
+							assert.Equal(t, time.Minute, time.Duration(data.Timers.Total.Max()).Round(time.Millisecond))
+						default:
+							assert.True(t, false, "%T", data)
+						}
+
+					},
+				},
+				{
 					Name: "SetTime",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						assert.Len(t, c.Data, 0)
