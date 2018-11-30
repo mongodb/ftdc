@@ -27,7 +27,7 @@ func init() {
 // for this chunk.
 func (c *Chunk) renderMap() map[string]Metric {
 	m := make(map[string]Metric)
-	for _, metric := range c.metrics {
+	for _, metric := range c.Metrics {
 		m[metric.Key()] = metric
 	}
 	return m
@@ -101,11 +101,11 @@ func TestReadPathIntegration(t *testing.T) {
 					c := iter.Chunk()
 					counter++
 					if num == 0 {
-						num = len(c.metrics)
+						num = len(c.Metrics)
 						require.Equal(t, test.expectedNum, num)
 					}
 
-					metric := c.metrics[rand.Intn(num)]
+					metric := c.Metrics[rand.Intn(num)]
 					if len(metric.Values) > 0 {
 						hasSeries++
 						passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
@@ -146,7 +146,7 @@ func TestReadPathIntegration(t *testing.T) {
 						data, err := c.export()
 						require.NoError(t, err)
 
-						assert.True(t, len(c.metrics) >= data.Len())
+						assert.True(t, len(c.Metrics) >= data.Len())
 						docIter := data.Iterator()
 						elems := 0
 						for docIter.Next() {
@@ -156,7 +156,7 @@ func TestReadPathIntegration(t *testing.T) {
 						}
 						// this is inexact
 						// because of timestamps...
-						assert.True(t, len(c.metrics) >= elems)
+						assert.True(t, len(c.Metrics) >= elems)
 						assert.Equal(t, elems, data.Len())
 					}
 				}

@@ -113,7 +113,7 @@ func produceMockMetrics(ctx context.Context, samples int, newDoc func() *bsonx.D
 		panic("could not iterate")
 	}
 
-	metrics := iter.Chunk().metrics
+	metrics := iter.Chunk().Metrics
 	iter.Close()
 	return metrics
 }
