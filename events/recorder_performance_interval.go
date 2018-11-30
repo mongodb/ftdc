@@ -133,39 +133,39 @@ func (r *intervalStream) SetDuration(dur time.Duration) {
 	r.Unlock()
 }
 
-func (r *intervalStream) IncIterations(val int) {
+func (r *intervalStream) IncIterations(val int64) {
 	r.Lock()
-	r.point.Counters.Number += int64(val)
+	r.point.Counters.Number += val
 	r.Unlock()
 }
 
-func (r *intervalStream) IncOps(val int) {
+func (r *intervalStream) IncOps(val int64) {
 	r.Lock()
-	r.point.Counters.Operations += int64(val)
+	r.point.Counters.Operations += val
 	r.Unlock()
 }
 
-func (r *intervalStream) IncSize(val int) {
+func (r *intervalStream) IncSize(val int64) {
 	r.Lock()
-	r.point.Counters.Size += int64(val)
+	r.point.Counters.Size += val
 	r.Unlock()
 }
 
-func (r *intervalStream) IncError(val int) {
+func (r *intervalStream) IncError(val int64) {
 	r.Lock()
-	r.point.Counters.Errors += int64(val)
+	r.point.Counters.Errors += val
 	r.Unlock()
 }
 
-func (r *intervalStream) SetState(val int) {
+func (r *intervalStream) SetState(val int64) {
 	r.Lock()
-	r.point.Gauges.State = int64(val)
+	r.point.Gauges.State = val
 	r.Unlock()
 }
 
-func (r *intervalStream) SetWorkers(val int) {
+func (r *intervalStream) SetWorkers(val int64) {
 	r.Lock()
-	r.point.Gauges.Workers = int64(val)
+	r.point.Gauges.Workers = val
 	r.Unlock()
 }
 

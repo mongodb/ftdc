@@ -128,39 +128,39 @@ func (r *intervalHistogramStream) Flush() error {
 	return err
 }
 
-func (r *intervalHistogramStream) IncOps(val int) {
+func (r *intervalHistogramStream) IncOps(val int64) {
 	r.Lock()
-	r.catcher.Add(r.point.Counters.Operations.RecordValue(int64(val)))
+	r.catcher.Add(r.point.Counters.Operations.RecordValue(val))
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) IncIterations(val int) {
+func (r *intervalHistogramStream) IncIterations(val int64) {
 	r.Lock()
-	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
+	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) IncSize(val int) {
+func (r *intervalHistogramStream) IncSize(val int64) {
 	r.Lock()
-	r.catcher.Add(r.point.Counters.Size.RecordValue(int64(val)))
+	r.catcher.Add(r.point.Counters.Size.RecordValue(val))
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) IncError(val int) {
+func (r *intervalHistogramStream) IncError(val int64) {
 	r.Lock()
-	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
+	r.catcher.Add(r.point.Counters.Errors.RecordValue(val))
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) SetState(val int) {
+func (r *intervalHistogramStream) SetState(val int64) {
 	r.Lock()
-	r.point.Gauges.State = int64(val)
+	r.point.Gauges.State = val
 	r.Unlock()
 }
 
-func (r *intervalHistogramStream) SetWorkers(val int) {
+func (r *intervalHistogramStream) SetWorkers(val int64) {
 	r.Lock()
-	r.point.Gauges.Workers = int64(val)
+	r.point.Gauges.Workers = val
 	r.Unlock()
 }
 

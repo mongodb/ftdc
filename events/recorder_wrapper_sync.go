@@ -23,7 +23,7 @@ func NewSynchronizedRecorder(r Recorder) Recorder {
 	}
 }
 
-func (r *syncRecorder) doOpInt(val int, op func(int)) {
+func (r *syncRecorder) doOpInt(val int64, op func(int64)) {
 	r.Lock()
 	op(val)
 	r.Unlock()
@@ -67,14 +67,14 @@ func (r *syncRecorder) SetTotalDuration(val time.Duration) {
 func (r *syncRecorder) SetDuration(val time.Duration) {
 	r.doOpDur(val, r.recorder.SetDuration)
 }
-func (r *syncRecorder) IncOps(val int)        { r.doOpInt(val, r.recorder.IncOps) }
-func (r *syncRecorder) IncIterations(val int) { r.doOpInt(val, r.recorder.IncIterations) }
-func (r *syncRecorder) IncSize(val int)       { r.doOpInt(val, r.recorder.IncSize) }
-func (r *syncRecorder) IncError(val int)      { r.doOpInt(val, r.recorder.IncError) }
-func (r *syncRecorder) SetState(val int)      { r.doOpInt(val, r.recorder.SetState) }
-func (r *syncRecorder) SetWorkers(val int)    { r.doOpInt(val, r.recorder.SetWorkers) }
-func (r *syncRecorder) SetFailed(val bool)    { r.doOpBool(val, r.recorder.SetFailed) }
-func (r *syncRecorder) Begin()                { r.doOp(r.recorder.Begin) }
-func (r *syncRecorder) Reset()                { r.doOp(r.recorder.Reset) }
-func (r *syncRecorder) End(val time.Duration) { r.doOpDur(val, r.recorder.End) }
-func (r *syncRecorder) Flush() error          { return r.doOpErr(r.recorder.Flush) }
+func (r *syncRecorder) IncOps(val int64)        { r.doOpInt(val, r.recorder.IncOps) }
+func (r *syncRecorder) IncIterations(val int64) { r.doOpInt(val, r.recorder.IncIterations) }
+func (r *syncRecorder) IncSize(val int64)       { r.doOpInt(val, r.recorder.IncSize) }
+func (r *syncRecorder) IncError(val int64)      { r.doOpInt(val, r.recorder.IncError) }
+func (r *syncRecorder) SetState(val int64)      { r.doOpInt(val, r.recorder.SetState) }
+func (r *syncRecorder) SetWorkers(val int64)    { r.doOpInt(val, r.recorder.SetWorkers) }
+func (r *syncRecorder) SetFailed(val bool)      { r.doOpBool(val, r.recorder.SetFailed) }
+func (r *syncRecorder) Begin()                  { r.doOp(r.recorder.Begin) }
+func (r *syncRecorder) Reset()                  { r.doOp(r.recorder.Reset) }
+func (r *syncRecorder) End(val time.Duration)   { r.doOpDur(val, r.recorder.End) }
+func (r *syncRecorder) Flush() error            { return r.doOpErr(r.recorder.Flush) }

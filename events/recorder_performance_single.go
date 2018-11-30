@@ -29,12 +29,12 @@ func (r *singleStream) Begin()                             { r.started = time.No
 func (r *singleStream) SetTime(t time.Time)                { r.point.Timestamp = t }
 func (r *singleStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total += dur }
 func (r *singleStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration += dur }
-func (r *singleStream) IncOps(val int)                     { r.point.Counters.Operations += int64(val) }
-func (r *singleStream) IncIterations(val int)              { r.point.Counters.Number += int64(val) }
-func (r *singleStream) IncSize(val int)                    { r.point.Counters.Size += int64(val) }
-func (r *singleStream) IncError(val int)                   { r.point.Counters.Errors += int64(val) }
-func (r *singleStream) SetState(val int)                   { r.point.Gauges.State = int64(val) }
-func (r *singleStream) SetWorkers(val int)                 { r.point.Gauges.Workers = int64(val) }
+func (r *singleStream) IncOps(val int64)                   { r.point.Counters.Operations += val }
+func (r *singleStream) IncIterations(val int64)            { r.point.Counters.Number += val }
+func (r *singleStream) IncSize(val int64)                  { r.point.Counters.Size += val }
+func (r *singleStream) IncError(val int64)                 { r.point.Counters.Errors += val }
+func (r *singleStream) SetState(val int64)                 { r.point.Gauges.State = val }
+func (r *singleStream) SetWorkers(val int64)               { r.point.Gauges.Workers = val }
 func (r *singleStream) SetFailed(val bool)                 { r.point.Gauges.Failed = val }
 func (r *singleStream) End(dur time.Duration) {
 	r.point.Counters.Number++

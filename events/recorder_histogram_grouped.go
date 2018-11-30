@@ -36,17 +36,17 @@ func NewHistogramGroupedRecorder(collector ftdc.Collector, interval time.Duratio
 	}
 }
 
-func (r *histogramGroupedStream) SetState(val int)   { r.point.Gauges.State = int64(val) }
-func (r *histogramGroupedStream) SetWorkers(val int) { r.point.Gauges.Workers = int64(val) }
-func (r *histogramGroupedStream) SetFailed(val bool) { r.point.Gauges.Failed = val }
-func (r *histogramGroupedStream) IncOps(val int) {
-	r.catcher.Add(r.point.Counters.Operations.RecordValue(int64(val)))
+func (r *histogramGroupedStream) SetState(val int64)   { r.point.Gauges.State = val }
+func (r *histogramGroupedStream) SetWorkers(val int64) { r.point.Gauges.Workers = val }
+func (r *histogramGroupedStream) SetFailed(val bool)   { r.point.Gauges.Failed = val }
+func (r *histogramGroupedStream) IncOps(val int64) {
+	r.catcher.Add(r.point.Counters.Operations.RecordValue(val))
 }
-func (r *histogramGroupedStream) IncSize(val int) {
-	r.catcher.Add(r.point.Counters.Size.RecordValue(int64(val)))
+func (r *histogramGroupedStream) IncSize(val int64) {
+	r.catcher.Add(r.point.Counters.Size.RecordValue(val))
 }
-func (r *histogramGroupedStream) IncError(val int) {
-	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
+func (r *histogramGroupedStream) IncError(val int64) {
+	r.catcher.Add(r.point.Counters.Errors.RecordValue(val))
 }
 func (r *histogramGroupedStream) End(dur time.Duration) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
@@ -75,8 +75,8 @@ func (r *histogramGroupedStream) SetDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 }
 
-func (r *histogramGroupedStream) IncIterations(val int) {
-	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
+func (r *histogramGroupedStream) IncIterations(val int64) {
+	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 }
 
 func (r *histogramGroupedStream) SetTime(t time.Time) { r.point.Timestamp = t }

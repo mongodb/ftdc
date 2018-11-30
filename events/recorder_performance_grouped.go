@@ -34,12 +34,12 @@ func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Record
 
 func (r *groupStream) Reset()                             { r.started = time.Now(); r.lastCollected = time.Now() }
 func (r *groupStream) Begin()                             { r.started = time.Now() }
-func (r *groupStream) IncOps(val int)                     { r.point.Counters.Operations += int64(val) }
-func (r *groupStream) IncIterations(val int)              { r.point.Counters.Number += int64(val) }
-func (r *groupStream) IncSize(val int)                    { r.point.Counters.Size += int64(val) }
-func (r *groupStream) IncError(val int)                   { r.point.Counters.Errors += int64(val) }
-func (r *groupStream) SetState(val int)                   { r.point.Gauges.State = int64(val) }
-func (r *groupStream) SetWorkers(val int)                 { r.point.Gauges.Workers = int64(val) }
+func (r *groupStream) IncOps(val int64)                   { r.point.Counters.Operations += val }
+func (r *groupStream) IncIterations(val int64)            { r.point.Counters.Number += val }
+func (r *groupStream) IncSize(val int64)                  { r.point.Counters.Size += val }
+func (r *groupStream) IncError(val int64)                 { r.point.Counters.Errors += val }
+func (r *groupStream) SetState(val int64)                 { r.point.Gauges.State = val }
+func (r *groupStream) SetWorkers(val int64)               { r.point.Gauges.Workers = val }
 func (r *groupStream) SetFailed(val bool)                 { r.point.Gauges.Failed = val }
 func (r *groupStream) SetTime(t time.Time)                { r.point.Timestamp = t }
 func (r *groupStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration += dur }

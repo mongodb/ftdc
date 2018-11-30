@@ -33,17 +33,17 @@ func NewHistogramRecorder(collector ftdc.Collector) Recorder {
 	}
 }
 
-func (r *histogramStream) SetState(val int)   { r.point.Gauges.State = int64(val) }
-func (r *histogramStream) SetWorkers(val int) { r.point.Gauges.Workers = int64(val) }
-func (r *histogramStream) SetFailed(val bool) { r.point.Gauges.Failed = val }
-func (r *histogramStream) IncOps(val int) {
-	r.catcher.Add(r.point.Counters.Operations.RecordValue(int64(val)))
+func (r *histogramStream) SetState(val int64)   { r.point.Gauges.State = val }
+func (r *histogramStream) SetWorkers(val int64) { r.point.Gauges.Workers = val }
+func (r *histogramStream) SetFailed(val bool)   { r.point.Gauges.Failed = val }
+func (r *histogramStream) IncOps(val int64) {
+	r.catcher.Add(r.point.Counters.Operations.RecordValue(val))
 }
-func (r *histogramStream) IncSize(val int) {
-	r.catcher.Add(r.point.Counters.Size.RecordValue(int64(val)))
+func (r *histogramStream) IncSize(val int64) {
+	r.catcher.Add(r.point.Counters.Size.RecordValue(val))
 }
-func (r *histogramStream) IncError(val int) {
-	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
+func (r *histogramStream) IncError(val int64) {
+	r.catcher.Add(r.point.Counters.Errors.RecordValue(val))
 }
 func (r *histogramStream) End(dur time.Duration) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
@@ -74,8 +74,8 @@ func (r *histogramStream) SetTotalDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
 }
 
-func (r *histogramStream) IncIterations(val int) {
-	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
+func (r *histogramStream) IncIterations(val int64) {
+	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 }
 
 func (r *histogramStream) SetTime(t time.Time) { r.point.Timestamp = t }

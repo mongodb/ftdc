@@ -33,21 +33,21 @@ func NewSingleHistogramRecorder(collector ftdc.Collector) Recorder {
 	}
 }
 
-func (r *histogramSingle) SetState(val int)   { r.point.Gauges.State = int64(val) }
-func (r *histogramSingle) SetWorkers(val int) { r.point.Gauges.Workers = int64(val) }
-func (r *histogramSingle) SetFailed(val bool) { r.point.Gauges.Failed = val }
-func (r *histogramSingle) IncOps(val int) {
-	r.catcher.Add(r.point.Counters.Operations.RecordValue(int64(val)))
+func (r *histogramSingle) SetState(val int64)   { r.point.Gauges.State = val }
+func (r *histogramSingle) SetWorkers(val int64) { r.point.Gauges.Workers = val }
+func (r *histogramSingle) SetFailed(val bool)   { r.point.Gauges.Failed = val }
+func (r *histogramSingle) IncOps(val int64) {
+	r.catcher.Add(r.point.Counters.Operations.RecordValue(val))
 }
-func (r *histogramSingle) IncSize(val int) {
-	r.catcher.Add(r.point.Counters.Size.RecordValue(int64(val)))
+func (r *histogramSingle) IncSize(val int64) {
+	r.catcher.Add(r.point.Counters.Size.RecordValue(val))
 }
-func (r *histogramSingle) IncError(val int) {
-	r.catcher.Add(r.point.Counters.Errors.RecordValue(int64(val)))
+func (r *histogramSingle) IncError(val int64) {
+	r.catcher.Add(r.point.Counters.Errors.RecordValue(val))
 }
 
-func (r *histogramSingle) IncIterations(val int) {
-	r.catcher.Add(r.point.Counters.Number.RecordValue(int64(val)))
+func (r *histogramSingle) IncIterations(val int64) {
+	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 }
 
 func (r *histogramSingle) End(dur time.Duration) {

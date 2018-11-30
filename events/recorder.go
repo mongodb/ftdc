@@ -40,10 +40,10 @@ type Recorder interface {
 	// the impact of data size on overall performance. Finally use
 	// Error count to tract the number of errors encountered
 	// during the event.
-	IncOps(int)
-	IncSize(int)
-	IncError(int)
-	IncIterations(int)
+	IncOps(int64)
+	IncSize(int64)
+	IncError(int64)
+	IncIterations(int64)
 
 	// The Set<> operations replace existing values for the state,
 	// workers, and failed gauges. Workers should typically report
@@ -51,8 +51,8 @@ type Recorder interface {
 	// on the test requirements but can describe phases of an
 	// experiment or operation. Use SetFailed to flag a test as
 	// failed during the operation.
-	SetState(int)
-	SetWorkers(int)
+	SetState(int64)
+	SetWorkers(int64)
 	SetFailed(bool)
 
 	// The Begin and End methods mark the beginning and end of
