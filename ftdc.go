@@ -10,15 +10,14 @@ import (
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
 type Chunk struct {
-	metrics   []Metric
+	Metrics   []Metric
 	nPoints   int
 	metadata  *bsonx.Document
 	reference *bsonx.Document
 }
 
-func (c *Chunk) GetMetadata() *bsonx.Document {
-	return c.metadata
-}
+func (c *Chunk) GetMetadata() *bsonx.Document { return c.metadata }
+func (c *Chunk) GetNumPoints() int            { return c.nPoints }
 
 // Iterator returns an iterator that you can use to read documents for
 // each sample period in the chunk. Documents are returned in collection

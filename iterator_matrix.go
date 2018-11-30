@@ -13,21 +13,21 @@ import (
 
 func (c *Chunk) exportMatrix() map[string]interface{} {
 	out := make(map[string]interface{})
-	for _, m := range c.metrics {
+	for _, m := range c.Metrics {
 		out[m.Key()] = m.getSeries()
 	}
 	return out
 }
 
 func (c *Chunk) export() (*bsonx.Document, error) {
-	doc := bsonx.MakeDocument(len(c.metrics))
+	doc := bsonx.MakeDocument(len(c.Metrics))
 	sample := 0
 
 	var elem *bsonx.Element
 	var err error
 
-	for i := 0; i < len(c.metrics); i++ {
-		elem, sample, err = rehydrateMatrix(c.metrics, sample)
+	for i := 0; i < len(c.Metrics); i++ {
+		elem, sample, err = rehydrateMatrix(c.Metrics, sample)
 		if err == io.EOF {
 			break
 		}

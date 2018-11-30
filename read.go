@@ -130,7 +130,7 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 		}
 		select {
 		case o <- &Chunk{
-			metrics:   metrics,
+			Metrics:   metrics,
 			nPoints:   ndeltas + 1, // this accounts for the reference document
 			metadata:  metadata,
 			reference: refDoc,

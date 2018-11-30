@@ -15,16 +15,16 @@ import (
 )
 
 func (c *Chunk) getFieldNames() []string {
-	fieldNames := make([]string, len(c.metrics))
-	for idx, m := range c.metrics {
+	fieldNames := make([]string, len(c.Metrics))
+	for idx, m := range c.Metrics {
 		fieldNames[idx] = m.Key()
 	}
 	return fieldNames
 }
 
 func (c *Chunk) getRecord(i int) []string {
-	fields := make([]string, len(c.metrics))
-	for idx, m := range c.metrics {
+	fields := make([]string, len(c.Metrics))
+	for idx, m := range c.Metrics {
 		switch m.originalType {
 		case bsonx.TypeDouble, bsonx.TypeInt32, bsonx.TypeInt64, bsonx.TypeBoolean, bsonx.TypeTimestamp:
 			fields[idx] = strconv.FormatInt(m.Values[i], 10)
@@ -52,7 +52,7 @@ func WriteCSV(ctx context.Context, iter *ChunkIterator, writer io.Writer) error 
 				return errors.Wrap(err, "problem writing field names")
 			}
 			numFields = len(fieldNames)
-		} else if numFields != len(chunk.metrics) {
+		} else if numFields != len(chunk.Metrics) {
 			return errors.New("unexpected schema change detected")
 		}
 
@@ -118,7 +118,7 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 				return errors.Wrap(err, "problem writing field names")
 			}
 			numFields = len(fieldNames)
-		} else if numFields != len(chunk.metrics) {
+		} else if numFields != len(chunk.Metrics) {
 			if err = writer.Close(); err != nil {
 				return errors.Wrap(err, "problem flushing and closing file")
 			}
