@@ -49,6 +49,9 @@ func (ps *Custom) Add(key string, value interface{}) error {
 	case int64, int32, int, bool, time.Time, float64, float32, uint32, uint64:
 		*ps = append(*ps, CustomPoint{Name: key, Value: v})
 		return nil
+	case []int64, []int32, []int, []bool, []time.Time, []float64, []float32, []uint32, []uint64:
+		*ps = append(*ps, CustomPoint{Name: key, Value: v})
+		return nil
 	default:
 		return errors.Errorf("type '%T' for key %s is not supported", value, key)
 	}
