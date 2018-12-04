@@ -10,7 +10,7 @@ import (
 )
 
 func TestRollupRoundTrip(t *testing.T) {
-	data := MakeCustom(3)
+	data := MakeCustom(4)
 	assert.NoError(t, data.Add("a", 1.2))
 	assert.NoError(t, data.Add("f", 100))
 	assert.NoError(t, data.Add("b", 45.0))
