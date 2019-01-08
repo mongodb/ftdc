@@ -10,7 +10,7 @@ type streamingCollector struct {
 	output     io.Writer
 	maxSamples int
 	count      int
-	*betterCollector
+	Collector
 }
 
 // NewStreamingCollector wraps the underlying collector, writing the
@@ -27,15 +27,15 @@ func newStreamingCollector(maxSamples int, writer io.Writer) *streamingCollector
 	return &streamingCollector{
 		maxSamples: maxSamples,
 		output:     writer,
-		betterCollector: &betterCollector{
+		Collector: &betterCollector{
 			maxDeltas: maxSamples,
 		},
 	}
 }
 
-func (c *streamingCollector) Reset() { c.count = 0; c.betterCollector.Reset() }
+func (c *streamingCollector) Reset() { c.count = 0; c.Collector.Reset() }
 func (c *streamingCollector) Add(in interface{}) error {
-	if err := c.betterCollector.Add(in); err != nil {
+	if err := c.Collector.Add(in); err != nil {
 		return errors.Wrapf(err, "adding sample #%d", c.count+1)
 	}
 	c.count++

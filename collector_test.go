@@ -30,6 +30,10 @@ func TestCollectorInterface(t *testing.T) {
 					continue
 				}
 
+				if collect.uncompressed {
+					t.Skip("not supported for uncompressed collectors")
+				}
+
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 
@@ -74,6 +78,9 @@ func TestCollectorInterface(t *testing.T) {
 				assert.Error(t, err)
 			})
 			t.Run("RoundTrip", func(t *testing.T) {
+				if collect.uncompressed {
+					t.Skip("without compressing these tests don't make much sense")
+				}
 				for name, docs := range map[string][]*bsonx.Document{
 					"Integers": []*bsonx.Document{
 						randFlatDocument(5),

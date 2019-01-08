@@ -14,9 +14,10 @@ import (
 )
 
 type customCollector struct {
-	name      string
-	factory   func() Collector
-	skipBench bool
+	name         string
+	factory      func() Collector
+	uncompressed bool
+	skipBench    bool
 }
 
 type customTest struct {
@@ -227,6 +228,108 @@ func createCollectors() []*customCollector {
 		{
 			name:    "LargeStreamingDynamic",
 			factory: func() Collector { return NewStreamingDynamicCollector(10000, &bytes.Buffer{}) },
+		},
+		{
+			name:         "UncompressedSmallJSON",
+			factory:      func() Collector { return NewUncompressedCollectorJSON(10) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedMediumJSON",
+			factory:      func() Collector { return NewUncompressedCollectorJSON(100) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedLargeJSON",
+			factory:      func() Collector { return NewUncompressedCollectorJSON(1000) },
+			uncompressed: true,
+		},
+		{
+			name:         "UncompressedSmallBSON",
+			factory:      func() Collector { return NewUncompressedCollectorBSON(10) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedMediumBSON",
+			factory:      func() Collector { return NewUncompressedCollectorBSON(100) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedLargeBSON",
+			factory:      func() Collector { return NewUncompressedCollectorBSON(1000) },
+			uncompressed: true,
+		},
+		{
+			name:         "UncompressedStreamingSmallJSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorJSON(10, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingMediumJSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorJSON(100, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingLargeJSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorJSON(1000, &bytes.Buffer{}) },
+			uncompressed: true,
+		},
+		{
+			name:         "UncompressedStreamingSmallBSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorBSON(10, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingMediumBSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorBSON(100, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingLargeBSON",
+			factory:      func() Collector { return NewStreamingUncompressedCollectorBSON(1000, &bytes.Buffer{}) },
+			uncompressed: true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicSmallJSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorJSON(10, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicMediumJSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorJSON(100, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicLargeJSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorJSON(1000, &bytes.Buffer{}) },
+			uncompressed: true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicSmallBSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorBSON(10, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicMediumBSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorBSON(100, &bytes.Buffer{}) },
+			uncompressed: true,
+			skipBench:    true,
+		},
+		{
+			name:         "UncompressedStreamingDynamicLargeBSON",
+			factory:      func() Collector { return NewStreamingDynamicUncompressedCollectorBSON(1000, &bytes.Buffer{}) },
+			uncompressed: true,
 		},
 	}
 	return collectors
