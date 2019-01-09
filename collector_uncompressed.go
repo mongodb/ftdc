@@ -15,8 +15,7 @@ import (
 // and can be read as newline seperated JSON.
 //
 // This collector will not allow you to collect documents with
-// different schema (determined by the number of top-level fields,)
-// but does no special handling of schema changes.
+// different schema (determined by the number of top-level fields.)
 //
 // If you do not resolve the after receiving the maximum number of
 // samples, then additional Add operations will fail.
@@ -36,8 +35,7 @@ func NewUncompressedCollectorJSON(maxSamples int) Collector {
 // and can be read with the bsondump and other related utilites.
 //
 // This collector will not allow you to collect documents with
-// different schema (determined by the number of top-level fields,)
-// but does no special handling of schema changes.
+// different schema (determined by the number of top-level fields.)
 //
 // If you do not resolve the after receiving the maximum number of
 // samples, then additional Add operations will fail.
@@ -57,8 +55,7 @@ func NewUncompressedCollectorBSON(maxSamples int) Collector {
 // and can be read as newline seperated JSON.
 //
 // This collector will not allow you to collect documents with
-// different schema (determined by the number of top-level fields,)
-// but does no special handling of schema changes.
+// different schema (determined by the number of top-level fields.)
 //
 // The metadata for this collector is rendered as the first document
 // in the stream.
@@ -81,8 +78,7 @@ func NewStreamingUncompressedCollectorJSON(maxSamples int, writer io.Writer) Col
 // and can be read with the bsondump and other related utilites.
 //
 // This collector will not allow you to collect documents with
-// different schema (determined by the number of top-level fields,)
-// but does no special handling of schema changes.
+// different schema (determined by the number of top-level fields.)
 //
 // The metadata for this collector is rendered as the first document
 // in the stream.
@@ -123,7 +119,6 @@ func NewStreamingDynamicUncompressedCollectorBSON(maxSamples int, writer io.Writ
 // resolves data into a stream of BSON documents. The output of these
 // uncompressed collectors does not use the FTDC encoding for data,
 // and can be read with the bsondump and other related utilites.
-//
 //
 // The metadata for this collector is rendered as the first document
 // in the stream. Additionally, the collector will automatically
