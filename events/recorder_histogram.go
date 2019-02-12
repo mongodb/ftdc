@@ -33,6 +33,7 @@ func NewHistogramRecorder(collector ftdc.Collector) Recorder {
 	}
 }
 
+func (r *histogramStream) SetID(id int64)       { r.point.ID = id }
 func (r *histogramStream) SetState(val int64)   { r.point.Gauges.State = val }
 func (r *histogramStream) SetWorkers(val int64) { r.point.Gauges.Workers = val }
 func (r *histogramStream) SetFailed(val bool)   { r.point.Gauges.Failed = val }

@@ -27,6 +27,7 @@ func NewSingleRecorder(collector ftdc.Collector) Recorder {
 func (r *singleStream) Reset()                             { r.started = time.Now() }
 func (r *singleStream) Begin()                             { r.started = time.Now() }
 func (r *singleStream) SetTime(t time.Time)                { r.point.Timestamp = t }
+func (r *singleStream) SetID(id int64)                     { r.point.ID = id }
 func (r *singleStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total += dur }
 func (r *singleStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration += dur }
 func (r *singleStream) IncOps(val int64)                   { r.point.Counters.Operations += val }

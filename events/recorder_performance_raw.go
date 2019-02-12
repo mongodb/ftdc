@@ -29,6 +29,7 @@ func NewRawRecorder(collector ftdc.Collector) Recorder {
 func (r *rawStream) Reset()                             { r.started = time.Now() }
 func (r *rawStream) Begin()                             { r.started = time.Now() }
 func (r *rawStream) SetTime(t time.Time)                { r.point.Timestamp = t }
+func (r *rawStream) SetID(val int64)                    { r.point.ID = val }
 func (r *rawStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total = dur }
 func (r *rawStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration = dur }
 func (r *rawStream) IncOps(val int64)                   { r.point.Counters.Operations += val }

@@ -78,6 +78,10 @@ type Recorder interface {
 	End(time.Duration)
 	Flush() error
 
+	// SetID sets the unique id for the event, to allow users to
+	// identify events per thread.
+	SetID(int64)
+
 	// SetTime defines the timestamp of the current point. SetTime
 	// is ususally not needed: Begin will set the time to the
 	// current time; however, if you're using a recorder as part

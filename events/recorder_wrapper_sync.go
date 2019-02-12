@@ -60,6 +60,7 @@ func (r *syncRecorder) doOp(op func()) {
 	r.Unlock()
 }
 
+func (r *syncRecorder) SetID(id int64)      { r.doOpInt(id, r.recorder.SetID) }
 func (r *syncRecorder) SetTime(t time.Time) { r.doOpTime(t, r.recorder.SetTime) }
 func (r *syncRecorder) SetTotalDuration(val time.Duration) {
 	r.doOpDur(val, r.recorder.SetTotalDuration)
