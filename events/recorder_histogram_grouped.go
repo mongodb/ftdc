@@ -36,6 +36,7 @@ func NewHistogramGroupedRecorder(collector ftdc.Collector, interval time.Duratio
 	}
 }
 
+func (r *histogramGroupedStream) SetID(id int64)       { r.point.ID = id }
 func (r *histogramGroupedStream) SetState(val int64)   { r.point.Gauges.State = val }
 func (r *histogramGroupedStream) SetWorkers(val int64) { r.point.Gauges.Workers = val }
 func (r *histogramGroupedStream) SetFailed(val bool)   { r.point.Gauges.Failed = val }

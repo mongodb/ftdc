@@ -21,6 +21,7 @@ import "time"
 // Each point must report the timestamp of its collection.
 type Performance struct {
 	Timestamp time.Time           `bson:"ts" json:"ts" yaml:"ts"`
+	ID        int64               `bson:"id" json:"id" yaml:"id"`
 	Counters  PerformanceCounters `bson:"counters" json:"counters" yaml:"counters"`
 	Timers    PerformanceTimers   `bson:"timers" json:"timers" yaml:"timers"`
 	Gauges    PerformanceGauges   `bson:"gauges" json:"gauges" yaml:"gauges"`

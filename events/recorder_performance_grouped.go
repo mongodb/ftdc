@@ -41,6 +41,7 @@ func (r *groupStream) IncError(val int64)                 { r.point.Counters.Err
 func (r *groupStream) SetState(val int64)                 { r.point.Gauges.State = val }
 func (r *groupStream) SetWorkers(val int64)               { r.point.Gauges.Workers = val }
 func (r *groupStream) SetFailed(val bool)                 { r.point.Gauges.Failed = val }
+func (r *groupStream) SetID(val int64)                    { r.point.ID = val }
 func (r *groupStream) SetTime(t time.Time)                { r.point.Timestamp = t }
 func (r *groupStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration += dur }
 func (r *groupStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total += dur }

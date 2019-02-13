@@ -96,6 +96,12 @@ func (r *intervalHistogramStream) SetTime(t time.Time) {
 	r.Unlock()
 }
 
+func (r *intervalHistogramStream) SetID(id int64) {
+	r.Lock()
+	r.point.ID = id
+	r.Unlock()
+}
+
 func (r *intervalHistogramStream) SetTotalDuration(dur time.Duration) {
 	r.Lock()
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))

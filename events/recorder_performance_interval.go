@@ -73,6 +73,12 @@ func (r *intervalStream) SetTime(t time.Time) {
 	r.Unlock()
 }
 
+func (r *intervalStream) SetID(id int64) {
+	r.Lock()
+	r.point.ID = id
+	r.Unlock()
+}
+
 func (r *intervalStream) Begin() {
 	r.Lock()
 	if r.canceler == nil {

@@ -487,6 +487,27 @@ func TestRecorder(t *testing.T) {
 
 					},
 				},
+				{
+					Name: "SetID",
+					Case: func(t *testing.T, r Recorder, c *MockCollector) {
+						assert.Len(t, c.Data, 0)
+						var id int64 = 42
+						r.Begin()
+						r.SetID(id)
+						r.End(time.Second)
+						require.NoError(t, r.Flush())
+						require.True(t, len(c.Data) >= 1)
+
+						switch data := c.Data[0].(type) {
+						case Performance:
+							assert.EqualValues(t, id, data.ID)
+						case PerformanceHDR:
+							assert.EqualValues(t, id, data.ID)
+						default:
+							assert.True(t, false, "%T", data)
+						}
+					},
+				},
 			} {
 				t.Run(test.Name, func(t *testing.T) {
 					c := &MockCollector{}

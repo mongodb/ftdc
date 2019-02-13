@@ -18,6 +18,7 @@ import (
 // time duration values stored as histograms.
 type PerformanceHDR struct {
 	Timestamp time.Time              `bson:"ts" json:"ts" yaml:"ts"`
+	ID        int64                  `bson:"id" json:"id" yaml:"id"`
 	Counters  PerformanceCountersHDR `bson:"counters" json:"counters" yaml:"counters"`
 	Timers    PerformanceTimersHDR   `bson:"timers" json:"timers" yaml:"timers"`
 	Gauges    PerformanceGauges      `bson:"guages" json:"guages" yaml:"guages"`
