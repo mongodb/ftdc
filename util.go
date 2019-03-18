@@ -9,8 +9,8 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip/message"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func readDocument(in interface{}) (*bsonx.Document, error) {

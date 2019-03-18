@@ -5,8 +5,8 @@ import (
 	"io"
 
 	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // NewUncompressedCollectorJSON constructs a collector that resolves

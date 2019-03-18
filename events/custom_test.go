@@ -3,9 +3,9 @@ package events
 import (
 	"testing"
 
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 	legacyBSON "gopkg.in/mgo.v2/bson"
 )
 

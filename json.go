@@ -12,9 +12,9 @@ import (
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/papertrail/go-tail/follower"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // CollectJSONOptions specifies options for a JSON2FTDC collector. You

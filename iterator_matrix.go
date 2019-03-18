@@ -7,8 +7,8 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
-	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func (c *Chunk) exportMatrix() map[string]interface{} {

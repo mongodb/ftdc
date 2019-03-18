@@ -4,4 +4,4 @@ import:
 - package: github.com/satori/go.uuid
 - package: github.com/stretchr/testify
 - package: github.com/mongodb/grip
-- package: github.com/mongodb/mongo-go-driver
+- package: go.mongodb.org/mongo-driver
