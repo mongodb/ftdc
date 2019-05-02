@@ -62,9 +62,8 @@ func (c *betterCollector) Add(in interface{}) error {
 
 	var metrics []*bsonx.Value
 	if c.reference == nil {
-		c.startedAt = time.Now()
 		c.reference = doc
-		metrics, err = extractMetricsFromDocument(doc)
+		metrics, c.startedAt, err = extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -77,7 +76,7 @@ func (c *betterCollector) Add(in interface{}) error {
 		return errors.New("collector is overfull")
 	}
 
-	metrics, err = extractMetricsFromDocument(doc)
+	metrics, _, err = extractMetricsFromDocument(doc)
 	if err != nil {
 		return errors.WithStack(err)
 	}
