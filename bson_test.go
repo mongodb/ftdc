@@ -598,7 +598,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, err := extractMetricsFromValue(test.Value)
+			metrics, _, err := extractMetricsFromValue(test.Value)
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
 
@@ -662,9 +662,10 @@ func TestDocumentExtraction(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, err := extractMetricsFromDocument(test.Document)
+			metrics, startedAt, err := extractMetricsFromDocument(test.Document)
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
+			assert.False(t, startedAt.IsZero())
 			if len(metrics) > 0 {
 				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
 			}
@@ -712,10 +713,9 @@ func TestArrayExtraction(t *testing.T) {
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, err := extractMetricsFromArray(test.Array)
+			metrics, _, err := extractMetricsFromArray(test.Array)
 			assert.NoError(t, err)
 			assert.Equal(t, test.NumEncodedValues, len(metrics))
-
 			if test.NumEncodedValues >= 1 {
 				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
 			}
