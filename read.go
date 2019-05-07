@@ -52,6 +52,11 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 			continue
 		}
 
+		id, ok := doc.Lookup("_id").TimeOK()
+		if !ok {
+			return errors.New("_id not of type time.Time")
+		}
+
 		// get the data field which holds the metrics chunk
 		zelem := doc.LookupElement("data")
 		if zelem == nil {
@@ -132,6 +137,7 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 		case o <- &Chunk{
 			Metrics:   metrics,
 			nPoints:   ndeltas + 1, // this accounts for the reference document
+			id:        id,
 			metadata:  metadata,
 			reference: refDoc,
 		}:

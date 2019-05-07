@@ -123,6 +123,17 @@ func TestReadPathIntegration(t *testing.T) {
 						assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
 					}
 
+					// check that the _id is set correctly
+				metricLoop:
+					for _, metric := range c.Metrics {
+						switch name := metric.Key(); name {
+						case "ts":
+							firstTS := timeEpocMs(metric.Values[0])
+							assert.Equal(t, firstTS, c.id)
+							break metricLoop
+						}
+					}
+
 					// check to see if our public accesors for the data
 					// perform as expected
 					if counter%100 == 0 {

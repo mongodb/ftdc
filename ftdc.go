@@ -3,6 +3,7 @@ package ftdc
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
@@ -12,6 +13,7 @@ import (
 type Chunk struct {
 	Metrics   []Metric
 	nPoints   int
+	id        time.Time
 	metadata  *bsonx.Document
 	reference *bsonx.Document
 }
