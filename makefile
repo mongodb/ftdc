@@ -74,11 +74,11 @@ $(buildDir)/cover.%.html:$(buildDir)/cover.%.out
 
 
 metrics.ftdc:
-	wget "https://whatfox.net/metrics.ftdc"
+	wget "https://ftdc-test-files.s3.amazonaws.com/metrics.ftdc"
 perf_metrics.ftdc:
-	wget "https://whatfox.net/perf_metrics.ftdc"
+	wget "https://ftdc-test-files.s3.amazonaws.com/perf_metrics.ftdc"
 perf_metrics_small.ftdc:
-	wget "https://whatfox.net/perf_metrics_small.ftdc"
+	wget "https://ftdc-test-files.s3.amazonaws.com/perf_metrics_small.ftdc"
 
 vendor-clean:
 	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/github.com/davecgh/
