@@ -13,110 +13,111 @@ import (
 //
 // Helpers for encoding values from bsonx documents
 
-func extractMetricsFromDocument(doc *bsonx.Document) ([]*bsonx.Value, time.Time, error) {
+type extractedMetrics struct {
+	values []*bsonx.Value
+	types  []bsontype.Type
+	ts     time.Time
+}
+
+func extractMetricsFromDocument(doc *bsonx.Document) (extractedMetrics, error) {
+	metrics := extractedMetrics{}
 	iter := doc.Iterator()
 
 	var (
-		err     error
-		data    []*bsonx.Value
-		metrics []*bsonx.Value
-		startAt time.Time
-		ssa     time.Time
+		err  error
+		data extractedMetrics
 	)
 
 	catcher := grip.NewBasicCatcher()
 
 	for iter.Next() {
-		data, ssa, err = extractMetricsFromValue(iter.Element().Value())
+		data, err = extractMetricsFromValue(iter.Element().Value())
 		catcher.Add(err)
-		metrics = append(metrics, data...)
+		metrics.values = append(metrics.values, data.values...)
+		metrics.types = append(metrics.types, data.types...)
 
-		if startAt.IsZero() {
-			startAt = ssa
+		if metrics.ts.IsZero() {
+			metrics.ts = data.ts
 		}
 	}
 
 	catcher.Add(iter.Err())
 
-	if startAt.IsZero() {
-		startAt = time.Now()
+	if metrics.ts.IsZero() {
+		metrics.ts = time.Now()
 	}
 
-	return metrics, startAt, catcher.Resolve()
+	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromArray(array *bsonx.Array) ([]*bsonx.Value, time.Time, error) {
+func extractMetricsFromArray(array *bsonx.Array) (extractedMetrics, error) {
+	metrics := extractedMetrics{}
+
 	var (
-		err     error
-		data    []*bsonx.Value
-		metrics []*bsonx.Value
-		ssa     time.Time
-		startAt time.Time
+		err  error
+		data extractedMetrics
 	)
 
 	catcher := grip.NewBasicCatcher()
 	iter := array.Iterator()
 
 	for iter.Next() {
-		data, ssa, err = extractMetricsFromValue(iter.Value())
+		data, err = extractMetricsFromValue(iter.Value())
 		catcher.Add(err)
-		metrics = append(metrics, data...)
+		metrics.values = append(metrics.values, data.values...)
+		metrics.types = append(metrics.types, data.types...)
 
-		if startAt.IsZero() {
-			startAt = ssa
+		if metrics.ts.IsZero() {
+			metrics.ts = data.ts
 		}
 	}
 
 	catcher.Add(iter.Err())
 
-	return metrics, startAt, catcher.Resolve()
+	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromValue(val *bsonx.Value) ([]*bsonx.Value, time.Time, error) {
+func extractMetricsFromValue(val *bsonx.Value) (extractedMetrics, error) {
+	metrics := extractedMetrics{}
+	var err error
+
 	btype := val.Type()
 	switch btype {
-	case bsonx.TypeObjectID:
-		return nil, time.Time{}, nil
-	case bsonx.TypeString:
-		return nil, time.Time{}, nil
-	case bsonx.TypeDecimal128:
-		return nil, time.Time{}, nil
 	case bsonx.TypeArray:
-		metrics, startedAt, err := extractMetricsFromArray(val.MutableArray())
-		return metrics, startedAt, errors.WithStack(err)
+		metrics, err = extractMetricsFromArray(val.MutableArray())
+		err = errors.WithStack(err)
 	case bsonx.TypeEmbeddedDocument:
-		metrics, startAt, err := extractMetricsFromDocument(val.MutableDocument())
-		return metrics, startAt, errors.WithStack(err)
+		metrics, err = extractMetricsFromDocument(val.MutableDocument())
+		err = errors.WithStack(err)
 	case bsonx.TypeBoolean:
 		if val.Boolean() {
-			return []*bsonx.Value{bsonx.VC.Int64(1)}, time.Time{}, nil
+			metrics.values = append(metrics.values, bsonx.VC.Int64(1))
+		} else {
+			metrics.values = append(metrics.values, bsonx.VC.Int64(0))
 		}
-		return []*bsonx.Value{bsonx.VC.Int64(0)}, time.Time{}, nil
+		metrics.types = append(metrics.types, bsonx.TypeBoolean)
 	case bsonx.TypeDouble:
-		return []*bsonx.Value{val}, time.Time{}, nil
+		metrics.values = append(metrics.values, val)
+		metrics.types = append(metrics.types, bsonx.TypeDouble)
 	case bsonx.TypeInt32:
-		return []*bsonx.Value{bsonx.VC.Int64(int64(val.Int32()))}, time.Time{}, nil
+		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(val.Int32())))
+		metrics.types = append(metrics.types, bsonx.TypeInt32)
 	case bsonx.TypeInt64:
-		return []*bsonx.Value{val}, time.Time{}, nil
+		metrics.values = append(metrics.values, val)
+		metrics.types = append(metrics.types, bsonx.TypeInt64)
 	case bsonx.TypeDateTime:
-		return []*bsonx.Value{bsonx.VC.Int64(epochMs(val.Time()))}, val.Time(), nil
+		metrics.values = append(metrics.values, bsonx.VC.Int64(epochMs(val.Time())))
+		metrics.types = append(metrics.types, bsonx.TypeDateTime)
 	case bsonx.TypeTimestamp:
 		t, i := val.Timestamp()
-
-		return []*bsonx.Value{
-			bsonx.VC.Int64(int64(t)),
-			bsonx.VC.Int64(int64(i)),
-		}, time.Time{}, nil
-	default:
-		return nil, time.Time{}, nil
+		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(t)), bsonx.VC.Int64(int64(i)))
+		metrics.types = append(metrics.types, bsonx.TypeTimestamp, bsonx.TypeTimestamp)
 	}
+
+	return metrics, err
 }
 
 func extractDelta(current *bsonx.Value, previous *bsonx.Value) (int64, error) {
-	if current.Type() != previous.Type() {
-		return 0, errors.New("schema change: sample type mismatch")
-	}
-
 	switch current.Type() {
 	case bsontype.Double:
 		return normalizeFloat(current.Double() - previous.Double()), nil

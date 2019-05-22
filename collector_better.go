@@ -12,7 +12,7 @@ type betterCollector struct {
 	metadata   *bsonx.Document
 	reference  *bsonx.Document
 	startedAt  time.Time
-	lastSample []*bsonx.Value
+	lastSample *extractedMetrics
 	deltas     []int64
 	numSamples int
 	maxDeltas  int
@@ -48,9 +48,17 @@ func (c *betterCollector) Info() CollectorInfo {
 	if c.reference != nil {
 		num++
 	}
+
+	var metricsCount int
+	if c.lastSample == nil {
+		metricsCount = 0
+	} else {
+		metricsCount = len(c.lastSample.values)
+	}
+
 	return CollectorInfo{
 		SampleCount:  num + c.numSamples,
-		MetricsCount: len(c.lastSample),
+		MetricsCount: metricsCount,
 	}
 }
 
@@ -60,15 +68,16 @@ func (c *betterCollector) Add(in interface{}) error {
 		return errors.WithStack(err)
 	}
 
-	var metrics []*bsonx.Value
+	var metrics extractedMetrics
 	if c.reference == nil {
 		c.reference = doc
-		metrics, c.startedAt, err = extractMetricsFromDocument(doc)
+		metrics, err = extractMetricsFromDocument(doc)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		c.lastSample = metrics
-		c.deltas = make([]int64, c.maxDeltas*len(c.lastSample))
+		c.startedAt = metrics.ts
+		c.lastSample = &metrics
+		c.deltas = make([]int64, c.maxDeltas*len(c.lastSample.values))
 		return nil
 	}
 
@@ -76,20 +85,24 @@ func (c *betterCollector) Add(in interface{}) error {
 		return errors.New("collector is overfull")
 	}
 
-	metrics, _, err = extractMetricsFromDocument(doc)
+	metrics, err = extractMetricsFromDocument(doc)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	if len(metrics) != len(c.lastSample) {
+	if len(metrics.values) != len(c.lastSample.values) {
 		return errors.Errorf("unexpected schema change detected for sample %d: [current=%d vs previous=%d]",
-			c.numSamples+1, len(metrics), len(c.lastSample),
+			c.numSamples+1, len(metrics.values), len(c.lastSample.values),
 		)
 	}
 
 	var delta int64
-	for idx := range metrics {
-		delta, err = extractDelta(metrics[idx], c.lastSample[idx])
+	for idx := range metrics.values {
+		if metrics.types[idx] != c.lastSample.types[idx] {
+			return errors.Errorf("unexpected schema change detected for sample types: [current=%v vs previous=%v]",
+				metrics.types, c.lastSample.types)
+		}
+		delta, err = extractDelta(metrics.values[idx], c.lastSample.values[idx])
 		if err != nil {
 			return errors.Wrap(err, "problem parsing data")
 		}
@@ -97,7 +110,7 @@ func (c *betterCollector) Add(in interface{}) error {
 	}
 
 	c.numSamples++
-	c.lastSample = metrics
+	c.lastSample = &metrics
 
 	return nil
 }
@@ -140,10 +153,10 @@ func (c *betterCollector) getPayload() ([]byte, error) {
 		return nil, errors.Wrap(err, "problem writing reference document")
 	}
 
-	payload.Write(encodeSizeValue(uint32(len(c.lastSample))))
+	payload.Write(encodeSizeValue(uint32(len(c.lastSample.values))))
 	payload.Write(encodeSizeValue(uint32(c.numSamples)))
 	zeroCount := int64(0)
-	for i := 0; i < len(c.lastSample); i++ {
+	for i := 0; i < len(c.lastSample.values); i++ {
 		for j := 0; j < c.numSamples; j++ {
 			delta := c.deltas[getOffset(c.maxDeltas, j, i)]
 
