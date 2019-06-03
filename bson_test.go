@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/objectid"
 	"github.com/mongodb/grip/message"
@@ -409,6 +410,7 @@ func TestExtractingMetrics(t *testing.T) {
 		ExpectedCount     int
 		FirstEncodedValue int64
 		NumEncodedValues  int
+		Types             []bsontype.Type
 	}{
 		{
 			Name:              "IgnoredType",
@@ -444,6 +446,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 1,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean},
 		},
 		{
 			Name:              "BoolFalse",
@@ -451,6 +454,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean},
 		},
 		{
 			Name:              "Int32",
@@ -458,6 +462,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt32},
 		},
 		{
 			Name:              "Int32Zero",
@@ -465,6 +470,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt32},
 		},
 		{
 			Name:              "Int32Negative",
@@ -472,6 +478,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: -42,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt32},
 		},
 		{
 			Name:              "Int64",
@@ -479,6 +486,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "Int64Zero",
@@ -486,6 +494,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "Int64Negative",
@@ -493,6 +502,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: -42,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "DateTimeZero",
@@ -500,6 +510,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeDateTime},
 		},
 		{
 			Name:              "TimestampZero",
@@ -507,6 +518,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  2,
+			Types:             []bsontype.Type{bsonx.TypeTimestamp, bsonx.TypeTimestamp},
 		},
 		{
 			Name:              "TimestampLarger",
@@ -514,6 +526,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  2,
+			Types:             []bsontype.Type{bsonx.TypeTimestamp, bsonx.TypeTimestamp},
 		},
 		{
 			Name:              "EmptyDocument",
@@ -527,6 +540,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "MultiMetricValue",
@@ -534,6 +548,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
+			Types:             []bsontype.Type{bsonx.TypeInt64, bsonx.TypeInt32},
 		},
 		{
 			Name:              "MultiNonMetricValue",
@@ -548,6 +563,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean, bsonx.TypeInt64},
 		},
 		{
 			Name:              "ArraEmptyArray",
@@ -561,6 +577,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "ArrayWithMultiMetricValue",
@@ -568,6 +585,7 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
+			Types:             []bsontype.Type{bsonx.TypeInt64, bsonx.TypeInt32},
 		},
 		{
 			Name:              "ArrayWithMultiNonMetricValue",
@@ -581,6 +599,7 @@ func TestExtractingMetrics(t *testing.T) {
 			NumEncodedValues:  2,
 			ExpectedCount:     2,
 			FirstEncodedValue: 1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean, bsonx.TypeInt64},
 		},
 		{
 			Name:              "DoubleNoTruncate",
@@ -588,6 +607,7 @@ func TestExtractingMetrics(t *testing.T) {
 			NumEncodedValues:  1,
 			ExpectedCount:     1,
 			FirstEncodedValue: 40,
+			Types:             []bsontype.Type{bsonx.TypeDouble},
 		},
 		{
 			Name:              "DateTime",
@@ -595,16 +615,17 @@ func TestExtractingMetrics(t *testing.T) {
 			ExpectedCount:     1,
 			FirstEncodedValue: epochMs(now),
 			NumEncodedValues:  1,
+			Types:             []bsontype.Type{bsonx.TypeDateTime},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, _, err := extractMetricsFromValue(test.Value)
+			metrics, err := extractMetricsFromValue(test.Value)
 			assert.NoError(t, err)
-			assert.Equal(t, test.NumEncodedValues, len(metrics))
+			assert.Equal(t, test.NumEncodedValues, len(metrics.values))
 
 			keys, num := isMetricsValue("keyname", test.Value)
 			if test.NumEncodedValues > 0 {
-				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
+				assert.EqualValues(t, test.FirstEncodedValue, metrics.values[0].Interface())
 				assert.True(t, len(keys) >= 1)
 				assert.True(t, strings.HasPrefix(keys[0], "keyname"))
 			} else {
@@ -612,6 +633,10 @@ func TestExtractingMetrics(t *testing.T) {
 				assert.Zero(t, num)
 			}
 
+			require.Len(t, metrics.types, len(test.Types))
+			for i := range metrics.types {
+				assert.Equal(t, test.Types[i], metrics.types[i])
+			}
 		})
 	}
 }
@@ -623,6 +648,7 @@ func TestDocumentExtraction(t *testing.T) {
 		EncoderShouldError bool
 		NumEncodedValues   int
 		FirstEncodedValue  int64
+		Types              []bsontype.Type
 	}{
 		{
 			Name:              "EmptyDocument",
@@ -641,12 +667,14 @@ func TestDocumentExtraction(t *testing.T) {
 			Document:          bsonx.NewDocument(bsonx.EC.Int64("foo", 42)),
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "MultiMetricValue",
 			Document:          bsonx.NewDocument(bsonx.EC.Int64("foo", 7), bsonx.EC.Int32("foo", 72)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
+			Types:             []bsontype.Type{bsonx.TypeInt64, bsonx.TypeInt32},
 		},
 		{
 			Name:              "MultiNonMetricValue",
@@ -659,15 +687,20 @@ func TestDocumentExtraction(t *testing.T) {
 			Document:          bsonx.NewDocument(bsonx.EC.Boolean("zp", true), bsonx.EC.String("foo", "var"), bsonx.EC.Int64("bar", 7)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean, bsonx.TypeInt64},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, startedAt, err := extractMetricsFromDocument(test.Document)
+			metrics, err := extractMetricsFromDocument(test.Document)
 			assert.NoError(t, err)
-			assert.Equal(t, test.NumEncodedValues, len(metrics))
-			assert.False(t, startedAt.IsZero())
-			if len(metrics) > 0 {
-				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
+			assert.Equal(t, test.NumEncodedValues, len(metrics.values))
+			assert.False(t, metrics.ts.IsZero())
+			if len(metrics.values) > 0 {
+				assert.EqualValues(t, test.FirstEncodedValue, metrics.values[0].Interface())
+			}
+			require.Len(t, metrics.types, len(test.Types))
+			for i := range metrics.types {
+				assert.Equal(t, test.Types[i], metrics.types[i])
 			}
 		})
 	}
@@ -680,6 +713,7 @@ func TestArrayExtraction(t *testing.T) {
 		EncoderShouldError bool
 		NumEncodedValues   int
 		FirstEncodedValue  int64
+		Types              []bsontype.Type
 	}{
 		{
 			Name:              "EmptyArray",
@@ -692,12 +726,14 @@ func TestArrayExtraction(t *testing.T) {
 			Array:             bsonx.NewArray(bsonx.VC.Int64(42)),
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
+			Types:             []bsontype.Type{bsonx.TypeInt64},
 		},
 		{
 			Name:              "MultiMetricValue",
 			Array:             bsonx.NewArray(bsonx.VC.Int64(7), bsonx.VC.Int32(72)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
+			Types:             []bsontype.Type{bsonx.TypeInt64, bsonx.TypeInt32},
 		},
 		{
 			Name:              "MultiNonMetricValue",
@@ -710,14 +746,19 @@ func TestArrayExtraction(t *testing.T) {
 			Array:             bsonx.NewArray(bsonx.VC.Boolean(true), bsonx.VC.String("var"), bsonx.VC.Int64(7)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
+			Types:             []bsontype.Type{bsonx.TypeBoolean, bsonx.TypeInt64},
 		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
-			metrics, _, err := extractMetricsFromArray(test.Array)
+			metrics, err := extractMetricsFromArray(test.Array)
 			assert.NoError(t, err)
-			assert.Equal(t, test.NumEncodedValues, len(metrics))
+			assert.Equal(t, test.NumEncodedValues, len(metrics.values))
 			if test.NumEncodedValues >= 1 {
-				assert.EqualValues(t, test.FirstEncodedValue, metrics[0].Interface())
+				assert.EqualValues(t, test.FirstEncodedValue, metrics.values[0].Interface())
+			}
+			require.Len(t, metrics.types, len(test.Types))
+			for i := range metrics.types {
+				assert.Equal(t, test.Types[i], metrics.types[i])
 			}
 		})
 	}
