@@ -7,10 +7,11 @@ operations and then aggregate them as a single error.
 package grip
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 )
 
 // TODO: make a new catcher package, leave constructors in this
@@ -34,12 +35,22 @@ import (
 // for most error implementations.)
 type Catcher interface {
 	Add(error)
+	AddWhen(bool, error)
 	Extend([]error)
+	ExtendWhen(bool, []error)
 	Len() int
 	HasErrors() bool
 	String() string
 	Resolve() error
 	Errors() []error
+
+	New(string)
+	NewWhen(bool, string)
+	Errorf(string, ...interface{})
+	ErrorfWhen(bool, string, ...interface{})
+
+	Wrap(error, string)
+	Wrapf(error, string, ...interface{})
 }
 
 // multiCatcher provides an interface to collect and coalesse error
@@ -89,12 +100,14 @@ func NewExtendedCatcher() Catcher {
 // Add takes an error object and, if it's non-nil, adds it to the
 // internal collection of errors.
 func (c *baseCatcher) Add(err error) {
+	if err == nil {
+		return
+	}
+
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
-	if err != nil {
-		c.errs = append(c.errs, err)
-	}
+	c.errs = append(c.errs, err)
 }
 
 // Len returns the number of errors stored in the collector.
@@ -130,6 +143,61 @@ func (c *baseCatcher) Extend(errs []error) {
 
 		c.errs = append(c.errs, err)
 	}
+}
+
+func (c *baseCatcher) Errorf(form string, args ...interface{}) {
+	if form == "" {
+		return
+	} else if len(args) == 0 {
+		c.New(form)
+		return
+	}
+	c.Add(errors.Errorf(form, args...))
+}
+
+func (c *baseCatcher) New(e string) {
+	if e == "" {
+		return
+	}
+	c.Add(errors.New(e))
+}
+
+func (c *baseCatcher) Wrap(err error, m string) { c.Add(errors.Wrap(err, m)) }
+
+func (c *baseCatcher) Wrapf(err error, f string, args ...interface{}) {
+	c.Add(errors.Wrapf(err, f, args...))
+}
+
+func (c *baseCatcher) AddWhen(cond bool, err error) {
+	if !cond {
+		return
+	}
+
+	c.Add(err)
+}
+
+func (c *baseCatcher) ExtendWhen(cond bool, errs []error) {
+	if !cond {
+		return
+	}
+
+	c.Extend(errs)
+}
+
+func (c *baseCatcher) ErrorfWhen(cond bool, form string, args ...interface{}) {
+	if !cond {
+		return
+	}
+
+	c.Errorf(form, args...)
+}
+
+func (c *baseCatcher) NewWhen(cond bool, e string) {
+	if !cond {
+		return
+	}
+
+	c.New(e)
 }
 
 func (c *baseCatcher) Errors() []error {
@@ -201,4 +269,167 @@ func (c *basicCatcher) String() string {
 	}
 
 	return strings.Join(output, "\n")
+}
+
+////////////////////////////////////////////////////////////////////////
+//
+// an implementation to annotate errors with timestamps
+
+type timeAnnotatingCatcher struct {
+	errs     []*timestampError
+	extended bool
+	mu       sync.RWMutex
+}
+
+// NewTimestampCatcher produces a Catcher instance that reports the
+// short form of all constituent errors and annotates those errors
+// with a timestamp to reflect when the error was collected.
+func NewTimestampCatcher() Catcher { return &timeAnnotatingCatcher{} }
+
+// NewExtendedTimestampCatcher adds long-form annotation to the
+// aggregated error message (e.g. including stacks, when possible.)
+func NewExtendedTimestampCatcher() Catcher { return &timeAnnotatingCatcher{extended: true} }
+
+func (c *timeAnnotatingCatcher) Add(err error) {
+	if err == nil {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	tserr := newTimeStampError(err)
+
+	if tserr == nil {
+		return
+	}
+
+	c.errs = append(c.errs, tserr.setExtended(c.extended))
+}
+
+func (c *timeAnnotatingCatcher) Extend(errs []error) {
+	if len(errs) == 0 {
+		return
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+
+		c.errs = append(c.errs, newTimeStampError(err).setExtended(c.extended))
+	}
+}
+
+func (c *timeAnnotatingCatcher) AddWhen(cond bool, err error) {
+	if !cond {
+		return
+	}
+
+	c.Add(err)
+}
+
+func (c *timeAnnotatingCatcher) ExtendWhen(cond bool, errs []error) {
+	if !cond {
+		return
+	}
+
+	c.Extend(errs)
+}
+
+func (c *timeAnnotatingCatcher) New(e string) {
+	if e == "" {
+		return
+	}
+
+	c.Add(errors.New(e))
+}
+
+func (c *timeAnnotatingCatcher) NewWhen(cond bool, e string) {
+	if !cond {
+		return
+	}
+
+	c.New(e)
+}
+
+func (c *timeAnnotatingCatcher) Errorf(f string, args ...interface{}) {
+	if f == "" {
+		return
+	} else if len(args) == 0 {
+		c.New(f)
+		return
+	}
+
+	c.Add(errors.Errorf(f, args...))
+}
+
+func (c *timeAnnotatingCatcher) ErrorfWhen(cond bool, f string, args ...interface{}) {
+	if !cond {
+		return
+	}
+
+	c.Errorf(f, args...)
+}
+
+func (c *timeAnnotatingCatcher) Wrap(err error, m string) {
+	c.Add(WrapErrorTimeMessage(err, m))
+}
+
+func (c *timeAnnotatingCatcher) Wrapf(err error, f string, args ...interface{}) {
+	c.Add(WrapErrorTimeMessagef(err, f, args...))
+}
+
+func (c *timeAnnotatingCatcher) Len() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return len(c.errs)
+}
+
+func (c *timeAnnotatingCatcher) HasErrors() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return len(c.errs) > 0
+}
+
+func (c *timeAnnotatingCatcher) Errors() []error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	out := make([]error, len(c.errs))
+	for idx, err := range c.errs {
+		out[idx] = err
+	}
+
+	return out
+}
+
+func (c *timeAnnotatingCatcher) String() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	output := make([]string, len(c.errs))
+
+	for idx, err := range c.errs {
+		if err.extended {
+			output[idx] = err.String()
+		} else {
+			output[idx] = err.String()
+		}
+	}
+
+	return strings.Join(output, "\n")
+}
+
+func (c *timeAnnotatingCatcher) Resolve() error {
+	if !c.HasErrors() {
+		return nil
+	}
+
+	return errors.New(c.String())
 }

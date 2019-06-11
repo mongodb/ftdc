@@ -34,7 +34,7 @@ func TestPopulatedMessageComposerConstructors(t *testing.T) {
 		NewLineMessage(level.Error, testMsg):                                    testMsg,
 		MakeGroupComposer(NewString(testMsg)):                                   testMsg,
 		NewGroupComposer([]Composer{NewString(testMsg)}):                        testMsg,
-		MakeJiraMessage(JiraIssue{Summary: testMsg, Type: "Something"}):         testMsg,
+		MakeJiraMessage(&JiraIssue{Summary: testMsg, Type: "Something"}):        testMsg,
 		NewJiraMessage("", testMsg, JiraField{Key: "type", Value: "Something"}): testMsg,
 		NewFieldsMessage(level.Error, testMsg, Fields{}):                        fmt.Sprintf("[message='%s']", testMsg),
 		NewFields(level.Error, Fields{"test": testMsg}):                         fmt.Sprintf("[test='%s']", testMsg),
@@ -73,7 +73,7 @@ func TestPopulatedMessageComposerConstructors(t *testing.T) {
 
 		if strings.HasPrefix(output, "[") {
 			output = strings.Trim(output, "[]")
-			assert.True(strings.Contains(msg.String(), output))
+			assert.True(strings.Contains(msg.String(), output), fmt.Sprintf("%T: %s (%s)", msg, msg.String(), output))
 
 		} else {
 			// run the string test to make sure it doesn't change:
@@ -122,6 +122,7 @@ func TestUnpopulatedMessageComposers(t *testing.T) {
 		NewStackFormatted(1, ""),
 		MakeGroupComposer(),
 		&GroupComposer{},
+		&GoRuntimeInfo{},
 		When(false, ""),
 		Whenf(false, "", ""),
 		Whenln(false, "", ""),
@@ -148,7 +149,16 @@ func TestDataCollecterComposerConstructors(t *testing.T) {
 		CollectProcessInfo(int32(1)):                             "",
 		CollectProcessInfoSelf():                                 "",
 		CollectSystemInfo():                                      "",
-		CollectGoStats():                                         "",
+		CollectBasicGoStats():                                    "",
+		CollectGoStatsDeltas():                                   "",
+		CollectGoStatsRates():                                    "",
+		CollectGoStatsTotals():                                   "",
+		MakeGoStatsDeltas(testMsg):                               testMsg,
+		MakeGoStatsRates(testMsg):                                testMsg,
+		MakeGoStatsTotals(testMsg):                               testMsg,
+		NewGoStatsDeltas(level.Error, testMsg):                   testMsg,
+		NewGoStatsRates(level.Error, testMsg):                    testMsg,
+		NewGoStatsTotals(level.Error, testMsg):                   testMsg,
 	}
 
 	for msg, prefix := range cases {
