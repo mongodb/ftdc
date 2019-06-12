@@ -5,7 +5,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -25,24 +24,6 @@ type Runtime struct {
 	Process   *message.ProcessInfo   `json:"process,omitempty" bson:"process,omitempty"`
 }
 
-func populateRuntimeData() *Runtime {
-	pid := os.Getpid()
-	out := &Runtime{
-		PID:       pid,
-		Timestamp: time.Now(),
-		Golang:    message.CollectGoStatsTotals().(*message.GoRuntimeInfo),
-		System:    message.CollectSystemInfo().(*message.SystemInfo),
-		Process:   message.CollectProcessInfo(int32(pid)).(*message.ProcessInfo),
-	}
-
-	base := message.Base{}
-	out.Golang.Base = base
-	out.System.Base = base
-	out.Process.Base = base
-
-	return out
-}
-
 // CollectOptions are the settings to provide the behavior of
 // the collection process process.
 type CollectOptions struct {
@@ -50,12 +31,44 @@ type CollectOptions struct {
 	SampleCount        int
 	FlushInterval      time.Duration
 	CollectionInterval time.Duration
+	SkipGolang         bool
+	SkipSystem         bool
+	SkipProcess        bool
+}
+
+func (opts *CollectOptions) generate(id int) *Runtime {
+	pid := os.Getpid()
+	out := &Runtime{
+		ID:        id,
+		PID:       pid,
+		Timestamp: time.Now(),
+	}
+
+	base := message.Base{}
+
+	if !opts.SkipGolang {
+		out.Golang = message.CollectGoStatsTotals().(*message.GoRuntimeInfo)
+		out.Golang.Base = base
+	}
+
+	if !opts.SkipSystem {
+		out.System = message.CollectSystemInfo().(*message.SystemInfo)
+		out.System.Base = base
+	}
+
+	if !opts.SkipProcess {
+		out.Process = message.CollectProcessInfo(int32(pid)).(*message.ProcessInfo)
+		out.Process.Base = base
+	}
+
+	return out
+
 }
 
 // NewCollectionOptions creates a valid, populated collection options
 // structure, collecting data every minute, rotating files every 24
 // hours, with 1000
-func NewCollectOptions(prefix string) CollectOptions {
+func NewCollectionOptions(prefix string) CollectOptions {
 	return CollectOptions{
 		OutputFilePrefix:   prefix,
 		SampleCount:        300,
@@ -68,6 +81,7 @@ func NewCollectOptions(prefix string) CollectOptions {
 // values are reasonable.
 func (opts CollectOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
+
 	catcher.NewWhen(opts.FlushInterval < time.Millisecond,
 		"flush interval must be greater than a millisecond")
 	catcher.NewWhen(opts.CollectionInterval < time.Millisecond,
@@ -75,6 +89,9 @@ func (opts CollectOptions) Validate() error {
 	catcher.NewWhen(opts.CollectionInterval > opts.FlushInterval,
 		"collection interval must be smaller than flush interval")
 	catcher.NewWhen(opts.SampleCount < 10, "sample count must be greater than 10")
+	catcher.NewWhen(opts.SkipGolang && opts.SkipProcess && opts.SkipSystem,
+		"cannot skip all metrics collection, must specify golang, process, or system")
+
 	return catcher.Resolve()
 }
 
@@ -88,44 +105,41 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 
 	outputCount := 0
 	collectCount := 0
-	collector := ftdc.NewDynamicCollector(opts.SampleCount)
+
+	file, err := os.Create(fmt.Sprintf("%s.%d", opts.OutputFilePrefix, outputCount))
+	if err != nil {
+		return errors.Wrap(err, "problem creating initial file")
+	}
+
+	collector := ftdc.NewStreamingCollector(opts.SampleCount, file)
 	collectTimer := time.NewTimer(0)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer collectTimer.Stop()
 	defer flushTimer.Stop()
 
 	flusher := func() error {
-		startAt := time.Now()
-		fn := fmt.Sprintf("%s.%d", opts.OutputFilePrefix, outputCount)
 		info := collector.Info()
-
 		if info.SampleCount == 0 {
 			return nil
 		}
 
-		output, err := collector.Resolve()
-		if err != nil {
-			return errors.Wrap(err, "problem resolving ftdc data")
+		if err = ftdc.FlushCollector(collector, file); err != nil {
+			return errors.WithStack(err)
 		}
 
-		if err = ioutil.WriteFile(fn, output, 0600); err != nil {
-			return errors.Wrapf(err, "problem writing data to file %s", fn)
+		if err = file.Close(); err != nil {
+			return errors.WithStack(err)
 		}
 
-		grip.Debug(message.Fields{
-			"op":            "writing metrics",
-			"samples":       info.SampleCount,
-			"metrics":       info.MetricsCount,
-			"output_size":   len(output),
-			"file":          fn,
-			"duration_secs": time.Since(startAt).Seconds(),
-		})
-
-		collector.Reset()
 		outputCount++
-		collectCount = 0
-		flushTimer.Reset(opts.FlushInterval)
 
+		file, err = os.Create(fmt.Sprintf("%s.%d", opts.OutputFilePrefix, outputCount))
+		if err != nil {
+			return errors.Wrap(err, "problem creating subsequent file")
+		}
+
+		collector = ftdc.NewStreamingCollector(opts.SampleCount, file)
+		flushTimer.Reset(opts.FlushInterval)
 		return nil
 	}
 
@@ -135,14 +149,10 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 			grip.Info("collection aborted, flushing results")
 			return errors.WithStack(flusher())
 		case <-collectTimer.C:
-			data := populateRuntimeData()
-			data.ID = collectCount
-
-			if err := collector.Add(data); err != nil {
+			if err := collector.Add(opts.generate(collectCount)); err != nil {
 				return errors.Wrap(err, "problem collecting results")
 			}
 			collectCount++
-
 			collectTimer.Reset(opts.CollectionInterval)
 		case <-flushTimer.C:
 			if err := flusher(); err != nil {
