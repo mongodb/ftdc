@@ -88,7 +88,7 @@ func (opts CollectOptions) Validate() error {
 		"collection interval must be greater than a millisecond")
 	catcher.NewWhen(opts.CollectionInterval > opts.FlushInterval,
 		"collection interval must be smaller than flush interval")
-	catcher.NewWhen(opts.SampleCount < 10, "sample count must be greater than 10")
+	catcher.NewWhen(opts.SampleCount < 10, "sample count must be at least 10")
 	catcher.NewWhen(opts.SkipGolang && opts.SkipProcess && opts.SkipSystem,
 		"cannot skip all metrics collection, must specify golang, process, or system")
 
