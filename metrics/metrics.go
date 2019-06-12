@@ -65,10 +65,10 @@ func (opts *CollectOptions) generate(id int) *Runtime {
 
 }
 
-// NewCollectionOptions creates a valid, populated collection options
+// NewCollectOptions creates a valid, populated collection options
 // structure, collecting data every minute, rotating files every 24
-// hours, with 1000
-func NewCollectionOptions(prefix string) CollectOptions {
+// hours.
+func NewCollectOptions(prefix string) CollectOptions {
 	return CollectOptions{
 		OutputFilePrefix:   prefix,
 		SampleCount:        300,
@@ -158,6 +158,7 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 			if err := flusher(); err != nil {
 				return errors.WithStack(err)
 			}
+			flushTimer.Reset(opts.FlushInterval)
 		}
 	}
 }
