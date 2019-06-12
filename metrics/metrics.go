@@ -19,7 +19,7 @@ type Runtime struct {
 	ID        int                    `json:"id" bson:"id"`
 	Timestamp time.Time              `json:"ts" bson:"ts"`
 	PID       int                    `json:"pid" bson:"pid"`
-	Golang    *message.GoRuntimeInfo `json:"golang" bson:"golang"`
+	Golang    *message.GoRuntimeInfo `json:"golang,omitempty" bson:"golang,omitempty"`
 	System    *message.SystemInfo    `json:"system,omitempty" bson:"system,omitempty"`
 	Process   *message.ProcessInfo   `json:"process,omitempty" bson:"process,omitempty"`
 }
