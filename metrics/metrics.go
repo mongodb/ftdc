@@ -139,7 +139,6 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 		}
 
 		collector = ftdc.NewStreamingCollector(opts.SampleCount, file)
-		flushTimer.Reset(opts.FlushInterval)
 		return nil
 	}
 
