@@ -1,4 +1,4 @@
-package ftdc
+package metrics
 
 import (
 	"context"
@@ -6,17 +6,23 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
+	"github.com/mongodb/ftdc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCollectSystemInfo(t *testing.T) {
-	t.Parallel()
+func GetDirectoryOfFile() string {
+	_, file, _, _ := runtime.Caller(1)
 
-	dir, err := ioutil.TempDir("build", "ftdc-")
+	return filepath.Dir(file)
+}
+
+func TestCollectRuntime(t *testing.T) {
+	dir, err := ioutil.TempDir(filepath.Join(filepath.Dir(GetDirectoryOfFile()), "build"), "ftdc-")
 	require.NoError(t, err)
 
 	defer func() {
@@ -24,19 +30,19 @@ func TestCollectSystemInfo(t *testing.T) {
 	}()
 
 	t.Run("CollectData", func(t *testing.T) {
-		opts := CollectSysInfoOptions{
+		opts := CollectOptions{
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("sysinfo.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			SampleCount:        10,
 			FlushInterval:      2 * time.Second,
-			CollectionInterval: 100 * time.Millisecond,
+			CollectionInterval: time.Millisecond,
 		}
 		var cancel context.CancelFunc
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		err = CollectSysInfo(ctx, opts)
+		err = CollectRuntime(ctx, opts)
 		require.NoError(t, err)
 	})
 	t.Run("ReadData", func(t *testing.T) {
@@ -47,23 +53,25 @@ func TestCollectSystemInfo(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, len(files) >= 1)
 
+		total := 0
 		for idx, info := range files {
 			t.Run(fmt.Sprintf("FileNo.%d", idx), func(t *testing.T) {
 				path := filepath.Join(dir, info.Name())
 				f, err := os.Open(path)
 				require.NoError(t, err)
 				defer f.Close()
-				iter := ReadMetrics(ctx, f)
+				iter := ftdc.ReadMetrics(ctx, f)
 				counter := 0
 				for iter.Next() {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					assert.True(t, doc.Len() > 40)
+					assert.Equal(t, doc.Len(), 15)
 				}
-				assert.True(t, counter > 0)
 				assert.NoError(t, iter.Err())
+				total += counter
 			})
+			assert.True(t, total > len(files))
 		}
 	})
 }
