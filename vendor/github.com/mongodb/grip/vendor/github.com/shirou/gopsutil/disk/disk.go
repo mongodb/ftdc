@@ -14,11 +14,11 @@ type UsageStat struct {
 	Total             uint64  `json:"total" bson:"total"`
 	Free              uint64  `json:"free" bson:"free"`
 	Used              uint64  `json:"used" bson:"used"`
-	UsedPercent       float64 `json:"usedPercent" bson:"usedPercent"`
+	UsedPercent       float64 `json:"usedPercent,omitempty" bson:"usedPercent"`
 	InodesTotal       uint64  `json:"inodesTotal" bson:"inodesTotal"`
 	InodesUsed        uint64  `json:"inodesUsed" bson:"inodesUsed"`
 	InodesFree        uint64  `json:"inodesFree" bson:"inodesFree"`
-	InodesUsedPercent float64 `json:"inodesUsedPercent" bson:"inodesUsedPercent"`
+	InodesUsedPercent float64 `json:"inodesUsedPercent,omitempty" bson:"inodesUsedPercent"`
 }
 
 type PartitionStat struct {

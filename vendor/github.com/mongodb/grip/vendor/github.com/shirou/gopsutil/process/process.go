@@ -43,6 +43,7 @@ type OpenFilesStat struct {
 type MemoryInfoStat struct {
 	RSS    uint64 `json:"rss" bson:"rss"`       // bytes
 	VMS    uint64 `json:"vms" bson:"vms"`       // bytes
+	HWM    uint64 `json:"hwm" bson:"hwm"`       // bytes
 	Data   uint64 `json:"data" bson:"data"`     // bytes
 	Stack  uint64 `json:"stack" bson:"stack"`   // bytes
 	Locked uint64 `json:"locked" bson:"locked"` // bytes
@@ -74,6 +75,13 @@ type IOCountersStat struct {
 type NumCtxSwitchesStat struct {
 	Voluntary   int64 `json:"voluntary" bson:"voluntary"`
 	Involuntary int64 `json:"involuntary" bson:"involuntary"`
+}
+
+type PageFaultsStat struct {
+	MinorFaults      uint64 `json:"minorFaults" bson:"minorFaults"`
+	MajorFaults      uint64 `json:"majorFaults" bson:"majorFaults"`
+	ChildMinorFaults uint64 `json:"childMinorFaults" bson:"childMinorFaults"`
+	ChildMajorFaults uint64 `json:"childMajorFaults" bson:"childMajorFaults"`
 }
 
 // Resource limit constants are from /usr/include/x86_64-linux-gnu/bits/resource.h
@@ -144,6 +152,19 @@ func PidExistsWithContext(ctx context.Context, pid int32) (bool, error) {
 	}
 
 	return false, err
+}
+
+// Background returns true if the process is in background, false otherwise.
+func (p *Process) Background() (bool, error) {
+	return p.BackgroundWithContext(context.Background())
+}
+
+func (p *Process) BackgroundWithContext(ctx context.Context) (bool, error) {
+	fg, err := p.ForegroundWithContext(ctx)
+	if err != nil {
+		return false, err
+	}
+	return !fg, err
 }
 
 // If interval is 0, return difference from last call(non-blocking).

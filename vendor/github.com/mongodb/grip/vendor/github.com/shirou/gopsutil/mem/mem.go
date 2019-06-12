@@ -29,7 +29,7 @@ type VirtualMemoryStat struct {
 	// Percentage of RAM used by programs
 	//
 	// This value is computed from the kernel specific values.
-	UsedPercent float64 `json:"usedPercent" bson:"usedPercent"`
+	UsedPercent float64 `json:"usedPercent,omitempty" bson:"usedPercent"`
 
 	// This is the kernel's notion of free memory; RAM chips whose bits nobody
 	// cares about the value of right now. For a human consumable number,
@@ -57,6 +57,7 @@ type VirtualMemoryStat struct {
 	WritebackTmp   uint64 `json:"writebacktmp" bson:"writebacktmp"`
 	Shared         uint64 `json:"shared" bson:"shared"`
 	Slab           uint64 `json:"slab" bson:"slab"`
+	SReclaimable   uint64 `json:"sreclaimable" bson:"sreclaimable"`
 	PageTables     uint64 `json:"pagetables" bson:"pagetables"`
 	SwapCached     uint64 `json:"swapcached" bson:"swapcached"`
 	CommitLimit    uint64 `json:"commitlimit" bson:"commitlimit"`
@@ -80,9 +81,12 @@ type SwapMemoryStat struct {
 	Total       uint64  `json:"total" bson:"total"`
 	Used        uint64  `json:"used" bson:"used"`
 	Free        uint64  `json:"free" bson:"free"`
-	UsedPercent float64 `json:"usedPercent" bson:"usedPercent"`
+	UsedPercent float64 `json:"usedPercent,omitempty" bson:"usedPercent"`
 	Sin         uint64  `json:"sin" bson:"sin"`
 	Sout        uint64  `json:"sout" bson:"sout"`
+	PgIn        uint64  `json:"pgin" bson:"pgin"`
+	PgOut       uint64  `json:"pgout" bson:"pgout"`
+	PgFault     uint64  `json:"pgfault" bson:"pgfault"`
 }
 
 func (m VirtualMemoryStat) String() string {

@@ -175,6 +175,16 @@ func getFields(m message.Composer) *jira.IssueFields {
 					})
 			}
 		}
+		if len(msg.FixVersions) > 0 {
+			issueFields.FixVersions = make([]*jira.FixVersion, 0, len(msg.FixVersions))
+			for _, version := range msg.FixVersions {
+				issueFields.FixVersions = append(issueFields.FixVersions,
+					&jira.FixVersion{
+						Name: version,
+					})
+			}
+		}
+
 	case message.Fields:
 		issueFields = &jira.IssueFields{
 			Summary: fmt.Sprintf("%s", msg[message.FieldsMsgName]),
@@ -200,6 +210,9 @@ func populateKey(m message.Composer, issueKey string) {
 	switch msg := m.Raw().(type) {
 	case *message.JiraIssue:
 		msg.IssueKey = issueKey
+		if msg.Callback != nil {
+			msg.Callback(issueKey)
+		}
 	case message.Fields:
 		msg[jiraIssueKey] = issueKey
 	}
