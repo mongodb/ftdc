@@ -48,6 +48,12 @@ func (v *Value) Offset() uint32 {
 }
 
 // Interface returns the Go value of this Value as an empty interface.
+//
+// For embedded documents and arrays, Interface will convert the
+// elements to map[string]interface{} or []interface{} as possible.
+//
+// The underlying types of the values returned by this method are
+// their native corresponding type when possible.
 func (v *Value) Interface() interface{} {
 	if v == nil {
 		return nil
@@ -59,9 +65,9 @@ func (v *Value) Interface() interface{} {
 	case TypeString:
 		return v.StringValue()
 	case TypeEmbeddedDocument:
-		return v.ReaderDocument().String()
+		return v.MutableDocument().ExportMap()
 	case TypeArray:
-		return v.MutableArray().String()
+		return v.MutableArray().Interface()
 	case TypeBinary:
 		_, data := v.Binary()
 		return data
