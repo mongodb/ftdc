@@ -3,7 +3,7 @@ srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name 
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-_testPackages := ./ ./events ./metrics
+_testPackages := ./ ./events ./metrics ./bsonx
 
 ifeq (,$(SILENT))
 testArgs := -v

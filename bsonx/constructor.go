@@ -50,13 +50,15 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 	case int:
 		if t < math.MaxInt32 {
 			elem = EC.Int32(key, int32(t))
+		} else {
+			elem = EC.Int64(key, int64(t))
 		}
-		elem = EC.Int64(key, int64(t))
 	case int64:
 		if t < math.MaxInt32 {
 			elem = EC.Int32(key, int32(t))
+		} else {
+			elem = EC.Int64(key, int64(t))
 		}
-		elem = EC.Int64(key, int64(t))
 	case uint8:
 		elem = EC.Int32(key, int32(t))
 	case uint16:
@@ -73,8 +75,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 	case uint32:
 		if t < math.MaxInt32 {
 			elem = EC.Int32(key, int32(t))
+		} else {
+			elem = EC.Int64(key, int64(t))
 		}
-		elem = EC.Int64(key, int64(t))
+
 	case uint64:
 		switch {
 		case t < math.MaxInt32:
@@ -84,6 +88,66 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		default:
 			elem = EC.Int64(key, int64(t))
 		}
+	case map[string]string:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.String(k, v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]interface{}:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Interface(k, v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]int64:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int64(k, v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]int32:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int32(k, v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]int:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			if v < math.MaxInt32 {
+				elems = append(elems, EC.Int32(k, int32(v)))
+			} else {
+				elems = append(elems, EC.Int64(k, int64(v)))
+			}
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]time.Time:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Time(k, v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[string]time.Duration:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int64(k, int64(v)))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
+	case map[interface{}]interface{}:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Interface(bestStringAttempt(k), v))
+		}
+
+		elem = EC.SubDocumentFromElements(key, elems...)
 	case float32:
 		elem = EC.Double(key, float64(t))
 	case float64:
@@ -129,6 +193,11 @@ func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Elemen
 		uint32, float32, float64, string,
 		*Element, *Document, Reader, Timestamp,
 		time.Time:
+
+		elem = c.Interface(key, value)
+	case map[string]string, map[string]interface{}, map[interface{}]interface{},
+		map[string]int32, map[string]int64, map[string]int,
+		map[string]time.Time, map[string]time.Duration:
 
 		elem = c.Interface(key, value)
 	case uint:

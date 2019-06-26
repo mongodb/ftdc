@@ -4,7 +4,7 @@ package bsonx
 // element in the array using the Value.Interface() method to
 // export. the values.
 func (a *Array) Interface() []interface{} {
-	out := []interface{}{}
+	out := make([]interface{}, 0, a.Len())
 	iter := a.Iterator()
 
 	for iter.Next() {
