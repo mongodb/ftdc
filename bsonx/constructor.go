@@ -23,11 +23,117 @@ var EC ElementConstructor
 // VC is a convenience variable provided for access to the ValueConstructor methods.
 var VC ValueConstructor
 
+var DC DocumentConstructor
+
 // ElementConstructor is used as a namespace for document element constructor functions.
 type ElementConstructor struct{}
 
 // ValueConstructor is used as a namespace for document element constructor functions.
 type ValueConstructor struct{}
+
+type DocumentConstructor struct{}
+
+func (DocumentConstructor) Elements(elems ...*Elements) *Document { return NewDocument(elems...) }
+
+func (DocumentConstructor) Reader(r Reader) *Document {
+	size := uint32(1 + len(key) + 1 + len(r))
+	b := make([]byte, size)
+	elem := newElement(0, uint32(1+len(key)+1))
+	_, err := elements.Byte.Encode(0, b, '\x03')
+	if err != nil {
+		panic(err)
+	}
+	_, err = elements.CString.Encode(1, b, key)
+	if err != nil {
+		panic(err)
+	}
+	// NOTE: We don't validate the Reader here since we don't validate the
+	// Document when provided to SubDocument.
+	copy(b[1+len(key)+1:], r)
+	elem.value.data = b
+	return NewDocument(elem)
+}
+
+func (DocumentConstructor) Marshaler(in Marshaler) *Document {
+	data, err := in.MarshalBSON()
+	if err != nil {
+		panic(err)
+	}
+
+	return DC.Reader(data)
+}
+
+func (DocumentConstructor) Interface(value interface{}) *Document {
+	switch t := value.(type) {
+	case map[string]string:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.String(k, v))
+		}
+
+		return DC.Elements(elems...)
+	case map[string]interface{}:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Interface(k, v))
+		}
+		return DC.Elements(elems...)
+	case map[string]int64:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int64(k, v))
+		}
+
+		return DC.Elements(elems...)
+	case map[string]int32:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int32(k, v))
+		}
+
+		return DC.Elements(elems...)
+	case map[string]int:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			if v < math.MaxInt32 {
+				elems = append(elems, EC.Int32(k, int32(v)))
+			} else {
+				elems = append(elems, EC.Int64(k, int64(v)))
+			}
+		}
+
+		return DC.Elements(elems...)
+	case map[string]time.Time:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Time(k, v))
+		}
+
+		return DC.Elements(elems...)
+	case map[string]time.Duration:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Int64(k, int64(v)))
+		}
+
+		return DC.Elements(elems...)
+	case map[interface{}]interface{}:
+		elems := make([]*Element, 0, len(t))
+		for k, v := range t {
+			elems = append(elems, EC.Interface(bestStringAttempt(k), v))
+		}
+
+		return DC.Elements(elems...)
+	case *Element:
+		return DC.Elements(t)
+	case *Document:
+		return t
+	case Reader:
+		return DC.Reader(t)
+	default:
+		return DC.Elements()
+	}
+}
 
 // Interface will attempt to turn the provided key and value into an Element.
 // For common types, type casting is used, for all slices and all
@@ -88,72 +194,32 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		default:
 			elem = EC.Int64(key, int64(t))
 		}
-	case map[string]string:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.String(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]interface{}:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Interface(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int64:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int64(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int32:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int32(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			if v < math.MaxInt32 {
-				elems = append(elems, EC.Int32(k, int32(v)))
-			} else {
-				elems = append(elems, EC.Int64(k, int64(v)))
-			}
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]time.Time:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Time(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]time.Duration:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int64(k, int64(v)))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[interface{}]interface{}:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Interface(bestStringAttempt(k), v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
 	case float32:
 		elem = EC.Double(key, float64(t))
 	case float64:
 		elem = EC.Double(key, t)
 	case string:
 		elem = EC.String(key, t)
+	case time.Time:
+		elem = EC.Time(key, t)
+	case Timestamp:
+		elem = EC.Timestamp(key, t.T, t.I)
+	case map[string]string:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]interface{}:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]int64:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]int32:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]int:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]time.Time:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[string]time.Duration:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case map[interface{}]interface{}:
+		elem = EC.SubDocument(key, DC.Interface(t))
 	case *Element:
 		elem = t
 	case *Document:
@@ -165,17 +231,8 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		if elem == nil {
 			elem = EC.Null(key)
 		}
-	case time.Time:
-		elem = EC.Time(key, t)
-	case Timestamp:
-		elem = EC.Timestamp(key, t.T, t.I)
 	case Marshaler:
-		doc, err := t.MarshalBSON()
-		if err != nil {
-			elem = EC.Null(key)
-		} else {
-			elem = EC.SubDocumentFromReader(key, doc)
-		}
+		elem = EC.Marshaler(key, t)
 	default:
 		elem = EC.Null(key)
 	}
@@ -240,6 +297,23 @@ func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Elemen
 	return elem, nil
 }
 
+func (ElementConstructor) Marshaler(key string, val Marshaler) *Element {
+	elem, err := EC.MarshalerErr(key, val)
+	if err != nil {
+		return EC.Null(key)
+	}
+
+	return elem
+}
+
+func (ElementConstructor) MarshalerErr(key string, val Marshaler) (*Element, error) {
+	doc, err := val.MarshalBSON()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return EC.SubDocumentFromReader(key, doc), nil
+}
+
 // Double creates a double element with the given key and value.
 func (ElementConstructor) Double(key string, f float64) *Element {
 	b := make([]byte, 1+len(key)+1+8)
@@ -285,28 +359,13 @@ func (ElementConstructor) SubDocument(key string, d *Document) *Element {
 
 // SubDocumentFromReader creates a subdocument element with the given key and value.
 func (ElementConstructor) SubDocumentFromReader(key string, r Reader) *Element {
-	size := uint32(1 + len(key) + 1 + len(r))
-	b := make([]byte, size)
-	elem := newElement(0, uint32(1+len(key)+1))
-	_, err := elements.Byte.Encode(0, b, '\x03')
-	if err != nil {
-		panic(err)
-	}
-	_, err = elements.CString.Encode(1, b, key)
-	if err != nil {
-		panic(err)
-	}
-	// NOTE: We don't validate the Reader here since we don't validate the
-	// Document when provided to SubDocument.
-	copy(b[1+len(key)+1:], r)
-	elem.value.data = b
-	return elem
+	return EC.SubDocument(key, DC.Reader(r))
 }
 
 // SubDocumentFromElements creates a subdocument element with the given key. The elements passed as
 // arguments will be used to create a new document as the value.
-func (c ElementConstructor) SubDocumentFromElements(key string, elems ...*Element) *Element {
-	return c.SubDocument(key, NewDocument(elems...))
+func (ElementConstructor) SubDocumentFromElements(key string, elems ...*Element) *Element {
+	return EC.SubDocument(key, NewDocument(elems...))
 }
 
 // Array creates an array element with the given key and value.
@@ -667,6 +726,19 @@ func (ValueConstructor) InterfaceErr(in interface{}) (*Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	return elem.value, nil
+}
+
+func (ValueConstructor) Marshaler(in Marshaler) *Value {
+	return EC.Marshaler("", in).value
+}
+
+func (ValueConstructor) MarshalerErr(in Marshaler) (*Value, error) {
+	elem, err := EC.Marshaler("", in).Value
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	return elem.value, nil
 }
 

@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
+	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Runtime provides an aggregated view for
@@ -24,6 +26,9 @@ type Runtime struct {
 	Process   *message.ProcessInfo   `json:"process,omitempty" bson:"process,omitempty"`
 }
 
+func (r *Runtime) MarshalBSON() ([]byte, error) { return bson.Marshal(r) }
+func (r *Runtime) UnmarshalBSON(b []byte) error { return bson.Unmarshal(b, r) }
+
 // CollectOptions are the settings to provide the behavior of
 // the collection process process.
 type CollectOptions struct {
@@ -34,9 +39,21 @@ type CollectOptions struct {
 	SkipGolang         bool
 	SkipSystem         bool
 	SkipProcess        bool
+	Collectors         Collectors
 }
 
-func (opts *CollectOptions) generate(id int) *Runtime {
+type Collectors []CustomCollector
+
+func (c Collectors) Len() int           { return len(c) }
+func (c Collectors) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+func (c Collectors) Less(i, j int) bool { return c[i].Name < c[j].Name }
+
+type CustomCollector struct {
+	Name      string
+	Operation func(context.Context) interface{}
+}
+
+func (opts *CollectOptions) generate(id int) interface{} {
 	pid := os.Getpid()
 	out := &Runtime{
 		ID:        id,
@@ -60,6 +77,12 @@ func (opts *CollectOptions) generate(id int) *Runtime {
 		out.Process = message.CollectProcessInfo(int32(pid)).(*message.ProcessInfo)
 		out.Process.Base = base
 	}
+
+	if len(opts.Collectors) == 0 {
+		return out
+	}
+
+	doc := bsonx.NewDocument(bsonx.EC.Subdocument("runtime"))
 
 	return out
 
