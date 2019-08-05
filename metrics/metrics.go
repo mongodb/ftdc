@@ -53,7 +53,7 @@ type CustomCollector struct {
 	Operation func(context.Context) interface{}
 }
 
-func (opts *CollectOptions) generate(id int) interface{} {
+func (opts *CollectOptions) generate(ctx context.Context, id int) interface{} {
 	pid := os.Getpid()
 	out := &Runtime{
 		ID:        id,
@@ -82,7 +82,26 @@ func (opts *CollectOptions) generate(id int) interface{} {
 		return out
 	}
 
-	doc := bsonx.NewDocument(bsonx.EC.Subdocument("runtime"))
+	doc := bsonx.DC.Make(len(opts.Collectors) + 1)
+	doc.Append(bsonx.EC.Marshaler("runtime", out))
+	for _, ec := range opts.Collectors {
+		switch val := ec.Operation(ctx).(type) {
+		case bsonx.Marshaler:
+			elem, err := bsonx.EC.MarshalerErr(ec.Name, val)
+
+			grip.Warning(message.WrapError(err, message.Fields{
+				"id":      id,
+				"name":    ec.Name,
+				"message": "",
+			}))
+
+			doc.Append(elem)
+		case *bsonx.Document:
+			doc.Append(bsonx.EC.SubDocument(ec.Name, val))
+		default:
+
+		}
+	}
 
 	return out
 
@@ -171,7 +190,7 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 			grip.Info("collection aborted, flushing results")
 			return errors.WithStack(flusher())
 		case <-collectTimer.C:
-			if err := collector.Add(opts.generate(collectCount)); err != nil {
+			if err := collector.Add(opts.generate(ctx, collectCount)); err != nil {
 				return errors.Wrap(err, "problem collecting results")
 			}
 			collectCount++

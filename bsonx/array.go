@@ -42,7 +42,7 @@ func ArrayFromDocument(doc *Document) *Array {
 
 // MakeArray creates a new array with the size hint (capacity)
 // specified.
-func MakeArray(size int) *Array { return &Array{doc: MakeDocument(size)} }
+func MakeArray(size int) *Array { return &Array{doc: DC.Make(size)} }
 
 // Len returns the number of elements in the array.
 func (a *Array) Len() int {

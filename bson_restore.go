@@ -18,7 +18,7 @@ func restoreDocument(ref *bsonx.Document, sample int, metrics []Metric, idx int)
 	}
 
 	iter := ref.Iterator()
-	doc := bsonx.MakeDocument(ref.Len())
+	doc := bsonx.DC.Make(ref.Len())
 
 	var elem *bsonx.Element
 

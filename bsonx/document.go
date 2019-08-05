@@ -68,9 +68,7 @@ type Document struct {
 
 // NewDocument creates an empty Document. The numberOfElems parameter will
 // preallocate the underlying storage which can prevent extra allocations.
-func NewDocument(elems ...*Element) *Document {
-	return MakeDocument(len(elems)).Append(elems...)
-}
+func NewDocument(elems ...*Element) *Document { return DC.Elements(elems...) }
 
 // ReadDocument will create a Document using the provided slice of bytes. If the
 // slice of bytes is not a valid BSON document, this method will return an error.

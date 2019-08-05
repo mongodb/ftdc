@@ -22,7 +22,7 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bsonx.Docu
 		defer close(out)
 		for i := 0; i < c.nPoints; i++ {
 
-			doc := bsonx.MakeDocument(len(c.Metrics))
+			doc := bsonx.DC.Make(len(c.Metrics))
 			for _, m := range c.Metrics {
 				elem, ok := restoreFlat(m.originalType, m.Key(), m.Values[i])
 				if !ok {

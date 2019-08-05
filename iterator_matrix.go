@@ -20,7 +20,7 @@ func (c *Chunk) exportMatrix() map[string]interface{} {
 }
 
 func (c *Chunk) export() (*bsonx.Document, error) {
-	doc := bsonx.MakeDocument(len(c.Metrics))
+	doc := bsonx.DC.Make(len(c.Metrics))
 	sample := 0
 
 	var elem *bsonx.Element
