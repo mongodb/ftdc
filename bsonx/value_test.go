@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"math"
 	"testing"
+
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 func TestValue(t *testing.T) {
@@ -56,7 +58,7 @@ func TestValue(t *testing.T) {
 			'\x00',
 		}
 		e := &Element{&Value{start: 4, offset: 9, data: buf}}
-		want := TypeString
+		want := bsontype.String
 		got := e.value.Type()
 		if got != want {
 			t.Errorf("Unexpected result. got %v; want %v", got, want)

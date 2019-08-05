@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/elements"
 	"github.com/pkg/errors"
 )
@@ -102,14 +103,14 @@ func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
 	}
 
 	switch value.Type() {
-	case TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		element, err := value.MutableDocument().LookupElementErr(keys...)
 		if err != nil {
 			return nil, err
 		}
 
 		return element.Value(), nil
-	case TypeArray:
+	case bsontype.Array:
 		index, err := strconv.ParseUint(keys[0], 10, 0)
 		if err != nil {
 			return nil, ErrInvalidArrayKey
@@ -309,7 +310,7 @@ func (a *Array) writeByteSlice(start uint, size uint32, b []byte) (int64, error)
 	var pos = start
 
 	if len(b) < int(start)+int(size) {
-		return 0, NewErrTooSmall()
+		return 0, newErrTooSmall()
 	}
 	n, err := elements.Int32.Encode(start, b, int32(size))
 	total += int64(n)

@@ -4,7 +4,7 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package objectid
+package types
 
 import (
 	"testing"
@@ -17,16 +17,16 @@ import (
 
 func TestNew(t *testing.T) {
 	// Ensure that objectid.New() doesn't panic.
-	New()
+	NewObjectID()
 }
 
 func TestString(t *testing.T) {
-	id := New()
+	id := NewObjectID()
 	require.Contains(t, id.String(), id.Hex())
 }
 
 func TestFromHex_RoundTrip(t *testing.T) {
-	before := New()
+	before := NewObjectID()
 	after, err := FromHex(before.Hex())
 	require.NoError(t, err)
 
@@ -78,6 +78,6 @@ func TestTimeStamp(t *testing.T) {
 
 func TestCounterOverflow(t *testing.T) {
 	objectIDCounter = 0xFFFFFFFF
-	New()
+	NewObjectID()
 	require.Equal(t, uint32(0), objectIDCounter)
 }

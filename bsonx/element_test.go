@@ -14,7 +14,7 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
-	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/mongodb/ftdc/bsonx/types"
 )
 
 func TestElement(t *testing.T) {
@@ -37,7 +37,7 @@ func TestElement(t *testing.T) {
 		})
 		t.Run("Validate error", func(t *testing.T) {
 			rdr := Element{&Value{start: 0, offset: 3, data: []byte{0x01, 'x', 0x00, 0x00}}}
-			want := NewErrTooSmall()
+			want := newErrTooSmall()
 			_, got := rdr.Validate()
 			if !IsTooSmall(got) {
 				t.Errorf("Did not receive expected error. got %s; want %s", got, want)
@@ -128,7 +128,7 @@ func TestElement(t *testing.T) {
 
 			for _, tc := range testCases {
 				t.Run(tc.name, func(t *testing.T) {
-					want := NewErrTooSmall()
+					want := newErrTooSmall()
 					size, got := tc.elem.value.valueSize()
 					if size != tc.size {
 						t.Errorf("Did not return correct number of bytes read. got %d; want %d", size, tc.size)
@@ -1048,7 +1048,7 @@ func TestElement(t *testing.T) {
 			testCases := []struct {
 				name  string
 				elem  *Element
-				val   objectid.ObjectID
+				val   types.ObjectID
 				fault error
 			}{
 				{"Nil Value", &Element{nil}, empty, ErrUninitializedElement},
@@ -1277,7 +1277,7 @@ func TestElement(t *testing.T) {
 				name    string
 				elem    *Element
 				ns      string
-				pointer objectid.ObjectID
+				pointer types.ObjectID
 				fault   error
 			}{
 				{"Nil Value", &Element{nil}, "", empty, ErrUninitializedElement},
@@ -1760,7 +1760,7 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x01, 0x00, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -1792,14 +1792,14 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x02, 0x00, 0x00, 0x00},
 				}},
-				true, 0, NewErrTooSmall(),
+				true, 0, newErrTooSmall(),
 			},
 			{"Too Small >4",
 				&Element{&Value{
 					start: 0, offset: 2,
 					data: []byte{0x02, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
 				}},
-				true, 4, NewErrTooSmall(),
+				true, 4, newErrTooSmall(),
 			},
 			{"Invalid String Value",
 				&Element{&Value{
@@ -1838,12 +1838,12 @@ func testValidateValue(t *testing.T) {
 			{"Document/too small <4",
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x03, 0x00, 0x00, 0x00},
-				}}, true, 0, NewErrTooSmall(),
+				}}, true, 0, newErrTooSmall(),
 			},
 			{"Document/too small >4",
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x03, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
-				}}, true, 4, NewErrTooSmall(),
+				}}, true, 4, newErrTooSmall(),
 			},
 			{"Document/invalid document <5",
 				&Element{&Value{
@@ -1868,12 +1868,12 @@ func testValidateValue(t *testing.T) {
 			{"Array/too small <4",
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x04, 0x00, 0x00, 0x00},
-				}}, true, 0, NewErrTooSmall(),
+				}}, true, 0, newErrTooSmall(),
 			},
 			{"Array/too small >4",
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x04, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
-				}}, true, 4, NewErrTooSmall(),
+				}}, true, 4, newErrTooSmall(),
 			},
 			{"Array/invalid document <5",
 				&Element{&Value{
@@ -1925,7 +1925,7 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x05, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Invalid binary Subtype",
 				&Element{&Value{
@@ -1937,7 +1937,7 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x05, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00},
 				}},
-				5, NewErrTooSmall(),
+				5, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -1995,7 +1995,7 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x07, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2029,7 +2029,7 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x08, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Invalid binary Type",
 				&Element{&Value{
@@ -2072,7 +2072,7 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x09, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2172,13 +2172,13 @@ func testValidateValue(t *testing.T) {
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x0C, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Length Too Large",
 				&Element{&Value{
 					start: 0, offset: 2, data: []byte{0x0C, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00},
 				}},
-				4, NewErrTooSmall(),
+				4, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2216,14 +2216,14 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x0D, 0x00, 0x00, 0x00},
 				}},
-				true, 0, NewErrTooSmall(),
+				true, 0, newErrTooSmall(),
 			},
 			{"Too Small >4",
 				&Element{&Value{
 					start: 0, offset: 2,
 					data: []byte{0x0D, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
 				}},
-				true, 4, NewErrTooSmall(),
+				true, 4, newErrTooSmall(),
 			},
 			{"Invalid String Value",
 				&Element{&Value{
@@ -2264,14 +2264,14 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x0E, 0x00, 0x00, 0x00},
 				}},
-				true, 0, NewErrTooSmall(),
+				true, 0, newErrTooSmall(),
 			},
 			{"Too Small >4",
 				&Element{&Value{
 					start: 0, offset: 2,
 					data: []byte{0x0E, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
 				}},
-				true, 4, NewErrTooSmall(),
+				true, 4, newErrTooSmall(),
 			},
 			{"Invalid String Value",
 				&Element{&Value{
@@ -2312,14 +2312,14 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x0F, 0x00, 0x00, 0x00},
 				}},
-				true, 0, NewErrTooSmall(),
+				true, 0, newErrTooSmall(),
 			},
 			{"Too Small >4",
 				&Element{&Value{
 					start: 0, offset: 2,
 					data: []byte{0x0F, 0x00, 0xFF, 0x00, 0x00, 0x00, 'f', 'o', 'o', 0x00},
 				}},
-				true, 4, NewErrTooSmall(),
+				true, 4, newErrTooSmall(),
 			},
 			{"Shouldn't Deep Validate",
 				&Element{&Value{
@@ -2395,7 +2395,7 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x10, 0x00, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2428,7 +2428,7 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x11, 0x00, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2461,7 +2461,7 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x12, 0x00, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2494,7 +2494,7 @@ func testValidateValue(t *testing.T) {
 					start: 0, offset: 2,
 					data: []byte{0x13, 0x00, 0x00, 0x00},
 				}},
-				0, NewErrTooSmall(),
+				0, newErrTooSmall(),
 			},
 			{"Success",
 				&Element{&Value{
@@ -2600,19 +2600,19 @@ func testValidateValue(t *testing.T) {
 			want string
 		}{
 			{
-				"nested document",
-				NewDocument(
+				name: "nested document",
+				doc: NewDocument(
 					EC.String("foo", "bar"),
 					EC.SubDocumentFromElements("fooer",
 						EC.SubDocumentFromElements("barer", EC.Int32("ok", 1)),
 					),
 				),
-				`bson.Document{bson.Element{[string]"foo": "bar"}, bson.Element{[embedded document]"fooer": bson.Reader{bson.Element{[embedded document]"barer": bson.Reader{bson.Element{[32-bit integer]"ok": 1}}}}}}`,
+				want: `bson.Document{bson.Element{[string]"foo": "bar"}, bson.Element{[embedded document]"fooer": map[barer:map[ok:1]]}}`,
 			},
 			{
-				"nested reader",
-				rdr,
-				`bson.Reader{bson.Element{[string]"foo": "bar"}, bson.Element{[embedded document]"fooer": bson.Reader{bson.Element{[embedded document]"barer": bson.Reader{bson.Element{[32-bit integer]"ok": 1}}}}}}`,
+				name: "nested reader",
+				doc:  rdr,
+				want: `bson.Reader{bson.Element{[string]"foo": "bar"}, bson.Element{[embedded document]"fooer": map[barer:map[ok:1]]}}`,
 			},
 		}
 

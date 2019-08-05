@@ -444,7 +444,7 @@ func (d *Document) ElementAtOK(index uint) (*Element, bool) {
 }
 
 // Iterator creates an Iterator for this document and returns it.
-func (d *Document) Iterator() *Iterator {
+func (d *Document) Iterator() Iterator {
 	if d == nil {
 		panic(ErrNilDocument)
 	}
@@ -606,7 +606,7 @@ func (d *Document) writeByteSlice(start uint, size uint32, b []byte) (int64, err
 	var total int64
 	var pos = start
 	if len(b) < int(start)+int(size) {
-		return 0, NewErrTooSmall()
+		return 0, newErrTooSmall()
 	}
 	n, err := elements.Int32.Encode(start, b, int32(size))
 	total += int64(n)

@@ -13,7 +13,7 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/elements"
-	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/mongodb/ftdc/bsonx/types"
 	"github.com/pkg/errors"
 )
 
@@ -92,7 +92,7 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.String(key, t)
 	case time.Time:
 		elem = EC.Time(key, t)
-	case Timestamp:
+	case types.Timestamp:
 		elem = EC.Timestamp(key, t.T, t.I)
 	case map[string]string:
 		elem = EC.SubDocument(key, DC.MapString(t))
@@ -206,7 +206,7 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 			return EC.Int64(key, int64(t)), nil
 		}
 	case bool, int8, int16, int32, int, int64, uint8, uint16, uint32, string,
-		*Element, *Document, Reader, Timestamp,
+		*Element, *Document, Reader, types.Timestamp,
 		time.Time:
 
 		return EC.Interface(key, value), nil
@@ -291,7 +291,22 @@ func (ElementConstructor) SubDocument(key string, d *Document) *Element {
 
 // SubDocumentFromReader creates a subdocument element with the given key and value.
 func (ElementConstructor) SubDocumentFromReader(key string, r Reader) *Element {
-	return EC.SubDocument(key, DC.Reader(r))
+	size := uint32(1 + len(key) + 1 + len(r))
+	b := make([]byte, size)
+	elem := newElement(0, uint32(1+len(key)+1))
+	_, err := elements.Byte.Encode(0, b, '\x03')
+	if err != nil {
+		panic(err)
+	}
+	_, err = elements.CString.Encode(1, b, key)
+	if err != nil {
+		panic(err)
+	}
+	// NOTE: We don't validate the Reader here since we don't validate the
+	// Document when provided to SubDocument.
+	copy(b[1+len(key)+1:], r)
+	elem.value.data = b
+	return elem
 }
 
 // SubDocumentFromElements creates a subdocument element with the given key. The elements passed as
@@ -320,13 +335,13 @@ func (ElementConstructor) Array(key string, a *Array) *Element {
 
 // ArrayFromElements creates an element with the given key. The elements passed as
 // arguments will be used to create a new array as the value.
-func (c ElementConstructor) ArrayFromElements(key string, values ...*Value) *Element {
-	return c.Array(key, NewArray(values...))
+func (ElementConstructor) ArrayFromElements(key string, values ...*Value) *Element {
+	return EC.Array(key, NewArray(values...))
 }
 
 // Binary creates a binary element with the given key and value.
-func (c ElementConstructor) Binary(key string, b []byte) *Element {
-	return c.BinaryWithSubtype(key, b, 0)
+func (ElementConstructor) Binary(key string, b []byte) *Element {
+	return EC.BinaryWithSubtype(key, b, 0)
 }
 
 // BinaryWithSubtype creates a binary element with the given key. It will create a new BSON binary value
@@ -366,7 +381,7 @@ func (ElementConstructor) Undefined(key string) *Element {
 }
 
 // ObjectID creates a objectid element with the given key and value.
-func (ElementConstructor) ObjectID(key string, oid objectid.ObjectID) *Element {
+func (ElementConstructor) ObjectID(key string, oid types.ObjectID) *Element {
 	size := uint32(1 + len(key) + 1 + 12)
 	elem := newElement(0, 1+uint32(len(key))+1)
 	elem.value.data = make([]byte, size)
@@ -409,9 +424,9 @@ func (ElementConstructor) DateTime(key string, dt int64) *Element {
 }
 
 // Time creates a datetime element with the given key and value.
-func (c ElementConstructor) Time(key string, t time.Time) *Element {
+func (ElementConstructor) Time(key string, t time.Time) *Element {
 	// Apply nanoseconds to milliseconds conversion
-	return c.DateTime(key, t.Unix()*1000+int64(t.Nanosecond()/1e6))
+	return EC.DateTime(key, t.Unix()*1000+int64(t.Nanosecond()/1e6))
 }
 
 // Null creates a null element with the given key.
@@ -446,7 +461,7 @@ func (ElementConstructor) Regex(key string, pattern, options string) *Element {
 }
 
 // DBPointer creates a dbpointer element with the given key and value.
-func (ElementConstructor) DBPointer(key string, ns string, oid objectid.ObjectID) *Element {
+func (ElementConstructor) DBPointer(key string, ns string, oid types.ObjectID) *Element {
 	size := uint32(1 + len(key) + 1 + 4 + len(ns) + 1 + 12)
 	elem := newElement(0, uint32(1+len(key)+1))
 	elem.value.data = make([]byte, size)
@@ -694,8 +709,8 @@ func (ValueConstructor) ArrayFromValues(values ...*Value) *Value {
 }
 
 // Binary creates a binary value from the argument.
-func (ac ValueConstructor) Binary(b []byte) *Value {
-	return ac.BinaryWithSubtype(b, 0)
+func (ValueConstructor) Binary(b []byte) *Value {
+	return VC.BinaryWithSubtype(b, 0)
 }
 
 // BinaryWithSubtype creates a new binary element with the given data and subtype.
@@ -709,7 +724,7 @@ func (ValueConstructor) Undefined() *Value {
 }
 
 // ObjectID creates a objectid value from the argument.
-func (ValueConstructor) ObjectID(oid objectid.ObjectID) *Value {
+func (ValueConstructor) ObjectID(oid types.ObjectID) *Value {
 	return EC.ObjectID("", oid).value
 }
 
@@ -739,7 +754,7 @@ func (ValueConstructor) Regex(pattern, options string) *Value {
 }
 
 // DBPointer creates a dbpointer value from the arguments.
-func (ValueConstructor) DBPointer(ns string, oid objectid.ObjectID) *Value {
+func (ValueConstructor) DBPointer(ns string, oid types.ObjectID) *Value {
 	return EC.DBPointer("", ns, oid).value
 }
 
