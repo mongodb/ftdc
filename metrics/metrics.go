@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/mongodb/ftdc"
@@ -53,7 +54,7 @@ type CustomCollector struct {
 	Operation func(context.Context) interface{}
 }
 
-func (opts *CollectOptions) generate(ctx context.Context, id int) interface{} {
+func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Document {
 	pid := os.Getpid()
 	out := &Runtime{
 		ID:        id,
@@ -79,7 +80,7 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) interface{} {
 	}
 
 	if len(opts.Collectors) == 0 {
-		return out
+		return bsonx.DC.Marshaler(out)
 	}
 
 	doc := bsonx.DC.Make(len(opts.Collectors) + 1)
@@ -87,24 +88,23 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) interface{} {
 	for _, ec := range opts.Collectors {
 		switch val := ec.Operation(ctx).(type) {
 		case bsonx.Marshaler:
-			elem, err := bsonx.EC.MarshalerErr(ec.Name, val)
-
-			grip.Warning(message.WrapError(err, message.Fields{
+			doc.Append(bsonx.EC.Marshaler(ec.Name, val))
+		case *bsonx.Document:
+			val.Sort()
+			doc.Append(bsonx.EC.SubDocument(ec.Name, val))
+		default:
+			elem, err := bsonx.EC.InterfaceErr(ec.Name, val)
+			grip.EmergencyPanic(message.WrapError(err, message.Fields{
 				"id":      id,
 				"name":    ec.Name,
-				"message": "",
+				"message": "marshaling error",
 			}))
 
 			doc.Append(elem)
-		case *bsonx.Document:
-			doc.Append(bsonx.EC.SubDocument(ec.Name, val))
-		default:
-
 		}
 	}
 
-	return out
-
+	return doc
 }
 
 // NewCollectOptions creates a valid, populated collection options
@@ -123,6 +123,8 @@ func NewCollectOptions(prefix string) CollectOptions {
 // values are reasonable.
 func (opts CollectOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
+
+	sort.Stable(opts.Collectors)
 
 	catcher.NewWhen(opts.FlushInterval < time.Millisecond,
 		"flush interval must be greater than a millisecond")
