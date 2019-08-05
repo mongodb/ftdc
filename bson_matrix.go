@@ -4,6 +4,8 @@ import (
 	"io"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/mongodb/ftdc/bsonx/types"
 	"github.com/pkg/errors"
 )
 
@@ -18,29 +20,29 @@ func rehydrateMatrix(metrics []Metric, sample int) (*bsonx.Element, int, error) 
 	array := bsonx.MakeArray(len(metrics[sample].Values))
 	key := metrics[sample].Key()
 	switch metrics[sample].originalType {
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		for _, p := range metrics[sample].Values {
 			array.AppendInterface(p != 0)
 		}
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		for _, p := range metrics[sample].Values {
 			array.AppendInterface(restoreFloat(p))
 		}
-	case bsonx.TypeInt64:
+	case bsontype.Int64:
 		for _, p := range metrics[sample].Values {
 			array.AppendInterface(p)
 		}
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		for _, p := range metrics[sample].Values {
 			array.AppendInterface(int32(p))
 		}
-	case bsonx.TypeDateTime:
+	case bsontype.DateTime:
 		for _, p := range metrics[sample].Values {
 			array.AppendInterface(timeEpocMs(p))
 		}
-	case bsonx.TypeTimestamp:
+	case bsontype.Timestamp:
 		for idx, p := range metrics[sample].Values {
-			array.AppendInterface(bsonx.Timestamp{T: uint32(p), I: uint32(metrics[sample+1].Values[idx])})
+			array.AppendInterface(types.Timestamp{T: uint32(p), I: uint32(metrics[sample+1].Values[idx])})
 		}
 		sample++
 	default:

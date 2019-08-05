@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
@@ -26,9 +27,9 @@ func (c *Chunk) getRecord(i int) []string {
 	fields := make([]string, len(c.Metrics))
 	for idx, m := range c.Metrics {
 		switch m.originalType {
-		case bsonx.TypeDouble, bsonx.TypeInt32, bsonx.TypeInt64, bsonx.TypeBoolean, bsonx.TypeTimestamp:
+		case bsontype.Double, bsontype.Int32, bsontype.Int64, bsontype.Boolean, bsontype.Timestamp:
 			fields[idx] = strconv.FormatInt(m.Values[i], 10)
-		case bsonx.TypeDateTime:
+		case bsontype.DateTime:
 			fields[idx] = time.Unix(m.Values[i]/1000, 0).Format(time.RFC3339)
 		}
 	}

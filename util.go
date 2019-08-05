@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -102,11 +103,11 @@ func isNum(num int, val *bsonx.Value) bool {
 	}
 
 	switch val.Type() {
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		return val.Int32() == int32(num)
-	case bsonx.TypeInt64:
+	case bsontype.Int64:
 		return val.Int64() == int64(num)
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		return val.Double() == float64(num)
 	default:
 		return false
