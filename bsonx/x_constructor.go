@@ -86,8 +86,11 @@ func (DocumentConstructor) MapInterfaceErr(in map[string]interface{}) (*Document
 			elems = append(elems, elem)
 		}
 	}
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
 
-	return DC.Elements(elems...), catcher.Resolve()
+	return DC.Elements(elems...), nil
 }
 
 func (DocumentConstructor) MapInt64(in map[string]int64) *Document {
@@ -155,7 +158,11 @@ func (DocumentConstructor) MapMarshalerErr(in map[string]Marshaler) (*Document, 
 		}
 	}
 
-	return DC.Elements(elems...), catcher.Resolve()
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
+
+	return DC.Elements(elems...), nil
 }
 
 func (DocumentConstructor) MapSliceMarshaler(in map[string][]Marshaler) *Document {
@@ -179,7 +186,11 @@ func (DocumentConstructor) MapSliceMarshalerErr(in map[string][]Marshaler) (*Doc
 		}
 	}
 
-	return DC.Elements(elems...), catcher.Resolve()
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
+
+	return DC.Elements(elems...), nil
 }
 
 func (DocumentConstructor) MapSliceString(in map[string][]string) *Document {
@@ -212,7 +223,11 @@ func (DocumentConstructor) MapSliceInterfaceErr(in map[string][]interface{}) (*D
 		}
 	}
 
-	return DC.Elements(elems...), catcher.Resolve()
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
+
+	return DC.Elements(elems...), nil
 }
 
 func (DocumentConstructor) MapSliceInt64(in map[string][]int64) *Document {
@@ -414,7 +429,11 @@ func (ElementConstructor) SliceInterfaceErr(key string, in []interface{}) (*Elem
 		}
 	}
 
-	return EC.Array(key, NewArray(vals...)), catcher.Resolve()
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
+
+	return EC.Array(key, NewArray(vals...)), nil
 }
 
 func (ElementConstructor) SliceInt64(key string, in []int64) *Element {
@@ -489,7 +508,11 @@ func (ElementConstructor) SliceMarshalerErr(key string, in []Marshaler) (*Elemen
 		}
 	}
 
-	return EC.Array(key, NewArray(vals...)), catcher.Resolve()
+	if catcher.HasErrors() {
+		return nil, catcher.Resolve()
+	}
+
+	return EC.Array(key, NewArray(vals...)), nil
 }
 
 func (ElementConstructor) Duration(key string, t time.Duration) *Element {
