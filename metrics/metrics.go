@@ -6,13 +6,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/ftdc/bsonx"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
+	"github.com/mongodb/grip/recovery"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -33,14 +36,15 @@ func (r *Runtime) UnmarshalBSON(b []byte) error { return bson.Unmarshal(b, r) }
 // CollectOptions are the settings to provide the behavior of
 // the collection process process.
 type CollectOptions struct {
-	OutputFilePrefix   string
-	SampleCount        int
-	FlushInterval      time.Duration
-	CollectionInterval time.Duration
-	SkipGolang         bool
-	SkipSystem         bool
-	SkipProcess        bool
-	Collectors         Collectors
+	OutputFilePrefix      string
+	SampleCount           int
+	FlushInterval         time.Duration
+	CollectionInterval    time.Duration
+	SkipGolang            bool
+	SkipSystem            bool
+	SkipProcess           bool
+	Collectors            Collectors
+	RunParallelCollectors bool
 }
 
 type Collectors []CustomCollector
@@ -51,7 +55,7 @@ func (c Collectors) Less(i, j int) bool { return c[i].Name < c[j].Name }
 
 type CustomCollector struct {
 	Name      string
-	Operation func(context.Context) interface{}
+	Operation func(context.Context) *bsonx.Document
 }
 
 func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Document {
@@ -83,28 +87,46 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Documen
 		return bsonx.DC.Marshaler(out)
 	}
 
-	doc := bsonx.DC.Make(len(opts.Collectors) + 1)
-	doc.Append(bsonx.EC.Marshaler("runtime", out))
-	for _, ec := range opts.Collectors {
-		switch val := ec.Operation(ctx).(type) {
-		case bsonx.Marshaler:
-			doc.Append(bsonx.EC.Marshaler(ec.Name, val))
-		case *bsonx.Document:
-			val.Sort()
-			doc.Append(bsonx.EC.SubDocument(ec.Name, val))
-		default:
-			elem, err := bsonx.EC.InterfaceErr(ec.Name, val)
-			grip.EmergencyPanic(message.WrapError(err, message.Fields{
-				"id":      id,
-				"name":    ec.Name,
-				"message": "marshaling error",
-			}))
-
-			doc.Append(elem)
+	doc := bsonx.DC.Make(len(opts.Collectors) + 1).Append(bsonx.EC.Marshaler("runtime", out))
+	if !opts.RunParallelCollectors {
+		for _, ec := range opts.Collectors {
+			doc.Append(bsonx.EC.SubDocument(ec.Name, ec.Operation(ctx)))
 		}
+
+		return doc
 	}
 
-	return doc
+	collectors := make(chan CustomCollector, len(opts.Collectors))
+	elems := make(chan *bsonx.Element, len(opts.Collectors))
+	num := runtime.NumCPU()
+	if num > len(opts.Collectors) {
+		num = len(opts.Collectors)
+	}
+
+	for _, coll := range opts.Collectors {
+		collectors <- coll
+	}
+	close(collectors)
+
+	wg := &sync.WaitGroup{}
+	for i := 0; i < num; i++ {
+		wg.Add(1)
+		go func() {
+			defer recovery.LogStackTraceAndContinue("ftdc metrics collector")
+			defer wg.Done()
+
+			for collector := range collectors {
+				elems <- bsonx.EC.SubDocument(collector.Name, collector.Operation(ctx))
+			}
+		}()
+	}
+	wg.Wait()
+
+	for elem := range elems {
+		doc.Append(elem)
+	}
+
+	return doc.Sorted()
 }
 
 // NewCollectOptions creates a valid, populated collection options
@@ -135,6 +157,8 @@ func (opts CollectOptions) Validate() error {
 	catcher.NewWhen(opts.SampleCount < 10, "sample count must be at least 10")
 	catcher.NewWhen(opts.SkipGolang && opts.SkipProcess && opts.SkipSystem,
 		"cannot skip all metrics collection, must specify golang, process, or system")
+	catcher.NewWhen(opts.RunParallelCollectors && len(opts.Collectors) == 0,
+		"cannot run parallel collectors with no collectors specified")
 
 	return catcher.Resolve()
 }

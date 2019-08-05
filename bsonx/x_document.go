@@ -1,6 +1,10 @@
 package bsonx
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/mongodb/ftdc/bsonx"
+)
 
 // ExportMap converts the values of the document to a map of strings
 // to interfaces, recursively, using the Value.Interface() method.
@@ -26,12 +30,8 @@ func (d *Document) Elements() Elements {
 	return d.elems
 }
 
-func (d *Document) Sort() {
+func (d *Document) Sorted() *bsonx.Document {
 	elems := d.Elements()
 	sort.Stable(elems)
-
-	newdoc := DC.Elements(elems...)
-
-	d.elems = newdoc.elems
-	d.index = newdoc.index
+	return DC.Elements(elems...)
 }
