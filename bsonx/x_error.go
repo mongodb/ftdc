@@ -6,6 +6,4 @@ import (
 
 var errTooSmall = errors.New("error: too small")
 
-func IsTooSmall(err error) bool { return errors.Cause(err) == errTooSmall }
-
-func NewErrTooSmall() error { return errors.WithStack(errTooSmall) }
+func newErrTooSmall() error { return errors.WithStack(errTooSmall) }

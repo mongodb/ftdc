@@ -166,7 +166,7 @@ func (e *Element) writeElement(key bool, start uint, writer interface{}) (int64,
 	case []byte:
 		n, err := e.writeByteSlice(key, start, size, w)
 		if err != nil {
-			return 0, NewErrTooSmall()
+			return 0, newErrTooSmall()
 		}
 		total += int64(n)
 	default:
@@ -190,7 +190,7 @@ func (e *Element) writeByteSlice(key bool, start uint, size uint32, b []byte) (i
 	}
 
 	if uint(len(b)) < needed {
-		return 0, NewErrTooSmall()
+		return 0, newErrTooSmall()
 	}
 
 	var n int
@@ -306,7 +306,7 @@ func (e *Element) MarshalBSON() ([]byte, error) {
 // String implements the fmt.Stringer interface.
 func (e *Element) String() string {
 	val := e.Value().Interface()
-	if s, ok := val.(string); ok && e.Value().Type() == TypeString {
+	if s, ok := val.(string); ok && e.Value().Type() == bsontype.String {
 		val = strconv.Quote(s)
 	}
 	return fmt.Sprintf(`bson.Element{[%s]"%s": %v}`, e.Value().Type(), e.Key(), val)

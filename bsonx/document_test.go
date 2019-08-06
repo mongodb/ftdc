@@ -21,7 +21,7 @@ import (
 func TestDocument(t *testing.T) {
 	t.Run("NewDocument", func(t *testing.T) {
 		t.Run("TooShort", func(t *testing.T) {
-			want := NewErrTooSmall()
+			want := newErrTooSmall()
 			_, got := ReadDocument([]byte{'\x00', '\x00'})
 			if !IsTooSmall(got) {
 				t.Errorf("Did not get expected error. got %#v; want %#v", got, want)
@@ -57,7 +57,7 @@ func TestDocument(t *testing.T) {
 			}
 		})
 		t.Run("validateValue-error", func(t *testing.T) {
-			want := NewErrTooSmall()
+			want := newErrTooSmall()
 			b := make([]byte, 11)
 			binary.LittleEndian.PutUint32(b[0:4], 11)
 			b[4], b[5], b[6], b[7], b[8], b[9], b[10] = '\x01', 'f', 'o', 'o', '\x00', '\x01', '\x02'
@@ -828,7 +828,7 @@ func TestDocument(t *testing.T) {
 			b := make([]byte, 15)
 			_, err := d.WriteDocument(0, b)
 			if !IsTooSmall(err) {
-				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
+				t.Errorf("Expected error not returned. got %s; want %s", err, newErrTooSmall())
 			}
 		})
 		t.Run("[]byte-too-small", func(t *testing.T) {
@@ -836,7 +836,7 @@ func TestDocument(t *testing.T) {
 			b := make([]byte, 5)
 			_, err := d.WriteDocument(0, b)
 			if !IsTooSmall(err) {
-				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
+				t.Errorf("Expected error not returned. got %s; want %s", err, newErrTooSmall())
 			}
 		})
 		t.Run("invalid-writer", func(t *testing.T) {
@@ -844,7 +844,7 @@ func TestDocument(t *testing.T) {
 			var buf bytes.Buffer
 			_, err := d.WriteDocument(0, buf)
 			if err != ErrInvalidWriter {
-				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
+				t.Errorf("Expected error not returned. got %s; want %s", err, newErrTooSmall())
 			}
 		})
 
@@ -936,7 +936,7 @@ func TestDocument(t *testing.T) {
 			}
 			_, err = NewDocument().ReadFrom(&buf)
 			if !IsTooSmall(err) {
-				t.Errorf("Expected error not returned. got %s; want %s", err, NewErrTooSmall())
+				t.Errorf("Expected error not returned. got %s; want %s", err, newErrTooSmall())
 			}
 		})
 		testCases := []struct {
@@ -999,7 +999,7 @@ func testDocumentKeys(t *testing.T) {
 		// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
 		// 		'\x0A', '2', '\x00', '\x00', '\x00',
 		// 	},
-		// 	nil, NewErrTooSmall(), true,
+		// 	nil, newErrTooSmall(), true,
 		// },
 		// {"invalid-array",
 		// 	Reader{
@@ -1009,7 +1009,7 @@ func testDocumentKeys(t *testing.T) {
 		// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
 		// 		'\x0A', '2', '\x00', '\x00', '\x00',
 		// 	},
-		// 	nil, NewErrTooSmall(), true,
+		// 	nil, newErrTooSmall(), true,
 		// },
 	}
 

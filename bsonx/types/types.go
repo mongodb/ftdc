@@ -4,12 +4,10 @@
 // not use this file except in compliance with the License. You may obtain
 // a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
 
-package bsonx
+package types
 
 import (
 	"fmt"
-
-	"github.com/mongodb/ftdc/bsonx/objectid"
 )
 
 // Binary represents a BSON binary value.
@@ -40,7 +38,7 @@ func (r Regex) String() string {
 // DBPointer represents a BSON dbpointer value.
 type DBPointer struct {
 	DB      string
-	Pointer objectid.ObjectID
+	Pointer ObjectID
 }
 
 func (d DBPointer) String() string {
@@ -56,7 +54,7 @@ type Symbol string
 // CodeWithScope represents a BSON JavaScript code with scope value.
 type CodeWithScope struct {
 	Code  string
-	Scope *Document
+	Scope []byte
 }
 
 func (cws CodeWithScope) String() string {

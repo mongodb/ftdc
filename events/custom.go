@@ -73,7 +73,7 @@ func (ps Custom) Sort() { sort.Stable(ps) }
 func (ps Custom) MarshalBSON() ([]byte, error) {
 	ps.Sort()
 
-	doc := bsonx.MakeDocument(ps.Len())
+	doc := bsonx.DC.Make(ps.Len())
 
 	for _, elem := range ps {
 		doc.Append(bsonx.EC.Interface(elem.Name, elem.Value))

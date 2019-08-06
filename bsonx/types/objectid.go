@@ -7,7 +7,7 @@
 // Based on gopkg.in/mgo.v2/bson by Gustavo Niemeyer
 // See THIRD-PARTY-NOTICES for original license terms.
 
-package objectid
+package types
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ var objectIDCounter = readRandomUint32()
 var processUnique = processUniqueBytes()
 
 // New generates a new ObjectID.
-func New() ObjectID {
+func NewObjectID() ObjectID {
 	var b [12]byte
 
 	binary.BigEndian.PutUint32(b[0:4], uint32(time.Now().Unix()))

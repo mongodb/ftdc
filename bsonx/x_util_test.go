@@ -3,8 +3,11 @@ package bsonx
 import (
 	"testing"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
+
+func IsTooSmall(err error) bool { return errors.Cause(err) == errTooSmall }
 
 func requireErrEqual(t *testing.T, err1 error, err2 error) {
 	if err1 != nil && err2 != nil {

@@ -63,7 +63,7 @@ test-%:
 	@grep -s -q -e "^PASS" $(buildDir)/test.*.out
 coverage-%:$(buildDir)/cover.%.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
-html-coverage-%:coverage-%
+html-coverage-%:$(buildDir)/cover.%.html
 $(buildDir)/cover.%.out:$(buildDir) $(testFiles) .FORCE
 	go test $(testArgs) -covermode=count -coverprofile $@ -cover ./$*
 $(buildDir)/cover.%.html:$(buildDir)/cover.%.out

@@ -41,7 +41,7 @@ func NewFromIOReader(r io.Reader) (Reader, error) {
 	}
 
 	if count < 4 {
-		return nil, NewErrTooSmall()
+		return nil, newErrTooSmall()
 	}
 
 	length := readi32(lengthBytes[:])
@@ -169,8 +169,8 @@ func (r Reader) ElementAt(index uint) (*Element, error) {
 
 // Iterator returns a ReaderIterator that can be used to iterate through the
 // elements of this Reader.
-func (r Reader) Iterator() (*ReaderIterator, error) {
-	return NewReaderIterator(r)
+func (r Reader) Iterator() (Iterator, error) {
+	return newReaderIterator(r)
 }
 
 // Keys returns the keys for this document. If recursive is true then this
@@ -251,7 +251,7 @@ func (r Reader) recursiveKeys(recursive bool, prefix ...string) (Keys, error) {
 // be returned by this method.
 func (r Reader) readElements(f func(e *Element) error) (uint32, error) {
 	if len(r) < 5 {
-		return 0, NewErrTooSmall()
+		return 0, newErrTooSmall()
 	}
 	// TODO(skriptble): We could support multiple documents in the same byte
 	// slice without reslicing if we have pos as a parameter and use that to

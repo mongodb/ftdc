@@ -14,7 +14,7 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
-	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/mongodb/ftdc/bsonx/types"
 	"github.com/pkg/errors"
 )
 
@@ -60,52 +60,53 @@ func (v *Value) Interface() interface{} {
 	}
 
 	switch v.Type() {
-	case TypeDouble:
+	case bsontype.Double:
 		return v.Double()
-	case TypeString:
+	case bsontype.String:
 		return v.StringValue()
-	case TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		return v.MutableDocument().ExportMap()
-	case TypeArray:
+	case bsontype.Array:
 		return v.MutableArray().Interface()
-	case TypeBinary:
+	case bsontype.Binary:
 		_, data := v.Binary()
 		return data
-	case TypeUndefined:
+	case bsontype.Undefined:
 		return nil
-	case TypeObjectID:
+	case bsontype.ObjectID:
 		return v.ObjectID()
-	case TypeBoolean:
+	case bsontype.Boolean:
 		return v.Boolean()
-	case TypeDateTime:
+	case bsontype.DateTime:
 		return v.DateTime()
-	case TypeNull:
+	case bsontype.Null:
 		return nil
-	case TypeRegex:
+	case bsontype.Regex:
 		p, o := v.Regex()
-		return Regex{Pattern: p, Options: o}
-	case TypeDBPointer:
+		return types.Regex{Pattern: p, Options: o}
+	case bsontype.DBPointer:
 		db, pointer := v.DBPointer()
-		return DBPointer{DB: db, Pointer: pointer}
-	case TypeJavaScript:
+		return types.DBPointer{DB: db, Pointer: pointer}
+	case bsontype.JavaScript:
 		return v.JavaScript()
-	case TypeSymbol:
+	case bsontype.Symbol:
 		return v.Symbol()
-	case TypeCodeWithScope:
+	case bsontype.CodeWithScope:
 		code, scope := v.MutableJavaScriptWithScope()
-		return CodeWithScope{Code: code, Scope: scope}
-	case TypeInt32:
+		val, _ := scope.MarshalBSON()
+		return types.CodeWithScope{Code: code, Scope: val}
+	case bsontype.Int32:
 		return v.Int32()
-	case TypeTimestamp:
+	case bsontype.Timestamp:
 		t, i := v.Timestamp()
-		return Timestamp{T: t, I: i}
-	case TypeInt64:
+		return types.Timestamp{T: t, I: i}
+	case bsontype.Int64:
 		return v.Int64()
-	case TypeDecimal128:
+	case bsontype.Decimal128:
 		return v.Decimal128()
-	case TypeMinKey:
+	case bsontype.MinKey:
 		return nil
-	case TypeMaxKey:
+	case bsontype.MaxKey:
 		return nil
 	default:
 		return nil
@@ -129,17 +130,17 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 	case '\x06', '\x0A', '\xFF', '\x7F':
 	case '\x01':
 		if int(v.offset+8) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 8
 	case '\x02', '\x0D', '\x0E':
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 4
 		if int32(v.offset)+4+l > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		// We check if the value that is the last element of the string is a
 		// null terminator. We take the value offset, add 4 to account for the
@@ -160,7 +161,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		}
 
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 4
@@ -168,7 +169,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			return total, ErrInvalidReadOnlyDocument
 		}
 		if int32(v.offset)+l > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		if !sizeOnly {
 			n, err := Reader(v.data[v.offset : v.offset+uint32(l)]).Validate()
@@ -190,7 +191,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		}
 
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 4
@@ -198,7 +199,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			return total, ErrInvalidReadOnlyDocument
 		}
 		if int32(v.offset)+l > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		if !sizeOnly {
 			n, err := Reader(v.data[v.offset : v.offset+uint32(l)]).Validate()
@@ -211,7 +212,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		total += uint32(l) - 4
 	case '\x05':
 		if int(v.offset+5) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 5
@@ -219,17 +220,17 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			return total, ErrInvalidBinarySubtype
 		}
 		if int32(v.offset)+5+l > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += uint32(l)
 	case '\x07':
 		if int(v.offset+12) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 12
 	case '\x08':
 		if int(v.offset+1) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total++
 		if v.data[v.offset] != '\x00' && v.data[v.offset] != '\x01' {
@@ -237,7 +238,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		}
 	case '\x09':
 		if int(v.offset+8) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 8
 	case '\x0B':
@@ -259,12 +260,12 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		total++
 	case '\x0C':
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 4
 		if int32(v.offset)+4+l+12 > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += uint32(l) + 12
 	case '\x0F':
@@ -275,12 +276,12 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			// Because of that we don't check the length here and just validate
 			// the string and the document.
 			if int(v.offset+8) > len(v.data) {
-				return total, NewErrTooSmall()
+				return total, newErrTooSmall()
 			}
 			total += 8
 			sLength := readi32(v.data[v.offset+4 : v.offset+8])
 			if int(sLength) > len(v.data)+8 {
-				return total, NewErrTooSmall()
+				return total, newErrTooSmall()
 			}
 			total += uint32(sLength)
 			if !sizeOnly && v.data[v.offset+8+uint32(sLength)-1] != 0x00 {
@@ -295,12 +296,12 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			break
 		}
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		l := readi32(v.data[v.offset : v.offset+4])
 		total += 4
 		if int32(v.offset)+l > int32(len(v.data)) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		if !sizeOnly {
 			sLength := readi32(v.data[v.offset+4 : v.offset+8])
@@ -332,17 +333,17 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 		total += uint32(l) - 4
 	case '\x10':
 		if int(v.offset+4) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 4
 	case '\x11', '\x12':
 		if int(v.offset+8) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 8
 	case '\x13':
 		if int(v.offset+16) > len(v.data) {
-			return total, NewErrTooSmall()
+			return total, newErrTooSmall()
 		}
 		total += 16
 
@@ -370,7 +371,7 @@ func (v *Value) Type() bsontype.Type {
 // IsNumber returns true if the type of v is a numberic BSON type.
 func (v *Value) IsNumber() bool {
 	switch v.Type() {
-	case TypeDouble, TypeInt32, TypeInt64, TypeDecimal128:
+	case bsontype.Double, bsontype.Int32, bsontype.Int64, bsontype.Decimal128:
 		return true
 	default:
 		return false
@@ -391,7 +392,7 @@ func (v *Value) Double() float64 {
 
 // DoubleOK is the same as Double, but returns a boolean instead of panicking.
 func (v *Value) DoubleOK() (float64, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeDouble {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Double {
 		return 0, false
 	}
 	return v.Double(), true
@@ -416,7 +417,7 @@ func (v *Value) StringValue() string {
 // StringValueOK is the same as StringValue, but returns a boolean instead of
 // panicking.
 func (v *Value) StringValueOK() (string, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeString {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.String {
 		return "", false
 	}
 	return v.StringValue(), true
@@ -452,7 +453,7 @@ func (v *Value) ReaderDocument() Reader {
 // ReaderDocumentOK is the same as ReaderDocument, except it returns a boolean
 // instead of panicking.
 func (v *Value) ReaderDocumentOK() (Reader, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeEmbeddedDocument {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.EmbeddedDocument {
 		return nil, false
 	}
 	return v.ReaderDocument(), true
@@ -480,7 +481,7 @@ func (v *Value) MutableDocument() *Document {
 // MutableDocumentOK is the same as MutableDocument, except it returns a boolean
 // instead of panicking.
 func (v *Value) MutableDocumentOK() (*Document, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeEmbeddedDocument {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.EmbeddedDocument {
 		return nil, false
 	}
 	return v.MutableDocument(), true
@@ -516,7 +517,7 @@ func (v *Value) ReaderArray() Reader {
 // ReaderArrayOK is the same as ReaderArray, except it returns a boolean instead
 // of panicking.
 func (v *Value) ReaderArrayOK() (Reader, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeArray {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Array {
 		return nil, false
 	}
 	return v.ReaderArray(), true
@@ -544,7 +545,7 @@ func (v *Value) MutableArray() *Array {
 // MutableArrayOK is the same as MutableArray, except it returns a boolean
 // instead of panicking.
 func (v *Value) MutableArrayOK() (*Array, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeArray {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Array {
 		return nil, false
 	}
 	return v.MutableArray(), true
@@ -574,7 +575,7 @@ func (v *Value) Binary() (subtype byte, data []byte) {
 // BinaryOK is the same as Binary, except it returns a boolean instead of
 // panicking.
 func (v *Value) BinaryOK() (subtype byte, data []byte, ok bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeBinary {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Binary {
 		return 0x00, nil, false
 	}
 	st, b := v.Binary()
@@ -583,7 +584,7 @@ func (v *Value) BinaryOK() (subtype byte, data []byte, ok bool) {
 
 // ObjectID returns the BSON objectid value the Value represents. It panics if the value is a BSON
 // type other than objectid.
-func (v *Value) ObjectID() objectid.ObjectID {
+func (v *Value) ObjectID() types.ObjectID {
 	if v == nil || v.offset == 0 || v.data == nil {
 		panic(ErrUninitializedElement)
 	}
@@ -597,9 +598,9 @@ func (v *Value) ObjectID() objectid.ObjectID {
 
 // ObjectIDOK is the same as ObjectID, except it returns a boolean instead of
 // panicking.
-func (v *Value) ObjectIDOK() (objectid.ObjectID, bool) {
-	var empty objectid.ObjectID
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeObjectID {
+func (v *Value) ObjectIDOK() (types.ObjectID, bool) {
+	var empty types.ObjectID
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.ObjectID {
 		return empty, false
 	}
 	return v.ObjectID(), true
@@ -620,7 +621,7 @@ func (v *Value) Boolean() bool {
 // BooleanOK is the same as Boolean, except it returns a boolean instead of
 // panicking.
 func (v *Value) BooleanOK() (bool, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeBoolean {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Boolean {
 		return false, false
 	}
 	return v.Boolean(), true
@@ -648,7 +649,7 @@ func (v *Value) Time() time.Time {
 // TimeOK is the same as Time, except it returns a boolean instead of
 // panicking.
 func (v *Value) TimeOK() (time.Time, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeDateTime {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.DateTime {
 		return time.Time{}, false
 	}
 	return v.Time(), true
@@ -682,7 +683,7 @@ func (v *Value) Regex() (pattern, options string) {
 // DateTimeOK is the same as DateTime, except it returns a boolean instead of
 // panicking.
 func (v *Value) DateTimeOK() (int64, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeDateTime {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.DateTime {
 		return 0, false
 	}
 	return v.DateTime(), true
@@ -690,7 +691,7 @@ func (v *Value) DateTimeOK() (int64, bool) {
 
 // DBPointer returns the BSON dbpointer value the Value represents. It panics if the value is a BSON
 // type other than DBPointer.
-func (v *Value) DBPointer() (string, objectid.ObjectID) {
+func (v *Value) DBPointer() (string, types.ObjectID) {
 	if v == nil || v.offset == 0 || v.data == nil {
 		panic(ErrUninitializedElement)
 	}
@@ -705,9 +706,9 @@ func (v *Value) DBPointer() (string, objectid.ObjectID) {
 
 // DBPointerOK is the same as DBPoitner, except that it returns a boolean
 // instead of panicking.
-func (v *Value) DBPointerOK() (string, objectid.ObjectID, bool) {
-	var empty objectid.ObjectID
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeDBPointer {
+func (v *Value) DBPointerOK() (string, types.ObjectID, bool) {
+	var empty types.ObjectID
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.DBPointer {
 		return "", empty, false
 	}
 	s, o := v.DBPointer()
@@ -730,7 +731,7 @@ func (v *Value) JavaScript() string {
 // JavaScriptOK is the same as Javascript, excepti that it returns a boolean
 // instead of panicking.
 func (v *Value) JavaScriptOK() (string, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeJavaScript {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.JavaScript {
 		return "", false
 	}
 	return v.JavaScript(), true
@@ -786,7 +787,7 @@ func (v *Value) ReaderJavaScriptWithScope() (string, Reader) {
 // ReaderJavaScriptWithScopeOK is the same as ReaderJavaScriptWithScope,
 // except that it returns a boolean instead of panicking.
 func (v *Value) ReaderJavaScriptWithScopeOK() (string, Reader, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeCodeWithScope {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.CodeWithScope {
 		return "", nil, false
 	}
 	s, r := v.ReaderJavaScriptWithScope()
@@ -823,7 +824,7 @@ func (v *Value) MutableJavaScriptWithScope() (code string, d *Document) {
 // MutableJavaScriptWithScopeOK is the same as MutableJavascriptWithScope,
 // except that it returns a boolean instead of panicking.
 func (v *Value) MutableJavaScriptWithScopeOK() (string, *Document, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeCodeWithScope {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.CodeWithScope {
 		return "", nil, false
 	}
 	s, d := v.MutableJavaScriptWithScope()
@@ -845,7 +846,7 @@ func (v *Value) Int32() int32 {
 // Int32OK is the same as Int32, except that it returns a boolean instead of
 // panicking.
 func (v *Value) Int32OK() (int32, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeInt32 {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Int32 {
 		return 0, false
 	}
 	return v.Int32(), true
@@ -866,7 +867,7 @@ func (v *Value) Timestamp() (uint32, uint32) {
 // TimestampOK is the same as Timestamp, except that it returns a boolean
 // instead of panicking.
 func (v *Value) TimestampOK() (uint32, uint32, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeTimestamp {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Timestamp {
 		return 0, 0, false
 	}
 	t, i := v.Timestamp()
@@ -892,7 +893,7 @@ func (v *Value) getUint64() uint64 {
 // Int64OK is the same as Int64, except that it returns a boolean instead of
 // panicking.
 func (v *Value) Int64OK() (int64, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeInt64 {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Int64 {
 		return 0, false
 	}
 	return v.Int64(), true
@@ -915,7 +916,7 @@ func (v *Value) Decimal128() decimal.Decimal128 {
 // Decimal128OK is the same as Decimal128, except that it returns a boolean
 // instead of panicking.
 func (v *Value) Decimal128OK() (decimal.Decimal128, bool) {
-	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != TypeDecimal128 {
+	if v == nil || v.offset == 0 || v.data == nil || bsontype.Type(v.data[v.start]) != bsontype.Decimal128 {
 		return decimal.NewDecimal128(0, 0), false
 	}
 	return v.Decimal128(), true
@@ -925,17 +926,17 @@ func (v *Value) asString() (string, error) {
 	var str string
 	var err error
 	switch v.Type() {
-	case TypeString:
+	case bsontype.String:
 		str = v.StringValue()
-	case TypeDouble:
+	case bsontype.Double:
 		str = fmt.Sprintf("%f", v.Double())
-	case TypeInt32:
+	case bsontype.Int32:
 		str = fmt.Sprintf("%d", v.Int32())
-	case TypeInt64:
+	case bsontype.Int64:
 		str = fmt.Sprintf("%d", v.Int64())
-	case TypeBoolean:
+	case bsontype.Boolean:
 		str = fmt.Sprintf("%t", v.Boolean())
-	case TypeNull:
+	case bsontype.Null:
 		str = "null"
 	default:
 		err = errors.Errorf("cannot Stringify %s yet", v.Type())
@@ -946,7 +947,7 @@ func (v *Value) asString() (string, error) {
 func (v *Value) setString(str string) {
 	size := 2 + 4 + len(str) + 1
 	b := make([]byte, size)
-	b[0], b[1] = byte(TypeString), 0x00
+	b[0], b[1] = byte(bsontype.String), 0x00
 	copy(b[2:], str)
 	b[size-1] = 0x00
 
@@ -964,7 +965,7 @@ func (v *Value) setDouble(f float64) {
 		v.start = 0
 		v.data = b
 	}
-	v.data[v.start] = byte(TypeDouble)
+	v.data[v.start] = byte(bsontype.Double)
 	bits := math.Float64bits(f)
 	binary.LittleEndian.PutUint64(v.data[v.offset:v.offset+8], bits)
 }
@@ -978,7 +979,7 @@ func (v *Value) setInt32(i int32) {
 		v.start = 0
 		v.data = b
 	}
-	v.data[v.start] = byte(TypeInt32)
+	v.data[v.start] = byte(bsontype.Int32)
 	binary.LittleEndian.PutUint32(v.data[v.offset:v.offset+4], uint32(i))
 }
 
@@ -991,38 +992,38 @@ func (v *Value) setInt64(i int64) {
 		v.start = 0
 		v.data = b
 	}
-	v.data[v.start] = byte(TypeInt64)
+	v.data[v.start] = byte(bsontype.Int64)
 	binary.LittleEndian.PutUint64(v.data[v.offset:v.offset+8], uint64(i))
 }
 
 func (v *Value) addNumber(v2 *Value) {
 	// TODO: decimal128
 	switch v.Type() {
-	case TypeDouble:
+	case bsontype.Double:
 		switch v2.Type() {
-		case TypeDouble:
+		case bsontype.Double:
 			v.setDouble(v.Double() + v2.Double())
-		case TypeInt32:
+		case bsontype.Int32:
 			v.setDouble(v.Double() + float64(v2.Int32()))
-		case TypeInt64:
+		case bsontype.Int64:
 			v.setDouble(v.Double() + float64(v2.Int64()))
 		}
-	case TypeInt32:
+	case bsontype.Int32:
 		switch v2.Type() {
-		case TypeDouble:
+		case bsontype.Double:
 			v.setDouble(float64(v.Int32()) + v2.Double())
-		case TypeInt32:
+		case bsontype.Int32:
 			v.setInt32(v.Int32() + v2.Int32())
-		case TypeInt64:
+		case bsontype.Int64:
 			v.setInt64(int64(v.Int32()) + v2.Int64())
 		}
-	case TypeInt64:
+	case bsontype.Int64:
 		switch v2.Type() {
-		case TypeDouble:
+		case bsontype.Double:
 			v.setDouble(float64(v.Int64()) + v.Double())
-		case TypeInt32:
+		case bsontype.Int32:
 			v.setInt64(v.Int64() + int64(v2.Int32()))
-		case TypeInt64:
+		case bsontype.Int64:
 			v.setInt64(v.Int64() + v2.Int64())
 		}
 	}
@@ -1032,7 +1033,7 @@ func (v *Value) addNumber(v2 *Value) {
 // strings and numbers. If either value is a string, the other type is coerced
 // into a string and added to the other.
 func (v *Value) Add(v2 *Value) error {
-	if v.Type() == TypeString || v2.Type() == TypeString {
+	if v.Type() == bsontype.String || v2.Type() == bsontype.String {
 		str1, err := v.asString()
 		if err != nil {
 			return err

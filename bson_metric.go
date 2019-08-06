@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 ////////////////////////////////////////////////////////////////////////
@@ -41,15 +42,15 @@ func metricForArray(key string, path []string, a *bsonx.Array) []Metric {
 
 func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 	switch val.Type() {
-	case bsonx.TypeObjectID:
+	case bsontype.ObjectID:
 		return []Metric{}
-	case bsonx.TypeString:
+	case bsontype.String:
 		return []Metric{}
-	case bsonx.TypeDecimal128:
+	case bsontype.Decimal128:
 		return []Metric{}
-	case bsonx.TypeArray:
+	case bsontype.Array:
 		return metricForArray(key, path, val.MutableArray())
-	case bsonx.TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		path = append(path, key)
 
 		o := []Metric{}
@@ -62,7 +63,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 			})
 		}
 		return o
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		if val.Boolean() {
 			return []Metric{
 				{
@@ -81,7 +82,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 				originalType:  val.Type(),
 			},
 		}
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		return []Metric{
 			{
 				ParentPath:    path,
@@ -90,7 +91,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 				originalType:  val.Type(),
 			},
 		}
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		return []Metric{
 			{
 				ParentPath:    path,
@@ -99,7 +100,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 				originalType:  val.Type(),
 			},
 		}
-	case bsonx.TypeInt64:
+	case bsontype.Int64:
 		return []Metric{
 			{
 				ParentPath:    path,
@@ -108,7 +109,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 				originalType:  val.Type(),
 			},
 		}
-	case bsonx.TypeDateTime:
+	case bsontype.DateTime:
 		return []Metric{
 			{
 				ParentPath:    path,
@@ -117,7 +118,7 @@ func metricForType(key string, path []string, val *bsonx.Value) []Metric {
 				originalType:  val.Type(),
 			},
 		}
-	case bsonx.TypeTimestamp:
+	case bsontype.Timestamp:
 		t, i := val.Timestamp()
 		return []Metric{
 			{

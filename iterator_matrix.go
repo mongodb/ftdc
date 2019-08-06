@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,7 +21,7 @@ func (c *Chunk) exportMatrix() map[string]interface{} {
 }
 
 func (c *Chunk) export() (*bsonx.Document, error) {
-	doc := bsonx.MakeDocument(len(c.Metrics))
+	doc := bsonx.DC.Make(len(c.Metrics))
 	sample := 0
 
 	var elem *bsonx.Element
@@ -43,31 +44,31 @@ func (c *Chunk) export() (*bsonx.Document, error) {
 
 func (m *Metric) getSeries() interface{} {
 	switch m.originalType {
-	case bsonx.TypeInt64, bsonx.TypeTimestamp:
+	case bsontype.Int64, bsontype.Timestamp:
 		out := make([]int64, len(m.Values))
 		for idx, p := range m.Values {
 			out[idx] = p
 		}
 		return out
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		out := make([]int32, len(m.Values))
 		for idx, p := range m.Values {
 			out[idx] = int32(p)
 		}
 		return out
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		out := make([]bool, len(m.Values))
 		for idx, p := range m.Values {
 			out[idx] = p != 0
 		}
 		return out
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		out := make([]float64, len(m.Values))
 		for idx, p := range m.Values {
 			out[idx] = restoreFloat(p)
 		}
 		return out
-	case bsonx.TypeDateTime:
+	case bsontype.DateTime:
 		out := make([]time.Time, len(m.Values))
 		for idx, p := range m.Values {
 			out[idx] = timeEpocMs(p)

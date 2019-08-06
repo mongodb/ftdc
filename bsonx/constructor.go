@@ -13,7 +13,7 @@ import (
 
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/elements"
-	"github.com/mongodb/ftdc/bsonx/objectid"
+	"github.com/mongodb/ftdc/bsonx/types"
 	"github.com/pkg/errors"
 )
 
@@ -37,7 +37,11 @@ type ValueConstructor struct{}
 // key. This method will never return a nil *Element. If an error turning the
 // value into an Element is desired, use the InterfaceErr method.
 func (ElementConstructor) Interface(key string, value interface{}) *Element {
-	var elem *Element
+	var (
+		elem *Element
+		err  error
+	)
+
 	switch t := value.(type) {
 	case bool:
 		elem = EC.Boolean(key, t)
@@ -47,18 +51,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.Int32(key, int32(t))
 	case int32:
 		elem = EC.Int32(key, int32(t))
-	case int:
-		if t < math.MaxInt32 {
-			elem = EC.Int32(key, int32(t))
-		} else {
-			elem = EC.Int64(key, int64(t))
-		}
 	case int64:
-		if t < math.MaxInt32 {
-			elem = EC.Int32(key, int32(t))
-		} else {
-			elem = EC.Int64(key, int64(t))
-		}
+		elem = EC.Int64(key, int64(t))
+	case int:
+		elem = EC.Int(key, t)
 	case uint8:
 		elem = EC.Int32(key, int32(t))
 	case uint16:
@@ -88,95 +84,107 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		default:
 			elem = EC.Int64(key, int64(t))
 		}
-	case map[string]string:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.String(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]interface{}:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Interface(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int64:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int64(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int32:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int32(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]int:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			if v < math.MaxInt32 {
-				elems = append(elems, EC.Int32(k, int32(v)))
-			} else {
-				elems = append(elems, EC.Int64(k, int64(v)))
-			}
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]time.Time:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Time(k, v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[string]time.Duration:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Int64(k, int64(v)))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
-	case map[interface{}]interface{}:
-		elems := make([]*Element, 0, len(t))
-		for k, v := range t {
-			elems = append(elems, EC.Interface(bestStringAttempt(k), v))
-		}
-
-		elem = EC.SubDocumentFromElements(key, elems...)
 	case float32:
 		elem = EC.Double(key, float64(t))
 	case float64:
 		elem = EC.Double(key, t)
 	case string:
 		elem = EC.String(key, t)
+	case time.Time:
+		elem = EC.Time(key, t)
+	case types.Timestamp:
+		elem = EC.Timestamp(key, t.T, t.I)
+	case map[string]string:
+		elem = EC.SubDocument(key, DC.MapString(t))
+	case map[string]interface{}:
+		elem = EC.SubDocument(key, DC.MapInterface(t))
+	case map[string]int64:
+		elem = EC.SubDocument(key, DC.MapInt64(t))
+	case map[string]int32:
+		elem = EC.SubDocument(key, DC.MapInt32(t))
+	case map[string]int:
+		elem = EC.SubDocument(key, DC.MapInt(t))
+	case map[string]float64:
+		elem = EC.SubDocument(key, DC.MapFloat64(t))
+	case map[string]float32:
+		elem = EC.SubDocument(key, DC.MapFloat32(t))
+	case map[string]time.Time:
+		elem = EC.SubDocument(key, DC.MapTime(t))
+	case map[string]time.Duration:
+		elem = EC.SubDocument(key, DC.MapDuration(t))
+	case map[string]Marshaler:
+		var doc *Document
+		doc, err = DC.MapMarshalerErr(t)
+		if err == nil {
+			elem = EC.SubDocument(key, doc)
+		}
+	case map[string][]string:
+		elem = EC.SubDocument(key, DC.MapSliceString(t))
+	case map[string][]interface{}:
+		elem = EC.SubDocument(key, DC.MapSliceInterface(t))
+	case map[string][]int64:
+		elem = EC.SubDocument(key, DC.MapSliceInt64(t))
+	case map[string][]int32:
+		elem = EC.SubDocument(key, DC.MapSliceInt32(t))
+	case map[string][]float64:
+		elem = EC.SubDocument(key, DC.MapSliceFloat64(t))
+	case map[string][]float32:
+		elem = EC.SubDocument(key, DC.MapSliceFloat32(t))
+	case map[string][]int:
+		elem = EC.SubDocument(key, DC.MapSliceInt(t))
+	case map[string][]time.Time:
+		elem = EC.SubDocument(key, DC.MapSliceTime(t))
+	case map[string][]time.Duration:
+		elem = EC.SubDocument(key, DC.MapSliceDuration(t))
+	case map[string][]Marshaler:
+		var doc *Document
+		doc, err = DC.MapSliceMarshalerErr(t)
+		if err == nil {
+			elem = EC.SubDocument(key, doc)
+		}
+	case map[interface{}]interface{}:
+		elem = EC.SubDocument(key, DC.Interface(t))
+	case []interface{}:
+		elem = EC.SliceInterface(key, t)
+	case []string:
+		elem = EC.SliceString(key, t)
+	case []int64:
+		elem = EC.SliceInt64(key, t)
+	case []int32:
+		elem = EC.SliceInt32(key, t)
+	case []float64:
+		elem = EC.SliceFloat64(key, t)
+	case []float32:
+		elem = EC.SliceFloat32(key, t)
+	case []int:
+		elem = EC.SliceInt(key, t)
+	case []time.Time:
+		elem = EC.SliceTime(key, t)
+	case []time.Duration:
+		elem = EC.SliceDuration(key, t)
+	case []Marshaler:
+		elem, err = EC.SliceMarshalerErr(key, t)
 	case *Element:
 		elem = t
 	case *Document:
-		elem = EC.SubDocument(key, t)
+		if t != nil {
+			elem = EC.SubDocument(key, t)
+		}
 	case Reader:
-		elem = EC.SubDocumentFromReader(key, t)
+		var doc *Document
+		doc, err = DC.ReaderErr(t)
+		if err == nil {
+			elem = EC.SubDocument(key, doc)
+		}
 	case *Value:
-		elem = convertValueToElem(key, t)
-		if elem == nil {
-			elem = EC.Null(key)
-		}
-	case time.Time:
-		elem = EC.Time(key, t)
-	case Timestamp:
-		elem = EC.Timestamp(key, t.T, t.I)
+		elem, err = EC.FromValueErr(key, t)
 	case Marshaler:
-		doc, err := t.MarshalBSON()
-		if err != nil {
-			elem = EC.Null(key)
-		} else {
-			elem = EC.SubDocumentFromReader(key, doc)
-		}
+		elem, err = EC.MarshalerErr(key, t)
 	default:
+		elem = EC.Null(key)
+	}
+
+	if err != nil || elem == nil {
 		elem = EC.Null(key)
 	}
 
@@ -185,59 +193,59 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 
 // InterfaceErr does what Interface does, but returns an error when it cannot
 // properly convert a value into an *Element. See Interface for details.
-func (c ElementConstructor) InterfaceErr(key string, value interface{}) (*Element, error) {
-	var elem *Element
-	var err error
+func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element, error) {
 	switch t := value.(type) {
-	case bool, int8, int16, int32, int, int64, uint8, uint16,
-		uint32, float32, float64, string,
-		*Element, *Document, Reader, Timestamp,
-		time.Time:
-
-		elem = c.Interface(key, value)
-	case map[string]string, map[string]interface{}, map[interface{}]interface{},
-		map[string]int32, map[string]int64, map[string]int,
-		map[string]time.Time, map[string]time.Duration:
-
-		elem = c.Interface(key, value)
 	case uint:
 		switch {
 		case t < math.MaxInt32:
-			elem = EC.Int32(key, int32(t))
+			return EC.Int32(key, int32(t)), nil
 		case uint64(t) > math.MaxInt64:
-			err = errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
+			return nil, errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
 		default:
-			elem = EC.Int64(key, int64(t))
+			return EC.Int64(key, int64(t)), nil
 		}
 	case uint64:
 		switch {
 		case t < math.MaxInt32:
-			elem = EC.Int32(key, int32(t))
+			return EC.Int32(key, int32(t)), nil
 		case uint64(t) > math.MaxInt64:
-			err = errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
+			return nil, errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
 		default:
-			elem = EC.Int64(key, int64(t))
+			return EC.Int64(key, int64(t)), nil
 		}
+	case bool, int8, int16, int32, int, int64, uint8, uint16, uint32, string, float32, float64,
+		*Element, *Document, Reader, types.Timestamp,
+		time.Time:
+
+		return EC.Interface(key, t), nil
+
+	case map[string]string, map[string]float32, map[string]float64,
+		map[string]int32, map[string]int64, map[string]int,
+		map[string]time.Time, map[string]time.Duration:
+
+		return EC.Interface(key, t), nil
+
+	case map[string]interface{}, map[interface{}]interface{}, map[string]Marshaler:
+
+		return EC.InterfaceErr(key, t)
+
+	case map[string][]string, map[string][]int32, map[string][]int64, map[string][]int,
+		map[string][]time.Time, map[string][]time.Duration, map[string][]float32, map[string][]float64:
+
+		return EC.Interface(key, value), nil
+	case []string, []int32, []int64, []int, []time.Time, []time.Duration, []float64, []float32:
+		return EC.Interface(key, value), nil
+	case map[string][]interface{}, map[string][]Marshaler:
+		return EC.InterfaceErr(key, value)
+	case []interface{}, []Marshaler:
+		return EC.InterfaceErr(key, value)
 	case *Value:
-		elem = convertValueToElem(key, t)
-		if elem == nil {
-			err = errors.New("invalid *Value provided, cannot convert to *Element")
-		}
+		return EC.FromValueErr(key, t)
 	case Marshaler:
-		var payload []byte
-		payload, err = t.MarshalBSON()
-		if err == nil {
-			elem = EC.SubDocumentFromReader(key, payload)
-		}
+		return EC.MarshalerErr(key, t)
 	default:
-		err = errors.Errorf("Cannot create element for type %T, try using bsoncodec.ConstructElementErr", value)
+		return nil, errors.Errorf("Cannot create element for type %T, try using bsoncodec.ConstructElementErr", value)
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return elem, nil
 }
 
 // Double creates a double element with the given key and value.
@@ -248,6 +256,7 @@ func (ElementConstructor) Double(key string, f float64) *Element {
 	if err != nil {
 		panic(err)
 	}
+
 	elem.value.data = b
 	return elem
 }
@@ -305,8 +314,8 @@ func (ElementConstructor) SubDocumentFromReader(key string, r Reader) *Element {
 
 // SubDocumentFromElements creates a subdocument element with the given key. The elements passed as
 // arguments will be used to create a new document as the value.
-func (c ElementConstructor) SubDocumentFromElements(key string, elems ...*Element) *Element {
-	return c.SubDocument(key, NewDocument(elems...))
+func (ElementConstructor) SubDocumentFromElements(key string, elems ...*Element) *Element {
+	return EC.SubDocument(key, NewDocument(elems...))
 }
 
 // Array creates an array element with the given key and value.
@@ -329,13 +338,13 @@ func (ElementConstructor) Array(key string, a *Array) *Element {
 
 // ArrayFromElements creates an element with the given key. The elements passed as
 // arguments will be used to create a new array as the value.
-func (c ElementConstructor) ArrayFromElements(key string, values ...*Value) *Element {
-	return c.Array(key, NewArray(values...))
+func (ElementConstructor) ArrayFromElements(key string, values ...*Value) *Element {
+	return EC.Array(key, NewArray(values...))
 }
 
 // Binary creates a binary element with the given key and value.
-func (c ElementConstructor) Binary(key string, b []byte) *Element {
-	return c.BinaryWithSubtype(key, b, 0)
+func (ElementConstructor) Binary(key string, b []byte) *Element {
+	return EC.BinaryWithSubtype(key, b, 0)
 }
 
 // BinaryWithSubtype creates a binary element with the given key. It will create a new BSON binary value
@@ -375,7 +384,7 @@ func (ElementConstructor) Undefined(key string) *Element {
 }
 
 // ObjectID creates a objectid element with the given key and value.
-func (ElementConstructor) ObjectID(key string, oid objectid.ObjectID) *Element {
+func (ElementConstructor) ObjectID(key string, oid types.ObjectID) *Element {
 	size := uint32(1 + len(key) + 1 + 12)
 	elem := newElement(0, 1+uint32(len(key))+1)
 	elem.value.data = make([]byte, size)
@@ -418,9 +427,9 @@ func (ElementConstructor) DateTime(key string, dt int64) *Element {
 }
 
 // Time creates a datetime element with the given key and value.
-func (c ElementConstructor) Time(key string, t time.Time) *Element {
+func (ElementConstructor) Time(key string, t time.Time) *Element {
 	// Apply nanoseconds to milliseconds conversion
-	return c.DateTime(key, t.Unix()*1000+int64(t.Nanosecond()/1e6))
+	return EC.DateTime(key, t.Unix()*1000+int64(t.Nanosecond()/1e6))
 }
 
 // Null creates a null element with the given key.
@@ -455,7 +464,7 @@ func (ElementConstructor) Regex(key string, pattern, options string) *Element {
 }
 
 // DBPointer creates a dbpointer element with the given key and value.
-func (ElementConstructor) DBPointer(key string, ns string, oid objectid.ObjectID) *Element {
+func (ElementConstructor) DBPointer(key string, ns string, oid types.ObjectID) *Element {
 	size := uint32(1 + len(key) + 1 + 4 + len(ns) + 1 + 12)
 	elem := newElement(0, uint32(1+len(key)+1))
 	elem.value.data = make([]byte, size)
@@ -635,6 +644,15 @@ func (ElementConstructor) FromValue(key string, value *Value) *Element {
 	return convertValueToElem(key, value)
 }
 
+func (ElementConstructor) FromValueErr(key string, value *Value) (*Element, error) {
+	elem := EC.FromValue(key, value)
+	if elem == nil {
+		return nil, errors.Errorf("could not convert '%s' value to an element", key)
+	}
+
+	return elem, nil
+}
+
 // FromBytesErr constructs an element from the bytes provided, but unlike
 // FromBytes this method will return an error and not panic if the bytes are not
 // a valid element.
@@ -656,18 +674,6 @@ func (ElementConstructor) FromBytesErr(src []byte) (*Element, error) {
 		return nil, err
 	}
 	return elem, nil
-}
-
-func (ValueConstructor) Interface(in interface{}) *Value {
-	return EC.Interface("", in).value
-}
-
-func (ValueConstructor) InterfaceErr(in interface{}) (*Value, error) {
-	elem, err := EC.InterfaceErr("", in)
-	if err != nil {
-		return nil, err
-	}
-	return elem.value, nil
 }
 
 // Double creates a double element with the given value.
@@ -706,8 +712,8 @@ func (ValueConstructor) ArrayFromValues(values ...*Value) *Value {
 }
 
 // Binary creates a binary value from the argument.
-func (ac ValueConstructor) Binary(b []byte) *Value {
-	return ac.BinaryWithSubtype(b, 0)
+func (ValueConstructor) Binary(b []byte) *Value {
+	return VC.BinaryWithSubtype(b, 0)
 }
 
 // BinaryWithSubtype creates a new binary element with the given data and subtype.
@@ -721,7 +727,7 @@ func (ValueConstructor) Undefined() *Value {
 }
 
 // ObjectID creates a objectid value from the argument.
-func (ValueConstructor) ObjectID(oid objectid.ObjectID) *Value {
+func (ValueConstructor) ObjectID(oid types.ObjectID) *Value {
 	return EC.ObjectID("", oid).value
 }
 
@@ -751,7 +757,7 @@ func (ValueConstructor) Regex(pattern, options string) *Value {
 }
 
 // DBPointer creates a dbpointer value from the arguments.
-func (ValueConstructor) DBPointer(ns string, oid objectid.ObjectID) *Value {
+func (ValueConstructor) DBPointer(ns string, oid types.ObjectID) *Value {
 	return EC.DBPointer("", ns, oid).value
 }
 

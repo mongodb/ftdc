@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/mongodb/ftdc/bsonx"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 func metricKeyMD5(doc *bsonx.Document) (string, int) {
@@ -55,26 +56,26 @@ func metricKeyHashArray(checksum hash.Hash, key string, array *bsonx.Array) int 
 
 func metricKeyHashValue(checksum hash.Hash, key string, value *bsonx.Value) int {
 	switch value.Type() {
-	case bsonx.TypeArray:
+	case bsontype.Array:
 		return metricKeyHashArray(checksum, key, value.MutableArray())
-	case bsonx.TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		return metricKeyHashDocument(checksum, key, value.MutableDocument())
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		checksum.Write([]byte(key))
 		return 1
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		checksum.Write([]byte(key))
 		return 1
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		checksum.Write([]byte(key))
 		return 1
-	case bsonx.TypeInt64:
+	case bsontype.Int64:
 		checksum.Write([]byte(key))
 		return 1
-	case bsonx.TypeDateTime:
+	case bsontype.DateTime:
 		checksum.Write([]byte(key))
 		return 1
-	case bsonx.TypeTimestamp:
+	case bsontype.Timestamp:
 		checksum.Write([]byte(key))
 		return 2
 	default:
@@ -128,27 +129,27 @@ func isMetricsArray(key string, array *bsonx.Array) ([]string, int) {
 
 func isMetricsValue(key string, val *bsonx.Value) ([]string, int) {
 	switch val.Type() {
-	case bsonx.TypeObjectID:
+	case bsontype.ObjectID:
 		return nil, 0
-	case bsonx.TypeString:
+	case bsontype.String:
 		return nil, 0
-	case bsonx.TypeDecimal128:
+	case bsontype.Decimal128:
 		return nil, 0
-	case bsonx.TypeArray:
+	case bsontype.Array:
 		return isMetricsArray(key, val.MutableArray())
-	case bsonx.TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		return isMetricsDocument(key, val.MutableDocument())
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		return []string{key}, 1
-	case bsonx.TypeDouble:
+	case bsontype.Double:
 		return []string{key}, 1
-	case bsonx.TypeInt32:
+	case bsontype.Int32:
 		return []string{key}, 1
-	case bsonx.TypeInt64:
+	case bsontype.Int64:
 		return []string{key}, 1
-	case bsonx.TypeDateTime:
+	case bsontype.DateTime:
 		return []string{key}, 1
-	case bsonx.TypeTimestamp:
+	case bsontype.Timestamp:
 		return []string{key}, 2
 	default:
 		return nil, 0

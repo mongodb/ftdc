@@ -83,35 +83,35 @@ func extractMetricsFromValue(val *bsonx.Value) (extractedMetrics, error) {
 
 	btype := val.Type()
 	switch btype {
-	case bsonx.TypeArray:
+	case bsontype.Array:
 		metrics, err = extractMetricsFromArray(val.MutableArray())
 		err = errors.WithStack(err)
-	case bsonx.TypeEmbeddedDocument:
+	case bsontype.EmbeddedDocument:
 		metrics, err = extractMetricsFromDocument(val.MutableDocument())
 		err = errors.WithStack(err)
-	case bsonx.TypeBoolean:
+	case bsontype.Boolean:
 		if val.Boolean() {
 			metrics.values = append(metrics.values, bsonx.VC.Int64(1))
 		} else {
 			metrics.values = append(metrics.values, bsonx.VC.Int64(0))
 		}
-		metrics.types = append(metrics.types, bsonx.TypeBoolean)
-	case bsonx.TypeDouble:
+		metrics.types = append(metrics.types, bsontype.Boolean)
+	case bsontype.Double:
 		metrics.values = append(metrics.values, val)
-		metrics.types = append(metrics.types, bsonx.TypeDouble)
-	case bsonx.TypeInt32:
+		metrics.types = append(metrics.types, bsontype.Double)
+	case bsontype.Int32:
 		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(val.Int32())))
-		metrics.types = append(metrics.types, bsonx.TypeInt32)
-	case bsonx.TypeInt64:
+		metrics.types = append(metrics.types, bsontype.Int32)
+	case bsontype.Int64:
 		metrics.values = append(metrics.values, val)
-		metrics.types = append(metrics.types, bsonx.TypeInt64)
-	case bsonx.TypeDateTime:
+		metrics.types = append(metrics.types, bsontype.Int64)
+	case bsontype.DateTime:
 		metrics.values = append(metrics.values, bsonx.VC.Int64(epochMs(val.Time())))
-		metrics.types = append(metrics.types, bsonx.TypeDateTime)
-	case bsonx.TypeTimestamp:
+		metrics.types = append(metrics.types, bsontype.DateTime)
+	case bsontype.Timestamp:
 		t, i := val.Timestamp()
 		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(t)), bsonx.VC.Int64(int64(i)))
-		metrics.types = append(metrics.types, bsonx.TypeTimestamp, bsonx.TypeTimestamp)
+		metrics.types = append(metrics.types, bsontype.Timestamp, bsontype.Timestamp)
 	}
 
 	return metrics, err
