@@ -217,24 +217,28 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 		*Element, *Document, Reader, types.Timestamp,
 		time.Time:
 
-		return EC.Interface(key, value), nil
+		return EC.Interface(key, t), nil
 
-	case map[string]string, map[string]interface{}, map[interface{}]interface{},
+	case map[string]string, map[string]float32, map[string]float64,
 		map[string]int32, map[string]int64, map[string]int,
-		map[string]time.Time, map[string]time.Duration, map[string]Marshaler:
+		map[string]time.Time, map[string]time.Duration:
 
+		return EC.Interface(key, t), nil
+
+	case map[string]interface{}, map[interface{}]interface{}, map[string]Marshaler:
+
+		return EC.InterfaceErr(key, t)
+
+	case map[string][]string, map[string][]int32, map[string][]int64, map[string][]int,
+		map[string][]time.Time, map[string][]time.Duration, map[string][]float32, map[string][]float64:
+
+		return EC.Interface(key, value), nil
+	case []string, []int32, []int64, []int, []time.Time, []time.Duration, []float64, []float32:
+		return EC.Interface(key, value), nil
+	case map[string][]interface{}, map[string][]Marshaler:
 		return EC.InterfaceErr(key, value)
-
-	case map[string][]string, map[string][]interface{},
-		map[string][]int32, map[string][]int64, map[string][]int,
-		map[string][]time.Time, map[string][]time.Duration, map[string][]Marshaler:
-
+	case []interface{}, []Marshaler:
 		return EC.InterfaceErr(key, value)
-
-	case []string, []interface{}, []int32, []int64, []int, []time.Time, []time.Duration, []Marshaler:
-
-		return EC.InterfaceErr(key, value)
-
 	case *Value:
 		return EC.FromValueErr(key, t)
 	case Marshaler:
