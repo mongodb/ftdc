@@ -85,9 +85,9 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 			elem = EC.Int64(key, int64(t))
 		}
 	case float32:
-		elem, err = EC.DoubleErr(key, float64(t))
+		elem = EC.Double(key, float64(t))
 	case float64:
-		elem, err = EC.DoubleErr(key, t)
+		elem = EC.Double(key, t)
 	case string:
 		elem = EC.String(key, t)
 	case time.Time:
@@ -104,6 +104,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SubDocument(key, DC.MapInt32(t))
 	case map[string]int:
 		elem = EC.SubDocument(key, DC.MapInt(t))
+	case map[string]float64:
+		elem = EC.SubDocument(key, DC.MapFloat64(t))
+	case map[string]float32:
+		elem = EC.SubDocument(key, DC.MapFloat32(t))
 	case map[string]time.Time:
 		elem = EC.SubDocument(key, DC.MapTime(t))
 	case map[string]time.Duration:
@@ -122,6 +126,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SubDocument(key, DC.MapSliceInt64(t))
 	case map[string][]int32:
 		elem = EC.SubDocument(key, DC.MapSliceInt32(t))
+	case map[string][]float64:
+		elem = EC.SubDocument(key, DC.MapSliceFloat64(t))
+	case map[string][]float32:
+		elem = EC.SubDocument(key, DC.MapSliceFloat32(t))
 	case map[string][]int:
 		elem = EC.SubDocument(key, DC.MapSliceInt(t))
 	case map[string][]time.Time:
@@ -144,6 +152,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SliceInt64(key, t)
 	case []int32:
 		elem = EC.SliceInt32(key, t)
+	case []float64:
+		elem = EC.SliceFloat64(key, t)
+	case []float32:
+		elem = EC.SliceFloat32(key, t)
 	case []int:
 		elem = EC.SliceInt(key, t)
 	case []time.Time:
@@ -183,10 +195,6 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 // properly convert a value into an *Element. See Interface for details.
 func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element, error) {
 	switch t := value.(type) {
-	case float32:
-		return EC.DoubleErr(key, float64(t))
-	case float64:
-		return EC.DoubleErr(key, t)
 	case uint:
 		switch {
 		case t < math.MaxInt32:
@@ -205,7 +213,7 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 		default:
 			return EC.Int64(key, int64(t)), nil
 		}
-	case bool, int8, int16, int32, int, int64, uint8, uint16, uint32, string,
+	case bool, int8, int16, int32, int, int64, uint8, uint16, uint32, string, float32, float64,
 		*Element, *Document, Reader, types.Timestamp,
 		time.Time:
 
@@ -236,25 +244,16 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 	}
 }
 
-func (ElementConstructor) DoubleErr(key string, f float64) (*Element, error) {
+// Double creates a double element with the given key and value.
+func (ElementConstructor) Double(key string, f float64) *Element {
 	b := make([]byte, 1+len(key)+1+8)
 	elem := newElement(0, 1+uint32(len(key))+1)
 	_, err := elements.Double.Element(0, b, key, f)
 	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	elem.value.data = b
-	return elem, nil
-}
-
-// Double creates a double element with the given key and value.
-func (ElementConstructor) Double(key string, f float64) *Element {
-	elem, err := EC.DoubleErr(key, f)
-	if err != nil {
 		panic(err)
 	}
 
+	elem.value.data = b
 	return elem
 }
 

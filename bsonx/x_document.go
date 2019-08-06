@@ -2,8 +2,6 @@ package bsonx
 
 import (
 	"sort"
-
-	"github.com/mongodb/ftdc/bsonx"
 )
 
 // ExportMap converts the values of the document to a map of strings
@@ -30,7 +28,7 @@ func (d *Document) Elements() Elements {
 	return d.elems
 }
 
-func (d *Document) Sorted() *bsonx.Document {
+func (d *Document) Sorted() *Document {
 	elems := d.Elements()
 	sort.Stable(elems)
 	return DC.Elements(elems...)
