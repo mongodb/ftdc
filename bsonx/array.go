@@ -83,7 +83,11 @@ func (a *Array) Validate() (uint32, error) {
 // a LookupOK that returns a bool. Although if we want to align with the
 // semantics of how Go arrays and slices work, we would not provide a LookupOK
 // and force users to use the Len method before hand to avoid panics.
-func (a *Array) Lookup(index uint) (*Value, error) {
+func (a *Array) Lookup(index uint) *Value {
+	return a.doc.ElementAt(index).value
+}
+
+func (a *Array) LookupErr(index uint) (*Value, error) {
 	v, ok := a.doc.ElementAtOK(index)
 	if !ok {
 		return nil, ErrOutOfBounds
@@ -92,8 +96,21 @@ func (a *Array) Lookup(index uint) (*Value, error) {
 	return v.value, nil
 }
 
+func (a *Array) LookupElementErr(index uint) (*Element, error) {
+	v, ok := a.doc.ElementAtOK(index)
+	if !ok {
+		return nil, ErrOutOfBounds
+	}
+
+	return v, nil
+}
+
+func (a *Array) LookupElement(index uint) *Element {
+	return a.doc.ElementAt(index)
+}
+
 func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
-	value, err := a.Lookup(index)
+	value, err := a.LookupErr(index)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +380,7 @@ func (a *Array) MarshalBSON() ([]byte, error) {
 
 // Iterator returns a ArrayIterator that can be used to iterate through the
 // elements of this Array.
-func (a *Array) Iterator() *ArrayIterator {
+func (a *Array) Iterator() Iterator {
 	return newArrayIterator(a)
 }
 

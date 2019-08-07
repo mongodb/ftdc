@@ -178,7 +178,7 @@ func TestArray(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				got, err := tc.a.Lookup(tc.key)
+				got, err := tc.a.LookupErr(tc.key)
 				if err != tc.err {
 					t.Errorf("Returned error does not match. got %#v; want %#v", err, tc.err)
 				}
