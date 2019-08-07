@@ -104,7 +104,7 @@ func TestValue(t *testing.T) {
 					NewDocument(EC.Boolean("foo", true)),
 				)).MarshalBSON()
 			noerr(t, err)
-			elem, err := Reader(b).Lookup("cws")
+			elem, err := Reader(b).RecursiveLookup("cws")
 			noerr(t, err)
 			return elem.Value()
 		}

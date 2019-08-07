@@ -93,7 +93,7 @@ func (r Reader) validateKey(pos, end uint32) (uint32, error) {
 	return total, nil
 }
 
-// Lookup search the document, potentially recursively, for the given key. If
+// RecursiveLookup search the document, potentially recursively, for the given key. If
 // there are multiple keys provided, this method will recurse down, as long as
 // the top and intermediate nodes are either documents or arrays. If any key
 // except for the last is not a document or an array, an error will be returned.
@@ -102,7 +102,7 @@ func (r Reader) validateKey(pos, end uint32) (uint32, error) {
 //
 // TODO(skriptble): Determine if this should return an error on empty key and
 // key not found.
-func (r Reader) Lookup(key ...string) (*Element, error) {
+func (r Reader) RecursiveLookup(key ...string) (*Element, error) {
 	if len(key) < 1 {
 		return nil, bsonerr.EmptyKey
 	}
@@ -113,14 +113,14 @@ func (r Reader) Lookup(key ...string) (*Element, error) {
 			if len(key) > 1 {
 				switch e.value.Type() {
 				case '\x03':
-					e, err := e.value.ReaderDocument().Lookup(key[1:]...)
+					e, err := e.value.ReaderDocument().RecursiveLookup(key[1:]...)
 					if err != nil {
 						return err
 					}
 					elem = e
 					return errValidateDone
 				case '\x04':
-					e, err := e.value.ReaderArray().Lookup(key[1:]...)
+					e, err := e.value.ReaderArray().RecursiveLookup(key[1:]...)
 					if err != nil {
 						return err
 					}

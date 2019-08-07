@@ -451,6 +451,27 @@ func (v *Value) ReaderDocument() Reader {
 	return r
 }
 
+func (v *Value) Reader() Reader {
+	if v == nil || v.offset == 0 || v.data == nil {
+		panic(bsonerr.UninitializedElement)
+	}
+
+	var r Reader
+	if v.d == nil {
+		l := readi32(v.data[v.offset : v.offset+4])
+		r = Reader(v.data[v.offset : v.offset+uint32(l)])
+	} else {
+		scope, err := v.d.MarshalBSON()
+		if err != nil {
+			panic(err)
+		}
+
+		r = Reader(scope)
+	}
+
+	return r
+}
+
 // ReaderDocumentOK is the same as ReaderDocument, except it returns a boolean
 // instead of panicking.
 func (v *Value) ReaderDocumentOK() (Reader, bool) {

@@ -14,6 +14,7 @@ import (
 	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/elements"
+	"github.com/pkg/errors"
 )
 
 const validateMaxDepthDefault = 2048
@@ -104,15 +105,31 @@ func (e *Element) validateKey() (uint32, error) {
 // Key returns the key for this element.
 // It panics if e is uninitialized.
 func (e *Element) Key() string {
-	if e == nil || e.value == nil || e.value.offset == 0 || e.value.data == nil {
+	key, ok := e.KeyOK()
+	if !ok {
 		panic(bsonerr.UninitializedElement)
 	}
-	return string(e.value.data[e.value.start+1 : e.value.offset-1])
+	return key
+}
+
+func (e *Element) KeyOK() (string, bool) {
+	if e == nil || e.value == nil || e.value.offset == 0 || e.value.data == nil {
+		return "", false
+	}
+
+	return string(e.value.data[e.value.start+1 : e.value.offset-1]), true
 }
 
 // WriteTo implements the io.WriterTo interface.
 func (e *Element) WriteTo(w io.Writer) (int64, error) {
-	return 0, nil
+	val, err := e.MarshalBSON()
+	if err != nil {
+		return 0, errors.WithStack(err)
+	}
+
+	n, err := w.Write(val)
+
+	return int64(n), errors.WithStack(err)
 }
 
 // WriteElement serializes this element to the provided writer starting at the
@@ -136,6 +153,8 @@ func (e *Element) writeElement(key bool, start uint, writer interface{}) (int64,
 			return 0, newErrTooSmall()
 		}
 		total += int64(n)
+	case io.Writer:
+		return e.WriteTo(w)
 	default:
 		return 0, bsonerr.InvalidWriter
 	}
