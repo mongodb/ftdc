@@ -12,11 +12,10 @@ import (
 	"io"
 	"strings"
 
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/pkg/errors"
 )
 
-// ErrNilReader indicates that an operation was attempted on a nil bson.Reader.
-var ErrNilReader = errors.New("nil reader")
 var errValidateDone = errors.New("validation loop complete")
 
 // Reader is a wrapper around a byte slice. It will interpret the slice as a
@@ -30,7 +29,7 @@ type Reader []byte
 // it.
 func NewFromIOReader(r io.Reader) (Reader, error) {
 	if r == nil {
-		return nil, ErrNilReader
+		return nil, bsonerr.NilReader
 	}
 
 	var lengthBytes [4]byte
@@ -46,7 +45,7 @@ func NewFromIOReader(r io.Reader) (Reader, error) {
 
 	length := readi32(lengthBytes[:])
 	if length < 0 {
-		return nil, ErrInvalidLength
+		return nil, bsonerr.InvalidLength
 	}
 	reader := make([]byte, length)
 
@@ -58,7 +57,7 @@ func NewFromIOReader(r io.Reader) (Reader, error) {
 	}
 
 	if int32(count) != length-4 {
-		return nil, ErrInvalidLength
+		return nil, bsonerr.InvalidLength
 	}
 
 	return reader, nil
@@ -88,7 +87,7 @@ func (r Reader) validateKey(pos, end uint32) (uint32, error) {
 		total++
 	}
 	if pos == end || r[pos] != '\x00' {
-		return total, ErrInvalidKey
+		return total, bsonerr.InvalidKey
 	}
 	total++
 	return total, nil
@@ -105,7 +104,7 @@ func (r Reader) validateKey(pos, end uint32) (uint32, error) {
 // key not found.
 func (r Reader) Lookup(key ...string) (*Element, error) {
 	if len(key) < 1 {
-		return nil, ErrEmptyKey
+		return nil, bsonerr.EmptyKey
 	}
 
 	var elem *Element
@@ -128,7 +127,7 @@ func (r Reader) Lookup(key ...string) (*Element, error) {
 					elem = e
 					return errValidateDone
 				default:
-					return ErrInvalidDepthTraversal
+					return bsonerr.InvalidDepthTraversal
 				}
 			}
 			elem = e
@@ -138,7 +137,7 @@ func (r Reader) Lookup(key ...string) (*Element, error) {
 	})
 
 	if elem == nil && err == nil {
-		return nil, ErrElementNotFound
+		return nil, bsonerr.ElementNotFound
 	}
 
 	return elem, err
@@ -162,7 +161,7 @@ func (r Reader) ElementAt(index uint) (*Element, error) {
 		return nil, err
 	}
 	if elem == nil {
-		return nil, ErrOutOfBounds
+		return nil, bsonerr.OutOfBounds
 	}
 	return elem, nil
 }
@@ -258,7 +257,7 @@ func (r Reader) readElements(f func(e *Element) error) (uint32, error) {
 	// get the length of the document.
 	givenLength := readi32(r[0:4])
 	if len(r) < int(givenLength) || givenLength < 0 {
-		return 0, ErrInvalidLength
+		return 0, bsonerr.InvalidLength
 	}
 	var pos uint32 = 4
 	var elemStart, elemValStart uint32
@@ -268,7 +267,7 @@ func (r Reader) readElements(f func(e *Element) error) (uint32, error) {
 		if pos >= end {
 			// We've gone off the end of the buffer and we're missing
 			// a null terminator.
-			return pos, ErrInvalidReadOnlyDocument
+			return pos, bsonerr.InvalidReadOnlyDocument
 		}
 		if r[pos] == '\x00' {
 			break

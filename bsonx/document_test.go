@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +29,7 @@ func TestDocument(t *testing.T) {
 			}
 		})
 		t.Run("InvalidLength", func(t *testing.T) {
-			want := ErrInvalidLength
+			want := bsonerr.InvalidLength
 			b := make([]byte, 5)
 			binary.LittleEndian.PutUint32(b[0:4], 200)
 			_, got := ReadDocument(b)
@@ -37,7 +38,7 @@ func TestDocument(t *testing.T) {
 			}
 		})
 		t.Run("keyLength-error", func(t *testing.T) {
-			want := ErrInvalidKey
+			want := bsonerr.InvalidKey
 			b := make([]byte, 8)
 			binary.LittleEndian.PutUint32(b[0:4], 8)
 			b[4], b[5], b[6], b[7] = '\x02', 'f', 'o', 'o'
@@ -47,7 +48,7 @@ func TestDocument(t *testing.T) {
 			}
 		})
 		t.Run("Missing-Null-Terminator", func(t *testing.T) {
-			want := ErrInvalidReadOnlyDocument
+			want := bsonerr.InvalidReadOnlyDocument
 			b := make([]byte, 9)
 			binary.LittleEndian.PutUint32(b[0:4], 9)
 			b[4], b[5], b[6], b[7], b[8] = '\x0A', 'f', 'o', 'o', '\x00'
@@ -94,8 +95,8 @@ func TestDocument(t *testing.T) {
 			func() {
 				defer func() {
 					r := recover()
-					if r != ErrNilElement {
-						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, ErrNilElement)
+					if r != bsonerr.NilElement {
+						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, bsonerr.NilElement)
 					}
 				}()
 				d := NewDocument()
@@ -162,8 +163,8 @@ func TestDocument(t *testing.T) {
 				func() {
 					defer func() {
 						r := recover()
-						if r != ErrNilElement {
-							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, ErrNilElement)
+						if r != bsonerr.NilElement {
+							t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, bsonerr.NilElement)
 						}
 						require.Equal(t, tc.want, got)
 
@@ -301,8 +302,8 @@ func TestDocument(t *testing.T) {
 				func() {
 					defer func() {
 						r := recover()
-						if r != ErrNilElement {
-							t.Errorf("Did not receive expected error from panic. got %#v; want %#v", r, ErrNilElement)
+						if r != bsonerr.NilElement {
+							t.Errorf("Did not receive expected error from panic. got %#v; want %#v", r, bsonerr.NilElement)
 						}
 
 						require.Equal(t, tc.want, got)
@@ -395,8 +396,8 @@ func TestDocument(t *testing.T) {
 		t.Run("empty key", func(t *testing.T) {
 			d := NewDocument()
 			_, err := d.LookupErr()
-			if err != ErrEmptyKey {
-				t.Errorf("Empty key lookup did not return expected result. got %#v; want %#v", err, ErrEmptyKey)
+			if err != bsonerr.EmptyKey {
+				t.Errorf("Empty key lookup did not return expected result. got %#v; want %#v", err, bsonerr.EmptyKey)
 			}
 		})
 		testCases := []struct {
@@ -415,11 +416,11 @@ func TestDocument(t *testing.T) {
 			},
 			{"invalid-depth-traversal", (&Document{}).Append(EC.Null("x")),
 				[]string{"x", "y"},
-				nil, ErrInvalidDepthTraversal,
+				nil, bsonerr.InvalidDepthTraversal,
 			},
 			{"not-found", (&Document{}).Append(EC.Null("x")),
 				[]string{"y"},
-				nil, ErrElementNotFound,
+				nil, bsonerr.ElementNotFound,
 			},
 			{"subarray",
 				NewDocument(
@@ -561,7 +562,7 @@ func TestDocument(t *testing.T) {
 					nil,
 				},
 				nil,
-				ErrNilDocument,
+				bsonerr.NilDocument,
 			},
 			{
 				"nil document",
@@ -570,7 +571,7 @@ func TestDocument(t *testing.T) {
 					(*Document)(nil),
 				},
 				nil,
-				ErrNilDocument,
+				bsonerr.NilDocument,
 			},
 			{
 				"concat single doc",
@@ -843,7 +844,7 @@ func TestDocument(t *testing.T) {
 			d := NewDocument(EC.Double("", 3.14159))
 			var buf bytes.Buffer
 			_, err := d.WriteDocument(0, buf)
-			if err != ErrInvalidWriter {
+			if err != bsonerr.InvalidWriter {
 				t.Errorf("Expected error not returned. got %s; want %s", err, newErrTooSmall())
 			}
 		})

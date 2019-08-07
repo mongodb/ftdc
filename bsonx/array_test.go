@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,8 +22,8 @@ func TestArray(t *testing.T) {
 			func() {
 				defer func() {
 					r := recover()
-					if r != ErrNilElement {
-						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, ErrNilElement)
+					if r != bsonerr.NilElement {
+						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, bsonerr.NilElement)
 					}
 				}()
 				a := NewArray()
@@ -81,8 +82,8 @@ func TestArray(t *testing.T) {
 			func() {
 				defer func() {
 					r := recover()
-					if r != ErrNilElement {
-						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, ErrNilElement)
+					if r != bsonerr.NilElement {
+						t.Errorf("Did not received expected error from panic. got %#v; want %#v", r, bsonerr.NilElement)
 					}
 				}()
 				a := NewArray()
@@ -172,7 +173,7 @@ func TestArray(t *testing.T) {
 				NewArray(VC.Null()),
 				1,
 				nil,
-				ErrOutOfBounds,
+				bsonerr.OutOfBounds,
 			},
 		}
 

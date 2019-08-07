@@ -5,14 +5,15 @@ import (
 	"math"
 	"testing"
 
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 func TestValue(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		handle := func() {
-			if got := recover(); got != ErrUninitializedElement {
-				want := ErrUninitializedElement
+			if got := recover(); got != bsonerr.UninitializedElement {
+				want := bsonerr.UninitializedElement
 				t.Errorf("Incorrect value for panic. got %s; want %s", got, want)
 			}
 		}

@@ -6,6 +6,8 @@
 
 package bsonx
 
+import "github.com/mongodb/ftdc/bsonx/bsonerr"
+
 // Iterator describes the types used to iterate over a bson Document.
 type Iterator interface {
 	Next() bool
@@ -71,7 +73,7 @@ func newReaderIterator(r Reader) (*readerIterator, error) {
 	}
 	givenLength := readi32(r[0:4])
 	if len(r) < int(givenLength) {
-		return nil, ErrInvalidLength
+		return nil, bsonerr.InvalidLength
 	}
 
 	itr.r = r
@@ -87,7 +89,7 @@ func newReaderIterator(r Reader) (*readerIterator, error) {
 // call Err to check if an error occurred.
 func (itr *readerIterator) Next() bool {
 	if itr.pos >= itr.end {
-		itr.err = ErrInvalidReadOnlyDocument
+		itr.err = bsonerr.InvalidReadOnlyDocument
 		return false
 	}
 	if itr.r[itr.pos] == '\x00' {

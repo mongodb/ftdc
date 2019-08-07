@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/elements"
 	"github.com/pkg/errors"
@@ -90,7 +91,7 @@ func (a *Array) Lookup(index uint) *Value {
 func (a *Array) LookupErr(index uint) (*Value, error) {
 	v, ok := a.doc.ElementAtOK(index)
 	if !ok {
-		return nil, ErrOutOfBounds
+		return nil, bsonerr.OutOfBounds
 	}
 
 	return v.value, nil
@@ -99,7 +100,7 @@ func (a *Array) LookupErr(index uint) (*Value, error) {
 func (a *Array) LookupElementErr(index uint) (*Element, error) {
 	v, ok := a.doc.ElementAtOK(index)
 	if !ok {
-		return nil, ErrOutOfBounds
+		return nil, bsonerr.OutOfBounds
 	}
 
 	return v, nil
@@ -130,7 +131,7 @@ func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
 	case bsontype.Array:
 		index, err := strconv.ParseUint(keys[0], 10, 0)
 		if err != nil {
-			return nil, ErrInvalidArrayKey
+			return nil, bsonerr.InvalidArrayKey
 		}
 
 		val, err := value.MutableArray().lookupTraverse(uint(index), keys[1:]...)
@@ -140,7 +141,7 @@ func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
 
 		return val, nil
 	default:
-		return nil, ErrInvalidDepthTraversal
+		return nil, bsonerr.InvalidDepthTraversal
 	}
 }
 
@@ -182,7 +183,7 @@ func (a *Array) Prepend(values ...*Value) *Array {
 // out of bounds.
 func (a *Array) Set(index uint, value *Value) *Array {
 	if index >= uint(len(a.doc.elems)) {
-		panic(ErrOutOfBounds)
+		panic(bsonerr.OutOfBounds)
 	}
 
 	a.doc.elems[index] = &Element{value}
@@ -208,7 +209,7 @@ func (a *Array) Concat(docs ...interface{}) error {
 				continue
 			}
 
-			return ErrNilDocument
+			return bsonerr.NilDocument
 		}
 
 		switch val := arr.(type) {
@@ -218,7 +219,7 @@ func (a *Array) Concat(docs ...interface{}) error {
 					continue
 				}
 
-				return ErrNilDocument
+				return bsonerr.NilDocument
 			}
 
 			for _, e := range val.doc.elems {
@@ -230,7 +231,7 @@ func (a *Array) Concat(docs ...interface{}) error {
 					continue
 				}
 
-				return ErrNilDocument
+				return bsonerr.NilDocument
 			}
 
 			for _, e := range val.elems {
@@ -245,7 +246,7 @@ func (a *Array) Concat(docs ...interface{}) error {
 				return err
 			}
 		default:
-			return ErrInvalidDocumentType
+			return bsonerr.InvalidDocumentType
 		}
 	}
 

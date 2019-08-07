@@ -11,45 +11,12 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/elements"
-	"github.com/pkg/errors"
 )
 
 const validateMaxDepthDefault = 2048
-
-// ErrUninitializedElement is returned whenever any method is invoked on an uninitialized Element.
-var ErrUninitializedElement = errors.New("bson/ast/compact: Method call on uninitialized Element")
-
-// ErrInvalidWriter indicates that a type that can't be written into was passed to a writer method.
-var ErrInvalidWriter = errors.New("bson: invalid writer provided")
-
-// ErrInvalidString indicates that a BSON string value had an incorrect length.
-var ErrInvalidString = errors.New("invalid string value")
-
-// ErrInvalidBinarySubtype indicates that a BSON binary value had an undefined subtype.
-var ErrInvalidBinarySubtype = errors.New("invalid BSON binary Subtype")
-
-// ErrInvalidBooleanType indicates that a BSON boolean value had an incorrect byte.
-var ErrInvalidBooleanType = errors.New("invalid value for BSON Boolean Type")
-
-// ErrStringLargerThanContainer indicates that the code portion of a BSON JavaScript code with scope
-// value is larger than the specified length of the entire value.
-var ErrStringLargerThanContainer = errors.New("string size is larger than the JavaScript code with scope container")
-
-// ErrInvalidElement indicates that a bson.Element had invalid underlying BSON.
-var ErrInvalidElement = errors.New("invalid Element")
-
-// ElementTypeError specifies that a method to obtain a BSON value an incorrect type was called on a bson.Value.
-type ElementTypeError struct {
-	Method string
-	Type   bsontype.Type
-}
-
-// Error implements the error interface.
-func (ete ElementTypeError) Error() string {
-	return "Call of " + ete.Method + " on " + ete.Type.String() + " type"
-}
 
 // Element represents a BSON element, i.e. key-value pair of a BSON document.
 //
@@ -86,10 +53,10 @@ func (e *Element) Value() *Value {
 // Validate validates the element and returns its total size.
 func (e *Element) Validate() (uint32, error) {
 	if e == nil {
-		return 0, ErrNilElement
+		return 0, bsonerr.NilElement
 	}
 	if e.value == nil {
-		return 0, ErrUninitializedElement
+		return 0, bsonerr.UninitializedElement
 	}
 
 	var total uint32 = 1
@@ -116,7 +83,7 @@ func (e *Element) validate(recursive bool, currentDepth, maxDepth uint32) (uint3
 
 func (e *Element) validateKey() (uint32, error) {
 	if e.value.data == nil {
-		return 0, ErrUninitializedElement
+		return 0, bsonerr.UninitializedElement
 	}
 
 	pos, end := e.value.start+1, e.value.offset
@@ -128,7 +95,7 @@ func (e *Element) validateKey() (uint32, error) {
 		total++
 	}
 	if pos == end || e.value.data[pos] != '\x00' {
-		return total, ErrInvalidKey
+		return total, bsonerr.InvalidKey
 	}
 	total++
 	return total, nil
@@ -138,7 +105,7 @@ func (e *Element) validateKey() (uint32, error) {
 // It panics if e is uninitialized.
 func (e *Element) Key() string {
 	if e == nil || e.value == nil || e.value.offset == 0 || e.value.data == nil {
-		panic(ErrUninitializedElement)
+		panic(bsonerr.UninitializedElement)
 	}
 	return string(e.value.data[e.value.start+1 : e.value.offset-1])
 }
@@ -170,7 +137,7 @@ func (e *Element) writeElement(key bool, start uint, writer interface{}) (int64,
 		}
 		total += int64(n)
 	default:
-		return 0, ErrInvalidWriter
+		return 0, bsonerr.InvalidWriter
 	}
 	return total, nil
 }
