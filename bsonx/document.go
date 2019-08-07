@@ -21,7 +21,7 @@ import (
 type Document struct {
 	// The default behavior or Append, Prepend, and Replace is to panic on the
 	// insertion of a nil element. Setting IgnoreNilInsert to true will instead
-	// silently ignore any nil parameters to these methods.
+	// silently ignore any nil paramet()ers to these methods.
 	IgnoreNilInsert bool
 	elems           []*Element
 	index           []uint32
@@ -214,10 +214,6 @@ func (d *Document) Prepend(elems ...*Element) *Document {
 //
 // If a nil element is inserted and this method panics, it does not remove the
 // previously added elements.
-//
-// TODO(skriptble): Do we need to panic on a nil element? Semantically, if you
-// ask to replace an element in the document with a nil element, you aren't
-// asking for anything to be done.
 func (d *Document) Set(elem *Element) *Document {
 	if elem == nil {
 		if d.IgnoreNilInsert {
@@ -246,12 +242,12 @@ func (d *Document) Set(elem *Element) *Document {
 	return d
 }
 
-// Lookup searches the document and potentially subdocuments or arrays for the
+// RecursiveLookup searches the document and potentially subdocuments or arrays for the
 // provided key. Each key provided to this method represents a layer of depth.
 //
-// Lookup will return nil if it encounters an error.
-func (d *Document) Lookup(key ...string) *Value {
-	elem, err := d.LookupElementErr(key...)
+// RecursiveLookup will return nil if it encounters an error.
+func (d *Document) RecursiveLookup(key ...string) *Value {
+	elem, err := d.RecursiveLookupElementErr(key...)
 	if err != nil {
 		return nil
 	}
@@ -259,10 +255,10 @@ func (d *Document) Lookup(key ...string) *Value {
 	return elem.value
 }
 
-// LookupErr searches the document and potentially subdocuments or arrays for the
+// RecursiveLookupErr searches the document and potentially subdocuments or arrays for the
 // provided key. Each key provided to this method represents a layer of depth.
-func (d *Document) LookupErr(key ...string) (*Value, error) {
-	elem, err := d.LookupElementErr(key...)
+func (d *Document) RecursiveLookupErr(key ...string) (*Value, error) {
+	elem, err := d.RecursiveLookupElementErr(key...)
 	if err != nil {
 		return nil, err
 	}
@@ -270,12 +266,12 @@ func (d *Document) LookupErr(key ...string) (*Value, error) {
 	return elem.value, nil
 }
 
-// LookupElement searches the document and potentially subdocuments or arrays for the
+// RecursiveLookupElement searches the document and potentially subdocuments or arrays for the
 // provided key. Each key provided to this method represents a layer of depth.
 //
-// LookupElement will return nil if it encounters an error.
-func (d *Document) LookupElement(key ...string) *Element {
-	elem, err := d.LookupElementErr(key...)
+// RecursiveLookupElement will return nil if it encounters an error.
+func (d *Document) RecursiveLookupElement(key ...string) *Element {
+	elem, err := d.RecursiveLookupElementErr(key...)
 	if err != nil {
 		return nil
 	}
@@ -283,9 +279,9 @@ func (d *Document) LookupElement(key ...string) *Element {
 	return elem
 }
 
-// LookupElementErr searches the document and potentially subdocuments or arrays for the
+// RecursiveLookupElementErr searches the document and potentially subdocuments or arrays for the
 // provided key. Each key provided to this method represents a layer of depth.
-func (d *Document) LookupElementErr(key ...string) (*Element, error) {
+func (d *Document) RecursiveLookupElementErr(key ...string) (*Element, error) {
 	if d == nil {
 		return nil, bsonerr.NilDocument
 	}
@@ -304,7 +300,7 @@ func (d *Document) LookupElementErr(key ...string) (*Element, error) {
 		}
 		switch elem.value.Type() {
 		case '\x03':
-			elem, err = elem.value.MutableDocument().LookupElementErr(key[1:]...)
+			elem, err = elem.value.MutableDocument().RecursiveLookupElementErr(key[1:]...)
 		case '\x04':
 			index, err := strconv.ParseUint(key[1], 10, 0)
 			if err != nil {

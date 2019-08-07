@@ -392,10 +392,10 @@ func TestDocument(t *testing.T) {
 			})
 		}
 	})
-	t.Run("Lookup", func(t *testing.T) {
+	t.Run("RecursiveLookup", func(t *testing.T) {
 		t.Run("empty key", func(t *testing.T) {
 			d := NewDocument()
-			_, err := d.LookupErr()
+			_, err := d.RecursiveLookupErr()
 			if err != bsonerr.EmptyKey {
 				t.Errorf("Empty key lookup did not return expected result. got %#v; want %#v", err, bsonerr.EmptyKey)
 			}
@@ -438,7 +438,7 @@ func TestDocument(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				got, err := tc.d.LookupElementErr(tc.key...)
+				got, err := tc.d.RecursiveLookupElementErr(tc.key...)
 				if err != tc.err {
 					t.Errorf("Returned error does not match. got %#v; want %#v", err, tc.err)
 				}

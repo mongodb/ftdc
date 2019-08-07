@@ -435,6 +435,21 @@ func (v *Value) ReaderDocument() Reader {
 		panic(bsonerr.ElementType{"compact.Element.Document", bsontype.Type(v.data[v.start])})
 	}
 
+	return v.getReader()
+}
+
+// Reader returns a reader for the payload of the value regardless of
+// type, panicing only if the value is not initialized or otherwise
+// corrupt.
+func (v *Value) Reader() Reader {
+	if v == nil || v.offset == 0 || v.data == nil {
+		panic(bsonerr.UninitializedElement)
+	}
+
+	return v.getReader()
+}
+
+func (v *Value) getReader() Reader {
 	var r Reader
 	if v.d == nil {
 		l := readi32(v.data[v.offset : v.offset+4])
@@ -499,20 +514,7 @@ func (v *Value) ReaderArray() Reader {
 		panic(bsonerr.ElementType{"compact.Element.Array", bsontype.Type(v.data[v.start])})
 	}
 
-	var r Reader
-	if v.d == nil {
-		l := readi32(v.data[v.offset : v.offset+4])
-		r = Reader(v.data[v.offset : v.offset+uint32(l)])
-	} else {
-		scope, err := v.d.MarshalBSON()
-		if err != nil {
-			panic(err)
-		}
-
-		r = Reader(scope)
-	}
-
-	return r
+	return v.getReader()
 }
 
 // ReaderArrayOK is the same as ReaderArray, except it returns a boolean instead

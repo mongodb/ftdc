@@ -2,6 +2,8 @@ package bsonx
 
 import (
 	"sort"
+
+	"github.com/mongodb/ftdc/bsonx/bsonerr"
 )
 
 // ExportMap converts the values of the document to a map of strings
@@ -32,4 +34,46 @@ func (d *Document) Sorted() *Document {
 	elems := d.Elements()
 	sort.Stable(elems)
 	return DC.Elements(elems...)
+}
+
+func (d *Document) LookupElement(key string) *Element {
+	iter := d.Iterator()
+	for iter.Next() {
+		elem := iter.Element()
+		elemKey, ok := elem.KeyOK()
+		if !ok {
+			continue
+		}
+		if elemKey == key {
+			return elem
+		}
+	}
+
+	return nil
+}
+
+func (d *Document) Lookup(key string) *Value {
+	elem := d.LookupElement(key)
+	if elem == nil {
+		return nil
+	}
+	return elem.value
+}
+
+func (d *Document) LookupElementErr(key string) (*Element, error) {
+	elem := d.LookupElement(key)
+	if elem == nil {
+		return nil, bsonerr.ElementNotFound
+	}
+
+	return elem, nil
+}
+
+func (d *Document) LookupErr(key string) (*Value, error) {
+	elem := d.LookupElement(key)
+	if elem == nil {
+		return nil, bsonerr.ElementNotFound
+	}
+
+	return elem.value, nil
 }

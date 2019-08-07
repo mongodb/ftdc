@@ -209,10 +209,10 @@ func TestReader(t *testing.T) {
 			})
 		}
 	})
-	t.Run("Lookup", func(t *testing.T) {
+	t.Run("RecursiveLookup", func(t *testing.T) {
 		t.Run("empty-key", func(t *testing.T) {
 			rdr := Reader{'\x05', '\x00', '\x00', '\x00', '\x00'}
-			_, err := rdr.Lookup()
+			_, err := rdr.RecursiveLookup()
 			if err != bsonerr.EmptyKey {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, bsonerr.EmptyKey)
 			}
@@ -226,7 +226,7 @@ func TestReader(t *testing.T) {
 				'\x00',
 				'\x00',
 			}
-			_, err := rdr.Lookup("x", "y")
+			_, err := rdr.RecursiveLookup("x", "y")
 			if !IsTooSmall(err) {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, newErrTooSmall())
 			}
@@ -240,14 +240,14 @@ func TestReader(t *testing.T) {
 				'\x00',
 				'\x00',
 			}
-			_, err := rdr.Lookup("x", "y")
+			_, err := rdr.RecursiveLookup("x", "y")
 			if !IsTooSmall(err) {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, newErrTooSmall())
 			}
 		})
 		t.Run("invalid-traversal", func(t *testing.T) {
 			rdr := Reader{'\x08', '\x00', '\x00', '\x00', '\x0A', 'x', '\x00', '\x00'}
-			_, err := rdr.Lookup("x", "y")
+			_, err := rdr.RecursiveLookup("x", "y")
 			if err != bsonerr.InvalidDepthTraversal {
 				t.Errorf("Empty key lookup did not return expected result. got %v; want %v", err, bsonerr.InvalidDepthTraversal)
 			}
@@ -292,7 +292,7 @@ func TestReader(t *testing.T) {
 
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				got, err := tc.r.Lookup(tc.key...)
+				got, err := tc.r.RecursiveLookup(tc.key...)
 				if err != tc.err {
 					t.Errorf("Returned error does not match. got %v; want %v", err, tc.err)
 				}

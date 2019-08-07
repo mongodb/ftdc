@@ -122,7 +122,7 @@ func (a *Array) lookupTraverse(index uint, keys ...string) (*Value, error) {
 
 	switch value.Type() {
 	case bsontype.EmbeddedDocument:
-		element, err := value.MutableDocument().LookupElementErr(keys...)
+		element, err := value.MutableDocument().RecursiveLookupElementErr(keys...)
 		if err != nil {
 			return nil, err
 		}
