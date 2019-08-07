@@ -21,7 +21,7 @@ import (
 type Document struct {
 	// The default behavior or Append, Prepend, and Replace is to panic on the
 	// insertion of a nil element. Setting IgnoreNilInsert to true will instead
-	// silently ignore any nil parameters to these methods.
+	// silently ignore any nil paramet()ers to these methods.
 	IgnoreNilInsert bool
 	elems           []*Element
 	index           []uint32
@@ -214,10 +214,6 @@ func (d *Document) Prepend(elems ...*Element) *Document {
 //
 // If a nil element is inserted and this method panics, it does not remove the
 // previously added elements.
-//
-// TODO(skriptble): Do we need to panic on a nil element? Semantically, if you
-// ask to replace an element in the document with a nil element, you aren't
-// asking for anything to be done.
 func (d *Document) Set(elem *Element) *Document {
 	if elem == nil {
 		if d.IgnoreNilInsert {
