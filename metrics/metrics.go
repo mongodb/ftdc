@@ -84,7 +84,7 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Documen
 	}
 
 	if len(opts.Collectors) == 0 {
-		return bsonx.DC.Marshaler(out)
+		return bsonx.DC.Make(1).Append(bsonx.EC.Marshaler("runtime", out))
 	}
 
 	doc := bsonx.DC.Make(len(opts.Collectors) + 1).Append(bsonx.EC.Marshaler("runtime", out))
