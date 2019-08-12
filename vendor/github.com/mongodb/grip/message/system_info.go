@@ -47,16 +47,16 @@ type StatCPUTimes struct {
 
 func convertCPUTimes(in cpu.TimesStat) StatCPUTimes {
 	return StatCPUTimes{
-		User:      int64(in.User * cpu.CPUTick),
-		System:    int64(in.System * cpu.CPUTick),
-		Idle:      int64(in.Idle * cpu.CPUTick),
-		Nice:      int64(in.Nice * cpu.CPUTick),
-		Iowait:    int64(in.Iowait * cpu.CPUTick),
-		Irq:       int64(in.Irq * cpu.CPUTick),
-		Softirq:   int64(in.Softirq * cpu.CPUTick),
-		Steal:     int64(in.Steal * cpu.CPUTick),
-		Guest:     int64(in.Guest * cpu.CPUTick),
-		GuestNice: int64(in.GuestNice * cpu.CPUTick),
+		User:      int64(in.User * cpuTicks),
+		System:    int64(in.System * cpuTicks),
+		Idle:      int64(in.Idle * cpuTicks),
+		Nice:      int64(in.Nice * cpuTicks),
+		Iowait:    int64(in.Iowait * cpuTicks),
+		Irq:       int64(in.Irq * cpuTicks),
+		Softirq:   int64(in.Softirq * cpuTicks),
+		Steal:     int64(in.Steal * cpuTicks),
+		Guest:     int64(in.Guest * cpuTicks),
+		GuestNice: int64(in.GuestNice * cpuTicks),
 	}
 }
 
