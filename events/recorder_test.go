@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -72,8 +71,6 @@ func TestRecorder(t *testing.T) {
 							assert.Equal(t, totalDur, payload.Timers.Duration)
 							assert.True(t, payload.Timers.Total > lastTotal)
 							assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
-							fmt.Println(payload.Timers.Total)
-							fmt.Println(payload.Timers.Duration)
 							lastTotal = payload.Timers.Total
 						}
 					},
