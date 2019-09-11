@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -49,20 +50,32 @@ func TestRecorder(t *testing.T) {
 				{
 					Name: "IncOpsFullCycle",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
-						r.Begin()
-						assert.Len(t, c.Data, 0)
-						r.IncOps(10)
-						assert.Len(t, c.Data, 0)
-						r.End(time.Minute)
-						require.Len(t, c.Data, 1)
+						var lastTotal time.Duration
+						var totalDur time.Duration
+						for i := 0; i < 2; i++ {
+							start := time.Now()
+							r.Begin()
+							assert.Len(t, c.Data, i)
+							r.IncOps(10)
+							assert.Len(t, c.Data, i)
+							dur := time.Since(start)
+							r.End(dur)
+							require.Len(t, c.Data, i+1)
 
-						payload, ok := c.Data[0].(Performance)
-						require.True(t, ok)
+							totalDur += dur
 
-						assert.EqualValues(t, 10, payload.Counters.Operations)
-						assert.EqualValues(t, 1, payload.Counters.Number)
-						assert.Equal(t, time.Minute, payload.Timers.Duration)
-						assert.True(t, payload.Timers.Total > 0)
+							payload, ok := c.Data[i].(Performance)
+							require.True(t, ok)
+
+							assert.EqualValues(t, (i+1)*10, payload.Counters.Operations)
+							assert.EqualValues(t, i+1, payload.Counters.Number)
+							assert.Equal(t, totalDur, payload.Timers.Duration)
+							assert.True(t, payload.Timers.Total > lastTotal)
+							assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
+							fmt.Println(payload.Timers.Total)
+							fmt.Println(payload.Timers.Duration)
+							lastTotal = payload.Timers.Total
+						}
 					},
 				},
 			},

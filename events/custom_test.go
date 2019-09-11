@@ -33,7 +33,7 @@ func TestRollupRoundTrip(t *testing.T) {
 		assert.Equal(t, "f", rt[3].Name)
 		assert.Equal(t, 1.2, rt[0].Value)
 		assert.Equal(t, 45.0, rt[1].Value)
-		assert.Equal(t, 100, rt[3].Value)
+		assert.Equal(t, int32(100), rt[3].Value)
 	})
 	t.Run("LegacyBSON", func(t *testing.T) {
 		payload, err := legacyBSON.Marshal(data)
