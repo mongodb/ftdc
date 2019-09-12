@@ -111,7 +111,11 @@ func (r *intervalStream) Flush() error {
 	r.canceler = nil
 
 	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
+		if !r.started.IsZero() {
+			r.point.Timestamp = r.started
+		} else {
+			r.point.Timestamp = time.Now()
+		}
 	}
 
 	r.catcher.Add(r.collector.Add(r.point))

@@ -41,8 +41,8 @@ func (r *rawStream) SetWorkers(val int64)               { r.point.Gauges.Workers
 func (r *rawStream) SetFailed(val bool)                 { r.point.Gauges.Failed = val }
 func (r *rawStream) End(dur time.Duration) {
 	r.point.Counters.Number++
-	if r.point.Timers.Total == 0 && !r.started.IsZero() {
-		r.point.Timers.Total = time.Since(r.started)
+	if !r.started.IsZero() {
+		r.point.Timers.Total += time.Since(r.started)
 	}
 
 	if r.point.Timestamp.IsZero() {
@@ -59,8 +59,13 @@ func (r *rawStream) Flush() error {
 	r.point.Counters.Number++
 
 	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
+		if !r.started.IsZero() {
+			r.point.Timestamp = r.started
+		} else {
+			r.point.Timestamp = time.Now()
+		}
 	}
+
 	r.catcher.Add(r.collector.Add(r.point))
 
 	err := r.catcher.Resolve()

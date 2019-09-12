@@ -49,20 +49,40 @@ func TestRecorder(t *testing.T) {
 				{
 					Name: "IncOpsFullCycle",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
-						r.Begin()
-						assert.Len(t, c.Data, 0)
-						r.IncOps(10)
-						assert.Len(t, c.Data, 0)
-						r.End(time.Minute)
-						require.Len(t, c.Data, 1)
+						var lastTotal time.Duration
+						var totalDur time.Duration
+						iterations := 10
+						for i := 0; i < iterations; i++ {
+							r.Begin()
+							start := time.Now()
+							assert.Len(t, c.Data, i)
+							r.IncOps(10)
+							assert.Len(t, c.Data, i)
+							dur := time.Since(start)
+							r.End(dur)
+							require.Len(t, c.Data, i+1)
 
-						payload, ok := c.Data[0].(Performance)
+							totalDur += dur
+
+							payload, ok := c.Data[i].(Performance)
+							require.True(t, ok)
+
+							assert.EqualValues(t, (i+1)*10, payload.Counters.Operations)
+							assert.EqualValues(t, i+1, payload.Counters.Number)
+							assert.Equal(t, totalDur, payload.Timers.Duration)
+							assert.True(t, payload.Timers.Total > lastTotal)
+							assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
+							lastTotal = payload.Timers.Total
+						}
+						require.NoError(t, r.Flush())
+						payload, ok := c.Data[len(c.Data)-1].(Performance)
 						require.True(t, ok)
-
-						assert.EqualValues(t, 10, payload.Counters.Operations)
-						assert.EqualValues(t, 1, payload.Counters.Number)
-						assert.Equal(t, time.Minute, payload.Timers.Duration)
-						assert.True(t, payload.Timers.Total > 0)
+						assert.EqualValues(t, iterations*10, payload.Counters.Operations)
+						assert.EqualValues(t, iterations+1, payload.Counters.Number)
+						assert.Equal(t, totalDur, payload.Timers.Duration)
+						assert.Equal(t, lastTotal, payload.Timers.Total)
+						assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
+						assert.True(t, time.Since(payload.Timestamp) <= time.Second)
 					},
 				},
 			},
@@ -95,7 +115,6 @@ func TestRecorder(t *testing.T) {
 
 						payload, ok := c.Data[0].(Performance)
 						require.True(t, ok)
-
 						assert.EqualValues(t, 10, payload.Counters.Operations)
 						assert.EqualValues(t, 1, payload.Counters.Number)
 						assert.Equal(t, time.Minute, payload.Timers.Duration)
@@ -191,6 +210,7 @@ func TestRecorder(t *testing.T) {
 							assert.True(t, data.Timers.Duration >= 9*time.Second, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
 							assert.EqualValues(t, data.Counters.Operations, 10)
+							assert.True(t, time.Since(data.Timestamp) <= time.Second)
 						case PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())

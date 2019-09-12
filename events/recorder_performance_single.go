@@ -45,6 +45,7 @@ func (r *singleStream) End(dur time.Duration) {
 
 	if r.point.Timestamp.IsZero() {
 		r.point.Timestamp = r.started
+
 	}
 
 	r.point.Timers.Duration += dur
@@ -53,7 +54,11 @@ func (r *singleStream) End(dur time.Duration) {
 
 func (r *singleStream) Flush() error {
 	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
+		if !r.started.IsZero() {
+			r.point.Timestamp = r.started
+		} else {
+			r.point.Timestamp = time.Now()
+		}
 	}
 	err := errors.WithStack(r.collector.Add(r.point))
 	r.point.Timestamp = time.Time{}
