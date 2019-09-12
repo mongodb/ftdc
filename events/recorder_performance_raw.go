@@ -76,7 +76,3 @@ func (r *rawStream) Flush() error {
 	r.started = time.Time{}
 	return errors.WithStack(err)
 }
-
-type dummyStruct struct {
-	Timestamp time.Time `bson:ts`
-}

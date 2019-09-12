@@ -33,8 +33,6 @@ type recorderTestCase struct {
 	Case func(*testing.T, Recorder, *MockCollector)
 }
 
-func epochMs(t time.Time) int64 { return t.UnixNano() / 1000000 }
-
 func TestRecorder(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
