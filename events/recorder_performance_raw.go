@@ -59,8 +59,13 @@ func (r *rawStream) Flush() error {
 	r.point.Counters.Number++
 
 	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
+		if !r.started.IsZero() {
+			r.point.Timestamp = r.started
+		} else {
+			r.point.Timestamp = time.Now()
+		}
 	}
+
 	r.catcher.Add(r.collector.Add(r.point))
 
 	err := r.catcher.Resolve()
@@ -70,4 +75,8 @@ func (r *rawStream) Flush() error {
 	}
 	r.started = time.Time{}
 	return errors.WithStack(err)
+}
+
+type dummyStruct struct {
+	Timestamp time.Time `bson:ts`
 }

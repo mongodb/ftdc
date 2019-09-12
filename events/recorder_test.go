@@ -33,6 +33,8 @@ type recorderTestCase struct {
 	Case func(*testing.T, Recorder, *MockCollector)
 }
 
+func epochMs(t time.Time) int64 { return t.UnixNano() / 1000000 }
+
 func TestRecorder(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -51,9 +53,10 @@ func TestRecorder(t *testing.T) {
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						var lastTotal time.Duration
 						var totalDur time.Duration
-						for i := 0; i < 2; i++ {
-							start := time.Now()
+						iterations := 10
+						for i := 0; i < iterations; i++ {
 							r.Begin()
+							start := time.Now()
 							assert.Len(t, c.Data, i)
 							r.IncOps(10)
 							assert.Len(t, c.Data, i)
@@ -73,6 +76,15 @@ func TestRecorder(t *testing.T) {
 							assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
 							lastTotal = payload.Timers.Total
 						}
+						require.NoError(t, r.Flush())
+						payload, ok := c.Data[len(c.Data)-1].(Performance)
+						require.True(t, ok)
+						assert.EqualValues(t, iterations*10, payload.Counters.Operations)
+						assert.EqualValues(t, iterations+1, payload.Counters.Number)
+						assert.Equal(t, totalDur, payload.Timers.Duration)
+						assert.Equal(t, lastTotal, payload.Timers.Total)
+						assert.True(t, payload.Timers.Total >= payload.Timers.Duration)
+						assert.True(t, time.Since(payload.Timestamp) <= time.Second)
 					},
 				},
 			},
