@@ -94,5 +94,7 @@ vendor-clean:
 	rm -rf vendor/gopkg.in/mgo.v2/internal/json/testdata
 	rm -rf vendor/gopkg.in/mgo.v2/.git/
 	rm -rf vendor/gopkg.in/mgo.v2/txn/
+	rm -rf vendor/github.com/papertrail/go-tail/vendor/github.com/spf13/pflag/
+	rm -rf vendor/github.com/papertrail/go-tail/main.go
 	sed -ri 's/bson:"(.*),omitempty"/bson:"\1"/' `find vendor/github.com/mongodb/grip/vendor/github.com/shirou/gopsutil/ -name "*go"` || true
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf

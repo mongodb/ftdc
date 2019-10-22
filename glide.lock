@@ -9,6 +9,8 @@ imports:
   version: 890a5c3458b43e6104ff5da8dfa139d013d77544
 - name: github.com/google/go-cmp
   version: 2248b49eaa8e1c8c0963ee77b40841adbc19d4ca
+- name: github.com/papertrail/go-tail
+  version: 973c153b04319fc4604d847b09861a5730cbbde2
 
 - name: go.mongodb.org/mongo-driver
   version: 1c3b9b9a41eecdf056560e07b68e6407b8d598c3
