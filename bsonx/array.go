@@ -9,7 +9,6 @@ package bsonx
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"strconv"
 
 	"github.com/mongodb/ftdc/bsonx/bsonerr"
@@ -191,77 +190,8 @@ func (a *Array) Set(index uint, value *Value) *Array {
 	return a
 }
 
-// Concat will append all the values from each of the arguments onto the array.
-//
-// Each argument must be one of the following:
-//
-//   - *Array
-//   - *Document
-//   - []byte
-//   - bson.Reader
-//
-// Note that in the case of *Document, []byte, and bson.Reader, the keys will be ignored and only
-// the values will be appended.
-func (a *Array) Concat(docs ...interface{}) error {
-	for _, arr := range docs {
-		if arr == nil {
-			if a.doc.IgnoreNilInsert {
-				continue
-			}
-
-			return bsonerr.NilDocument
-		}
-
-		switch val := arr.(type) {
-		case *Array:
-			if val == nil {
-				if a.doc.IgnoreNilInsert {
-					continue
-				}
-
-				return bsonerr.NilDocument
-			}
-
-			for _, e := range val.doc.elems {
-				a.Append(e.value)
-			}
-		case *Document:
-			if val == nil {
-				if a.doc.IgnoreNilInsert {
-					continue
-				}
-
-				return bsonerr.NilDocument
-			}
-
-			for _, e := range val.elems {
-				a.Append(e.value)
-			}
-		case []byte:
-			if err := a.concatReader(Reader(val)); err != nil {
-				return err
-			}
-		case Reader:
-			if err := a.concatReader(val); err != nil {
-				return err
-			}
-		default:
-			return bsonerr.InvalidDocumentType
-		}
-	}
-
-	return nil
-}
-
-func (a *Array) concatReader(r Reader) error {
-	_, err := r.readElements(func(e *Element) error {
-		a.Append(e.value)
-
-		return nil
-	})
-
-	return err
-}
+func (a *Array) Extend(ar2 *Array) *Array                { a.doc.Append(ar2.doc.elems...); return a }
+func (a *Array) ExtendFromDocument(doc *Document) *Array { a.doc.Append(doc.elems...); return a }
 
 // Delete removes the value at the given index from the array.
 func (a *Array) Delete(index uint) *Value {
@@ -273,16 +203,6 @@ func (a *Array) Delete(index uint) *Value {
 	a.doc.elems = append(a.doc.elems[:index], a.doc.elems[index+1:]...)
 
 	return elem.value
-}
-
-// WriteTo implements the io.WriterTo interface.
-func (a *Array) WriteTo(w io.Writer) (int64, error) {
-	b, err := a.MarshalBSON()
-	if err != nil {
-		return 0, err
-	}
-	n, err := w.Write(b)
-	return int64(n), err
 }
 
 // String implements the fmt.Stringer interface.
@@ -298,27 +218,6 @@ func (a *Array) String() string {
 	buf.WriteByte(']')
 
 	return buf.String()
-}
-
-// WriteArray will serialize this array to the provided writer beginning
-// at the provided start position.
-func (a *Array) WriteArray(start uint, writer []byte) (int64, error) {
-	var total int64
-	var pos = start
-
-	size, err := a.Validate()
-	if err != nil {
-		return total, err
-	}
-
-	n, err := a.writeByteSlice(pos, size, writer)
-	total += n
-	pos += uint(n)
-	if err != nil {
-		return total, err
-	}
-
-	return total, nil
 }
 
 // writeByteSlice handles serializing this array to a slice of bytes starting
@@ -349,7 +248,7 @@ func (a *Array) writeByteSlice(start uint, size uint32, b []byte) (int64, error)
 		pos += uint(len(key))
 
 		n, err := elem.writeElement(false, pos, b)
-		total += int64(n)
+		total += n
 		pos += uint(n)
 		if err != nil {
 			return total, err
@@ -358,7 +257,6 @@ func (a *Array) writeByteSlice(start uint, size uint32, b []byte) (int64, error)
 
 	n, err = elements.Byte.Encode(pos, b, '\x00')
 	total += int64(n)
-	pos += uint(n)
 	if err != nil {
 		return total, err
 	}
@@ -383,37 +281,4 @@ func (a *Array) MarshalBSON() ([]byte, error) {
 // elements of this Array.
 func (a *Array) Iterator() Iterator {
 	return newArrayIterator(a)
-}
-
-// Equal compares this document to another, returning true if they are equal.
-func (a *Array) Equal(a2 *Array) bool {
-	if a == nil && a2 == nil {
-		return true
-	}
-
-	if a == nil || a2 == nil {
-		return false
-	}
-
-	if a.doc == nil && a2.doc == nil {
-		return true
-	}
-
-	if a.doc == nil || a2.doc == nil {
-		return false
-	}
-
-	if (len(a.doc.elems) != len(a2.doc.elems)) || (len(a.doc.index) != len(a2.doc.index)) {
-		return false
-	}
-
-	for index := range a.doc.elems {
-		v1 := a.doc.elems[index].value
-		v2 := a2.doc.elems[index].value
-
-		if !v1.Equal(v2) {
-			return false
-		}
-	}
-	return true
 }

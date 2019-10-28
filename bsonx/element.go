@@ -17,8 +17,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const validateMaxDepthDefault = 2048
-
 // Element represents a BSON element, i.e. key-value pair of a BSON document.
 //
 // NOTE: Element cannot be the value of a map nor a property of a struct without special handling.
@@ -34,16 +32,9 @@ func newElement(start uint32, offset uint32) *Element {
 	return &Element{&Value{start: start, offset: offset}}
 }
 
-// Clone creates a shallow copy of the element/
-func (e *Element) Clone() *Element {
-	return &Element{
-		value: &Value{
-			start:  e.value.start,
-			offset: e.value.offset,
-			data:   e.value.data,
-			d:      e.value.d,
-		},
-	}
+// Clone creates a of the element/
+func (e *Element) Copy() *Element {
+	return &Element{e.value.Copy()}
 }
 
 // Value returns the value associated with the BSON element.
@@ -72,14 +63,6 @@ func (e *Element) Validate() (uint32, error) {
 		return total, err
 	}
 	return total, nil
-}
-
-// validate is a common validation method for elements.
-//
-// TODO(skriptble): Fill out this method and ensure all validation routines
-// pass through this method.
-func (e *Element) validate(recursive bool, currentDepth, maxDepth uint32) (uint32, error) {
-	return 0, nil
 }
 
 func (e *Element) validateKey() (uint32, error) {
@@ -132,12 +115,6 @@ func (e *Element) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), errors.WithStack(err)
 }
 
-// WriteElement serializes this element to the provided writer starting at the
-// provided start position.
-func (e *Element) WriteElement(start uint, writer interface{}) (int64, error) {
-	return e.writeElement(true, start, writer)
-}
-
 func (e *Element) writeElement(key bool, start uint, writer interface{}) (int64, error) {
 	// TODO(skriptble): Figure out if we want to use uint or uint32 and
 	// standardize across all packages.
@@ -152,7 +129,7 @@ func (e *Element) writeElement(key bool, start uint, writer interface{}) (int64,
 		if err != nil {
 			return 0, newErrTooSmall()
 		}
-		total += int64(n)
+		total += n
 	case io.Writer:
 		return e.WriteTo(w)
 	default:
@@ -180,8 +157,8 @@ func (e *Element) writeByteSlice(key bool, start uint, size uint32, b []byte) (i
 	}
 
 	var n int
-	switch e.value.data[e.value.start] {
-	case '\x03':
+	switch e.Value().Type() {
+	case bsontype.EmbeddedDocument:
 		if e.value.d == nil {
 			n = copy(b[start:], e.value.data[startToWrite:e.value.start+size])
 			break
@@ -199,7 +176,7 @@ func (e *Element) writeByteSlice(key bool, start uint, size uint32, b []byte) (i
 		if err != nil {
 			return int64(n), err
 		}
-	case '\x04':
+	case bsontype.Array:
 		if e.value.d == nil {
 			n = copy(b[start:], e.value.data[startToWrite:e.value.start+size])
 			break
@@ -219,7 +196,7 @@ func (e *Element) writeByteSlice(key bool, start uint, size uint32, b []byte) (i
 		if err != nil {
 			return int64(n), err
 		}
-	case '\x0F':
+	case bsontype.CodeWithScope:
 		// Get length of code
 		codeStart := e.value.offset + 4
 		codeLength := readi32(e.value.data[codeStart : codeStart+4])

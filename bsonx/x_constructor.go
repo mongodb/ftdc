@@ -357,16 +357,16 @@ func (DocumentConstructor) Interface(value interface{}) *Document {
 		}
 
 		doc = DC.Elements(elems...)
-	case Marshaler:
-		doc, err = DC.MarshalerErr(t)
 	case *Element:
 		doc = DC.Elements(t)
-	case []*Element:
-		doc = DC.Elements(t...)
 	case *Document:
 		doc = t
 	case Reader:
 		doc, err = DC.ReaderErr(t)
+	case Marshaler:
+		doc, err = DC.MarshalerErr(t)
+	case []*Element:
+		doc = DC.Elements(t...)
 	}
 
 	if err != nil || doc == nil {
@@ -396,14 +396,14 @@ func (DocumentConstructor) InterfaceErr(value interface{}) (*Document, error) {
 		return DC.MapSliceInterfaceErr(t)
 	case Reader:
 		return DC.ReaderErr(t)
-	case Marshaler:
-		return DC.MarshalerErr(t)
 	case *Element:
 		return DC.Elements(t), nil
 	case []*Element:
 		return DC.Elements(t...), nil
 	case *Document:
 		return t, nil
+	case Marshaler:
+		return DC.MarshalerErr(t)
 	default:
 		return nil, errors.Errorf("value '%s' is of type '%T' which is not convertable to a document.", t, t)
 	}

@@ -4,6 +4,7 @@ testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path
 bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
 _testPackages := ./ ./events ./metrics ./bsonx
+packages := _testPackages 
 
 ifeq (,$(SILENT))
 testArgs := -v
@@ -34,6 +35,53 @@ benchArgs += -bench=.
 benchArgs += -run='Benchmark.*'
 endif
 
+# start environment setup
+gopath := $(GOPATH)
+gocache := $(abspath $(buildDir)/.cache)
+ifeq ($(OS),Windows_NT)
+gocache := $(shell cygpath -m $(gocache))
+gopath := $(shell cygpath -m $(gopath))
+endif
+buildEnv := GOCACHE=$(gocache)
+# end environment setup
+
+# start linting configuration
+#   package, testing, and linter dependencies specified
+#   separately. This is a temporary solution: eventually we should
+#   vendorize all of these dependencies.
+lintDeps := github.com/alecthomas/gometalinter
+#   include test files and give linters 40s to run to avoid timeouts
+lintArgs := --tests --deadline=5m --vendor
+#   gotype produces false positives because it reads .a files which
+#   are rarely up to date.
+lintArgs += --disable="gotype" --disable="gosec" --disable="gocyclo" --enable="goimports" --disable="golint"
+lintArgs += --skip="$(buildDir)" --skip="buildscripts"
+#  add and configure additional linters
+lintArgs += --line-length=100 --dupl-threshold=175 --cyclo-over=30
+#  golint doesn't handle splitting package comments between multiple files.
+lintArgs += --exclude="package comment should be of the form \"Package .* \(golint\)"
+#  no need to check the error of closer read operations in defer cases
+lintArgs += --exclude="error return value not checked \(defer.*"
+lintArgs += --exclude="should check returned error before deferring .*\.Close"
+lintDeps := $(addprefix $(gopath)/src/,$(lintDeps))
+$(gopath)/src/%:
+	@-[ ! -d $(gopath) ] && mkdir -p $(gopath) || true
+	go get $(subst $(gopath)/src/,,$@)
+$(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
+	$(buildEnv) go build -o $@ $<
+$(buildDir)/.lintSetup:$(lintDeps)
+	@mkdir -p $(buildDir)
+	@-$(gopath)/bin/gometalinter --install >/dev/null && touch $@
+lint-%:$(buildDir)/output.%.lint
+	@grep -v -s -q "^--- FAIL" $<
+$(buildDir)/output.%.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
+	@./$< --output=$@ --lintArgs='$(lintArgs)' --packages='$*'
+$(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
+	@./$< --output="$@" --lintArgs='$(lintArgs)' --packages="$(packages)"
+.PRECIOUS:$(foreach target,$(packages),$(buildDir)/output.$(target).lint)
+.PRECIOUS:$(buildDir)/output.lint
+# end lint suppressions
+
 
 compile:
 	go build $(_testPackages)
@@ -44,7 +92,7 @@ test:metrics.ftdc perf_metrics.ftdc perf_metrics_small.ftdc
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
 coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
-
+lint:$(foreach target,$(packages),$(buildDir)/output.$(target).lint)
 benchmark:
 	go test -v -benchmem $(benchArgs) -timeout=20m ./...
 

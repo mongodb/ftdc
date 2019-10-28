@@ -4,6 +4,7 @@ import (
 	"sort"
 
 	"github.com/mongodb/ftdc/bsonx/bsonerr"
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 )
 
 // ExportMap converts the values of the document to a map of strings
@@ -22,16 +23,54 @@ func (d *Document) ExportMap() map[string]interface{} {
 
 type Elements []*Element
 
-func (c Elements) Len() int           { return len(c) }
-func (c Elements) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
-func (c Elements) Less(i, j int) bool { return c[i].Key() < c[j].Key() }
+func (c Elements) Len() int      { return len(c) }
+func (c Elements) Swap(i, j int) { c[i], c[j] = c[j], c[i] }
+func (c Elements) Less(i, j int) bool {
+	ik := c[i].Key()
+	jk := c[j].Key()
+	if ik != jk {
+		return ik < jk
+	}
+
+	it := c[i].value.Type()
+	jt := c[j].value.Type()
+
+	if it != jt {
+		return it < jt
+	}
+
+	switch it {
+	case bsontype.Double:
+		return c[i].Value().Double() < c[j].Value().Double()
+	case bsontype.String:
+		return c[i].Value().StringValue() < c[j].Value().StringValue()
+	case bsontype.ObjectID:
+		return c[i].Value().ObjectID().Hex() < c[j].Value().ObjectID().Hex()
+	case bsontype.DateTime:
+		return c[i].Value().Time().Before(c[j].Value().Time())
+	case bsontype.Int32:
+		return c[i].Value().Int32() < c[j].Value().Int32()
+	case bsontype.Int64:
+		return c[i].Value().Int64() < c[j].Value().Int64()
+	default:
+		return false
+	}
+}
+func (c Elements) Copy() Elements {
+	out := make(Elements, len(c))
+	for idx := range c {
+		out[idx] = c[idx]
+	}
+	return out
+}
 
 func (d *Document) Elements() Elements {
 	return d.elems
 }
 
 func (d *Document) Sorted() *Document {
-	elems := d.Elements()
+	elems := d.Elements().Copy()
+
 	sort.Stable(elems)
 	return DC.Elements(elems...)
 }

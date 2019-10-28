@@ -7,7 +7,6 @@
 package bsonx
 
 import (
-	"bytes"
 	"math"
 	"time"
 
@@ -50,9 +49,9 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 	case int16:
 		elem = EC.Int32(key, int32(t))
 	case int32:
-		elem = EC.Int32(key, int32(t))
+		elem = EC.Int32(key, t)
 	case int64:
-		elem = EC.Int64(key, int64(t))
+		elem = EC.Int64(key, t)
 	case int:
 		elem = EC.Int(key, t)
 	case uint8:
@@ -208,7 +207,7 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 		switch {
 		case t < math.MaxInt32:
 			return EC.Int32(key, int32(t)), nil
-		case uint64(t) > math.MaxInt64:
+		case t > math.MaxInt64:
 			return nil, errors.Errorf("BSON only has signed integer types and %d overflows an int64", t)
 		default:
 			return EC.Int64(key, int64(t)), nil
@@ -629,16 +628,6 @@ func (ElementConstructor) MaxKey(key string) *Element {
 	return elem
 }
 
-// FromBytes constructs an element from the bytes provided. If the bytes are not
-// a valid element, this method will panic.
-func (ElementConstructor) FromBytes(src []byte) *Element {
-	elem, err := EC.FromBytesErr(src)
-	if err != nil {
-		panic(err)
-	}
-	return elem
-}
-
 // FromValue constructs an element using the underlying value.
 func (ElementConstructor) FromValue(key string, value *Value) *Element {
 	return convertValueToElem(key, value)
@@ -650,29 +639,6 @@ func (ElementConstructor) FromValueErr(key string, value *Value) (*Element, erro
 		return nil, errors.Errorf("could not convert '%s' value to an element", key)
 	}
 
-	return elem, nil
-}
-
-// FromBytesErr constructs an element from the bytes provided, but unlike
-// FromBytes this method will return an error and not panic if the bytes are not
-// a valid element.
-func (ElementConstructor) FromBytesErr(src []byte) (*Element, error) {
-	// TODO: once we have llbson developed, use that to validate the bytes
-	idx := bytes.IndexByte(src, 0x00)
-	if idx < 0 {
-		return nil, errors.New("not a valid element: does not contain a valid key")
-	}
-
-	if len(src) < 2 {
-		return nil, errors.New("not a valid element: not enough bytes")
-	}
-
-	data := make([]byte, len(src))
-	copy(data, src)
-	elem := &Element{value: &Value{start: 0, offset: uint32(idx) + 1, data: data}}
-	if _, err := elem.Validate(); err != nil {
-		return nil, err
-	}
 	return elem, nil
 }
 

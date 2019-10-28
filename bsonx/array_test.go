@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/mongodb/ftdc/bsonx/bsonerr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -271,6 +272,94 @@ func TestArray(t *testing.T) {
 				}
 			})
 		}
+	})
+	t.Run("Constructors", func(t *testing.T) {
+		t.Run("FromDocument", func(t *testing.T) {
+			doc := NewDocument(EC.Int("foo", 42), EC.Int("bar", 84))
+			require.Equal(t, 2, doc.Len())
+
+			ar := ArrayFromDocument(doc)
+			assert.Equal(t, 2, ar.Len())
+			iter := ar.Iterator()
+			require.NotNil(t, iter)
+			total := 0
+			for iter.Next() {
+				total += iter.Value().Int()
+			}
+			assert.Equal(t, 126, total)
+		})
+		t.Run("Make", func(t *testing.T) {
+			ar := MakeArray(42)
+			assert.Equal(t, 0, ar.Len())
+			assert.Equal(t, 42, cap(ar.doc.elems))
+		})
+	})
+	t.Run("Reset", func(t *testing.T) {
+		ar := NewArray(VC.Int(42))
+		assert.Equal(t, 1, ar.Len())
+		ar.Reset()
+		assert.Equal(t, 0, ar.Len())
+	})
+	t.Run("Validate", func(t *testing.T) {
+		t.Run("Passing", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+			ln, err := ar.Validate()
+			require.NoError(t, err)
+			require.True(t, ln > 0)
+		})
+		t.Run("Fail", func(t *testing.T) {
+			ar := NewArray(&Value{})
+			ln, err := ar.Validate()
+			require.Error(t, err)
+			require.Zero(t, ln)
+		})
+		t.Run("Marshal", func(t *testing.T) {
+			_, err := NewArray(&Value{}).MarshalBSON()
+			assert.Error(t, err)
+		})
+
+	})
+	t.Run("Lookup", func(t *testing.T) {
+		t.Run("FindValue", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+
+			assert.Equal(t, 42, ar.Lookup(0).Int())
+			assert.Equal(t, 84, ar.Lookup(1).Int())
+		})
+		t.Run("MissingValue", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+
+			assert.Panics(t, func() { ar.Lookup(3).Int() })
+		})
+		t.Run("FindElement", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+
+			assert.Equal(t, 42, ar.LookupElement(0).Value().Int())
+			assert.Equal(t, 84, ar.LookupElement(1).Value().Int())
+		})
+		t.Run("MissingElement", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+
+			assert.Panics(t, func() { ar.LookupElement(3).Value().Int() })
+		})
+		t.Run("ElementKeys", func(t *testing.T) {
+			ar := NewArray(VC.Int(42), VC.Int(84))
+			assert.Equal(t, "", ar.LookupElement(0).Key())
+			assert.Equal(t, "", ar.LookupElement(1).Key())
+		})
+	})
+	t.Run("InterfaceExport", func(t *testing.T) {
+		t.Run("Empty", func(t *testing.T) {
+			ar := NewArray()
+			assert.Len(t, ar.Interface(), 0)
+		})
+		t.Run("Value", func(t *testing.T) {
+			slice := NewArray(VC.Int(42), VC.Int(84)).Interface()
+
+			assert.Len(t, slice, 2)
+			assert.EqualValues(t, slice[0], 42)
+			assert.EqualValues(t, slice[1], 84)
+		})
 	})
 }
 

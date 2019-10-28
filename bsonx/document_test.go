@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mongodb/ftdc/bsonx/bsonerr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -89,7 +90,59 @@ func TestDocument(t *testing.T) {
 			})
 		}
 	})
-	t.Run("Keys", testDocumentKeys)
+	t.Run("Keys", func(t *testing.T) {
+		testCases := []struct {
+			name      string
+			d         *Document
+			want      Keys
+			err       error
+			recursive bool
+		}{
+			{"one", (&Document{}).Append(EC.String("foo", "")), Keys{{Name: "foo"}}, nil, false},
+			{"two", (&Document{}).Append(EC.Null("x"), EC.Null("y")), Keys{{Name: "x"}, {Name: "y"}}, nil, false},
+			{"one-flat", (&Document{}).Append(EC.SubDocumentFromElements("foo", EC.Null("a"), EC.Null("b"))),
+				Keys{{Name: "foo"}}, nil, false,
+			},
+			{"one-recursive", (&Document{}).Append(EC.SubDocumentFromElements("foo", EC.Null("a"), EC.Null("b"))),
+				Keys{{Name: "foo"}, {Prefix: []string{"foo"}, Name: "a"}, {Prefix: []string{"foo"}, Name: "b"}}, nil, true,
+			},
+			// {"one-array-recursive", (&Document{}).Append(c.ArrayFromElements("foo", VC.Null(())),
+			// 	Keys{{Name: "foo"}, {Prefix: []string{"foo"}, Name: "1"}, {Prefix: []string{"foo"}, Name: "2"}}, nil, true,
+			// },
+			// {"invalid-subdocument",
+			// 	Reader{
+			// 		'\x15', '\x00', '\x00', '\x00',
+			// 		'\x03',
+			// 		'f', 'o', 'o', '\x00',
+			// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
+			// 		'\x0A', '2', '\x00', '\x00', '\x00',
+			// 	},
+			// 	nil, newErrTooSmall(), true,
+			// },
+			// {"invalid-array",
+			// 	Reader{
+			// 		'\x15', '\x00', '\x00', '\x00',
+			// 		'\x04',
+			// 		'f', 'o', 'o', '\x00',
+			// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
+			// 		'\x0A', '2', '\x00', '\x00', '\x00',
+			// 	},
+			// 	nil, newErrTooSmall(), true,
+			// },
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := tc.d.Keys(tc.recursive)
+				if err != tc.err {
+					t.Errorf("Returned error does not match. got %#v; want %#v", err, tc.err)
+				}
+				if !reflect.DeepEqual(got, tc.want) {
+					t.Errorf("Returned keys do not match expected keys. got %#v; want %#v", got, tc.want)
+				}
+			})
+		}
+	})
 	t.Run("Append", func(t *testing.T) {
 		t.Run("Nil Insert", func(t *testing.T) {
 			func() {
@@ -547,235 +600,6 @@ func TestDocument(t *testing.T) {
 		require.False(t, iter.Next())
 		require.NoError(t, iter.Err())
 	})
-	t.Run("Concat", func(t *testing.T) {
-		testCases := []struct {
-			name     string
-			doc      *Document
-			concat   []interface{}
-			expected *Document
-			err      error
-		}{
-			{
-				"nil",
-				NewDocument(),
-				[]interface{}{
-					nil,
-				},
-				nil,
-				bsonerr.NilDocument,
-			},
-			{
-				"nil document",
-				NewDocument(),
-				[]interface{}{
-					(*Document)(nil),
-				},
-				nil,
-				bsonerr.NilDocument,
-			},
-			{
-				"concat single doc",
-				NewDocument(),
-				[]interface{}{
-					NewDocument(EC.String("foo", "bar")),
-				},
-				NewDocument(EC.String("foo", "bar")),
-				nil,
-			},
-			{
-				"concat multiple docs",
-				NewDocument(),
-				[]interface{}{
-					NewDocument(EC.String("foo", "bar")),
-					NewDocument(EC.Int32("baz", 3), EC.Null("bang")),
-				},
-				NewDocument(EC.String("foo", "bar"), EC.Int32("baz", 3), EC.Null("bang")),
-				nil,
-			},
-			{
-				"concat single byte slice",
-				NewDocument(),
-				[]interface{}{
-					[]byte{
-						// length
-						0x12, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x2,
-						// key - "foo"
-						0x66, 0x6f, 0x6f, 0x0,
-						// value - string length
-						0x4, 0x0, 0x0, 0x0,
-						// value - string "bar"
-						0x62, 0x61, 0x72, 0x0,
-
-						// null terminator
-						0x0,
-					},
-				},
-				NewDocument(EC.String("foo", "bar")),
-				nil,
-			},
-			{
-				"concat multiple byte slices",
-				NewDocument(),
-				[]interface{}{
-					[]byte{
-						// length
-						0x12, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x2,
-						// key - "foo"
-						0x66, 0x6f, 0x6f, 0x0,
-						// value - string length
-						0x4, 0x0, 0x0, 0x0,
-						// value - string "bar"
-						0x62, 0x61, 0x72, 0x0,
-
-						// null terminator
-						0x0,
-					},
-					[]byte{
-						// length
-						0x14, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x10,
-						// key - "baz"
-						0x62, 0x61, 0x7a, 0x0,
-						// value - int32(3)
-						0x3, 0x0, 0x0, 0x0,
-
-						// type - null
-						0xa,
-						// key - "bang"
-						0x62, 0x61, 0x6e, 0x67, 0x0,
-
-						// null terminator
-						0x0,
-					},
-				},
-				NewDocument(EC.String("foo", "bar"), EC.Int32("baz", 3), EC.Null("bang")),
-				nil,
-			},
-			{
-				"concat single reader",
-				NewDocument(),
-				[]interface{}{
-					Reader([]byte{
-						// length
-						0x12, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x2,
-						// key - "foo"
-						0x66, 0x6f, 0x6f, 0x0,
-						// value - string length
-						0x4, 0x0, 0x0, 0x0,
-						// value - string "bar"
-						0x62, 0x61, 0x72, 0x0,
-
-						// null terminator
-						0x0,
-					}),
-				},
-				NewDocument(EC.String("foo", "bar")),
-				nil,
-			},
-			{
-				"concat multiple readers",
-				NewDocument(),
-				[]interface{}{
-					Reader([]byte{
-						// length
-						0x12, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x2,
-						// key - "foo"
-						0x66, 0x6f, 0x6f, 0x0,
-						// value - string length
-						0x4, 0x0, 0x0, 0x0,
-						// value - string "bar"
-						0x62, 0x61, 0x72, 0x0,
-
-						// null terminator
-						0x0,
-					}),
-					Reader([]byte{
-						// length
-						0x14, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x10,
-						// key - "baz"
-						0x62, 0x61, 0x7a, 0x0,
-						// value - int32(3)
-						0x3, 0x0, 0x0, 0x0,
-
-						// type - null
-						0xa,
-						// key - "bang"
-						0x62, 0x61, 0x6e, 0x67, 0x0,
-
-						// null terminator
-						0x0,
-					}),
-				},
-				NewDocument(EC.String("foo", "bar"), EC.Int32("baz", 3), EC.Null("bang")),
-				nil,
-			},
-			{
-				"concat mixed",
-				NewDocument(),
-				[]interface{}{
-					NewDocument(EC.String("foo", "bar")),
-					[]byte{
-						// length
-						0xe, 0x0, 0x0, 0x0,
-
-						// type - string
-						0x10,
-						// key - "baz"
-						0x62, 0x61, 0x7a, 0x0,
-						// value - int32(3)
-						0x3, 0x0, 0x0, 0x0,
-
-						// null terminator
-						0x0,
-					},
-					Reader([]byte{
-						// length
-						0xb, 0x0, 0x0, 0x0,
-
-						// type - null
-						0xa,
-						// key - "bang"
-						0x62, 0x61, 0x6e, 0x67, 0x0,
-
-						// null terminator
-						0x0,
-					}),
-				},
-				NewDocument(EC.String("foo", "bar"), EC.Int32("baz", 3), EC.Null("bang")),
-				nil,
-			},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				err := tc.doc.Concat(tc.concat...)
-				require.Equal(t, tc.err, err)
-				if err != nil {
-					return
-				}
-
-				require.True(t, documentComparer(tc.expected, tc.doc))
-			})
-		}
-
-	})
 	t.Run("Reset", func(t *testing.T) {
 		d := NewDocument(EC.Null("a"), EC.Null("b"), EC.Null("c"), EC.Null("a"), EC.Null("e"))
 		gotSlc := d.elems
@@ -971,60 +795,29 @@ func TestDocument(t *testing.T) {
 			// }
 		}
 	})
-}
-
-func testDocumentKeys(t *testing.T) {
-	testCases := []struct {
-		name      string
-		d         *Document
-		want      Keys
-		err       error
-		recursive bool
-	}{
-		{"one", (&Document{}).Append(EC.String("foo", "")), Keys{{Name: "foo"}}, nil, false},
-		{"two", (&Document{}).Append(EC.Null("x"), EC.Null("y")), Keys{{Name: "x"}, {Name: "y"}}, nil, false},
-		{"one-flat", (&Document{}).Append(EC.SubDocumentFromElements("foo", EC.Null("a"), EC.Null("b"))),
-			Keys{{Name: "foo"}}, nil, false,
-		},
-		{"one-recursive", (&Document{}).Append(EC.SubDocumentFromElements("foo", EC.Null("a"), EC.Null("b"))),
-			Keys{{Name: "foo"}, {Prefix: []string{"foo"}, Name: "a"}, {Prefix: []string{"foo"}, Name: "b"}}, nil, true,
-		},
-		// {"one-array-recursive", (&Document{}).Append(c.ArrayFromElements("foo", VC.Null(())),
-		// 	Keys{{Name: "foo"}, {Prefix: []string{"foo"}, Name: "1"}, {Prefix: []string{"foo"}, Name: "2"}}, nil, true,
-		// },
-		// {"invalid-subdocument",
-		// 	Reader{
-		// 		'\x15', '\x00', '\x00', '\x00',
-		// 		'\x03',
-		// 		'f', 'o', 'o', '\x00',
-		// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
-		// 		'\x0A', '2', '\x00', '\x00', '\x00',
-		// 	},
-		// 	nil, newErrTooSmall(), true,
-		// },
-		// {"invalid-array",
-		// 	Reader{
-		// 		'\x15', '\x00', '\x00', '\x00',
-		// 		'\x04',
-		// 		'f', 'o', 'o', '\x00',
-		// 		'\x0B', '\x00', '\x00', '\x00', '\x01', '1', '\x00',
-		// 		'\x0A', '2', '\x00', '\x00', '\x00',
-		// 	},
-		// 	nil, newErrTooSmall(), true,
-		// },
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := tc.d.Keys(tc.recursive)
-			if err != tc.err {
-				t.Errorf("Returned error does not match. got %#v; want %#v", err, tc.err)
-			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Errorf("Returned keys do not match expected keys. got %#v; want %#v", got, tc.want)
-			}
+	t.Run("Sort", func(t *testing.T) {
+		t.Run("EqualKeys", func(t *testing.T) {
+			doc := DC.New().Append(EC.Int32("_id", 42), EC.Int32("_id", 0))
+			assert.EqualValues(t, 42, doc.Elements()[0].Value().Int32())
+			sdoc := doc.Sorted()
+			assert.EqualValues(t, 42, doc.Elements()[0].Value().Int32())
+			assert.EqualValues(t, 0, sdoc.Elements()[0].Value().Int32())
 		})
-	}
+		t.Run("DifferentKeys", func(t *testing.T) {
+			doc := DC.New().Append(EC.Int64("id", 42), EC.Int64("_id", 0), EC.String("_first", "hi"))
+			assert.Equal(t, "id", doc.Elements()[0].Key())
+			sdoc := doc.Sorted()
+			assert.Equal(t, "id", doc.Elements()[0].Key())
+			assert.Equal(t, "_first", sdoc.Elements()[0].Key())
+		})
+		t.Run("DifferentTypes", func(t *testing.T) {
+			doc := DC.New().Append(EC.Int32("_id", 42), EC.String("_id", "forty-two"))
+			assert.EqualValues(t, 42, doc.Elements()[0].Value().Int32())
+			sdoc := doc.Sorted()
+			assert.EqualValues(t, 42, doc.Elements()[0].Value().Int32())
+			assert.Equal(t, "forty-two", sdoc.Elements()[0].Value().StringValue())
+		})
+	})
 }
 
 var tpag testPrependAppendGenerator

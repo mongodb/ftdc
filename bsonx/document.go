@@ -224,7 +224,7 @@ func (d *Document) Set(elem *Element) *Document {
 
 	key := elem.Key() + "\x00"
 	i := sort.Search(len(d.index), func(i int) bool { return bytes.Compare(d.keyFromIndex(i), []byte(key)) >= 0 })
-	if i < len(d.index) && bytes.Compare(d.keyFromIndex(i), []byte(key)) == 0 {
+	if i < len(d.index) && bytes.Equal(d.keyFromIndex(i), []byte(key)) {
 		d.elems[d.index[i]] = elem
 		return d
 	}
@@ -293,7 +293,7 @@ func (d *Document) RecursiveLookupElementErr(key ...string) (*Element, error) {
 	var err error
 	first := []byte(key[0] + "\x00")
 	i := sort.Search(len(d.index), func(i int) bool { return bytes.Compare(d.keyFromIndex(i), first) >= 0 })
-	if i < len(d.index) && bytes.Compare(d.keyFromIndex(i), first) == 0 {
+	if i < len(d.index) && bytes.Equal(d.keyFromIndex(i), first) {
 		elem = d.elems[d.index[i]]
 		if len(key) == 1 {
 			return elem, nil
@@ -349,7 +349,7 @@ func (d *Document) Delete(key ...string) *Element {
 	var elem *Element
 	first := []byte(key[0] + "\x00")
 	i := sort.Search(len(d.index), func(i int) bool { return bytes.Compare(d.keyFromIndex(i), first) >= 0 })
-	if i < len(d.index) && bytes.Compare(d.keyFromIndex(i), first) == 0 {
+	if i < len(d.index) && bytes.Equal(d.keyFromIndex(i), first) {
 		keyIndex := d.index[i]
 		elem = d.elems[keyIndex]
 		if len(key) == 1 {
@@ -409,63 +409,8 @@ func (d *Document) Iterator() Iterator {
 	return newIterator(d)
 }
 
-// Concat will take the keys from the provided document and concat them onto
-// the end of this document.
-//
-// doc must be one of the following:
-//
-//   - *Document
-//   - []byte
-//   - io.Reader
-func (d *Document) Concat(docs ...interface{}) error {
-	if d == nil {
-		return bsonerr.NilDocument
-	}
-
-	for _, doc := range docs {
-		if doc == nil {
-			if d.IgnoreNilInsert {
-				continue
-			}
-
-			return bsonerr.NilDocument
-		}
-
-		switch doc := doc.(type) {
-		case *Document:
-			if doc == nil {
-				if d.IgnoreNilInsert {
-					continue
-				}
-
-				return bsonerr.NilDocument
-			}
-			d.Append(doc.elems...)
-		case []byte:
-			if err := d.concatReader(Reader(doc)); err != nil {
-				return err
-			}
-		case Reader:
-			if err := d.concatReader(doc); err != nil {
-				return err
-			}
-		default:
-			return bsonerr.InvalidDocumentType
-		}
-	}
-
-	return nil
-}
-
-func (d *Document) concatReader(r Reader) error {
-	_, err := r.readElements(func(e *Element) error {
-		d.Append(e)
-
-		return nil
-	})
-
-	return err
-}
+func (d *Document) Extend(d2 *Document) *Document   { d.Append(d2.elems...); return d }
+func (d *Document) ExtendReader(r Reader) *Document { d.Append(DC.Reader(r).elems...); return d }
 
 // Reset clears a document so it can be reused. This method clears references
 // to the underlying pointers to elements so they can be garbage collected.
@@ -497,16 +442,6 @@ func (d *Document) Validate() (uint32, error) {
 		size += n
 	}
 	return size, nil
-}
-
-// validates the document and returns its total size. This method has
-// bookkeeping parameters to prevent a stack overflow.
-func (d *Document) validate(currentDepth, maxDepth uint32) (uint32, error) {
-	if d == nil {
-		return 0, bsonerr.NilDocument
-	}
-
-	return 0, nil
 }
 
 // WriteTo implements the io.WriterTo interface.
@@ -543,7 +478,6 @@ func (d *Document) WriteDocument(start uint, writer interface{}) (int64, error) 
 	case []byte:
 		n, err := d.writeByteSlice(pos, size, w)
 		total += n
-		pos += uint(n)
 		if err != nil {
 			return total, err
 		}
@@ -573,7 +507,7 @@ func (d *Document) writeByteSlice(start uint, size uint32, b []byte) (int64, err
 	}
 	for _, elem := range d.elems {
 		n, err := elem.writeElement(true, pos, b)
-		total += int64(n)
+		total += n
 		pos += uint(n)
 		if err != nil {
 			return total, err
@@ -582,7 +516,6 @@ func (d *Document) writeByteSlice(start uint, size uint32, b []byte) (int64, err
 
 	n, err = elements.Byte.Encode(pos, b, '\x00')
 	total += int64(n)
-	pos += uint(n)
 	if err != nil {
 		return total, err
 	}
@@ -672,40 +605,6 @@ func (d *Document) keyFromIndex(idx int) []byte {
 
 	haystack := d.elems[d.index[idx]]
 	return haystack.value.data[haystack.value.start+1 : haystack.value.offset]
-}
-
-// Equal compares this document to another, returning true if they are equal.
-func (d *Document) Equal(d2 *Document) bool {
-	if d == nil && d2 == nil {
-		return true
-	}
-
-	if d == nil || d2 == nil {
-		return false
-	}
-
-	if (len(d.elems) != len(d2.elems)) || (len(d.index) != len(d2.index)) {
-		return false
-	}
-	for index := range d.elems {
-		b1, err := d.elems[index].MarshalBSON()
-		if err != nil {
-			return false
-		}
-		b2, err := d2.elems[index].MarshalBSON()
-		if err != nil {
-			return false
-		}
-
-		if !bytes.Equal(b1, b2) {
-			return false
-		}
-
-		if d.index[index] != d2.index[index] {
-			return false
-		}
-	}
-	return true
 }
 
 // String implements the fmt.Stringer interface.
