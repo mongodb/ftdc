@@ -8,7 +8,6 @@ package bsonx
 
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"time"
 
@@ -41,11 +40,13 @@ type Value struct {
 	d *Document
 }
 
-// Offset returns the offset to the beginning of the value in the underlying data. When called on
-// a value obtained from a Reader, it can be used to find the value manually within the Reader's
-// bytes.
-func (v *Value) Offset() uint32 {
-	return v.offset
+func (v *Value) Copy() *Value {
+	return &Value{
+		start:  v.start,
+		offset: v.offset,
+		data:   v.data,
+		d:      v.d.Copy(),
+	}
 }
 
 // Interface returns the Go value of this Value as an empty interface.
@@ -154,7 +155,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 	case '\x03':
 		if v.d != nil {
 			n, err := v.d.Validate()
-			total += uint32(n)
+			total += n
 			if err != nil {
 				return total, err
 			}
@@ -184,7 +185,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 	case '\x04':
 		if v.d != nil {
 			n, err := (&Array{v.d}).Validate()
-			total += uint32(n)
+			total += n
 			if err != nil {
 				return total, err
 			}
@@ -290,7 +291,7 @@ func (v *Value) validate(sizeOnly bool) (uint32, error) {
 			}
 
 			n, err := v.d.Validate()
-			total += uint32(n)
+			total += n
 			if err != nil {
 				return total, err
 			}
@@ -367,16 +368,6 @@ func (v *Value) Type() bsontype.Type {
 		panic(bsonerr.UninitializedElement)
 	}
 	return bsontype.Type(v.data[v.start])
-}
-
-// IsNumber returns true if the type of v is a numberic BSON type.
-func (v *Value) IsNumber() bool {
-	switch v.Type() {
-	case bsontype.Double, bsontype.Int32, bsontype.Int64, bsontype.Decimal128:
-		return true
-	default:
-		return false
-	}
 }
 
 // Double returns the float64 value for this element.
@@ -646,7 +637,7 @@ func (v *Value) DateTime() int64 {
 // type other than datetime.
 func (v *Value) Time() time.Time {
 	i := v.DateTime()
-	return time.Unix(int64(i)/1000, int64(i)%1000*1000000)
+	return time.Unix(i/1000, i%1000*1000000)
 }
 
 // TimeOK is the same as Time, except it returns a boolean instead of
@@ -861,7 +852,7 @@ func (v *Value) Timestamp() (uint32, uint32) {
 	if v == nil || v.offset == 0 || v.data == nil {
 		panic(bsonerr.UninitializedElement)
 	}
-	if v.data[v.start] != '\x11' {
+	if bsontype.Type(v.data[v.start]) != bsontype.Timestamp {
 		panic(bsonerr.ElementType{"compact.Element.timestamp", bsontype.Type(v.data[v.start])})
 	}
 	return binary.LittleEndian.Uint32(v.data[v.offset+4 : v.offset+8]), binary.LittleEndian.Uint32(v.data[v.offset : v.offset+4])
@@ -891,6 +882,30 @@ func (v *Value) Int64() int64 {
 
 func (v *Value) getUint64() uint64 {
 	return binary.LittleEndian.Uint64(v.data[v.offset : v.offset+8])
+}
+
+func (v *Value) Int() int {
+	if val, ok := v.Int32OK(); ok {
+		return int(val)
+	}
+
+	if val, ok := v.Int64OK(); ok {
+		return int(val)
+	}
+
+	panic(bsonerr.ElementType{"int", bsontype.Type(v.data[v.start])})
+}
+
+func (v *Value) IntOK() (int, bool) {
+	if v == nil || v.offset == 0 || v.data == nil {
+		return 0, false
+	}
+
+	if t := bsontype.Type(v.data[v.start]); t != bsontype.Int64 && t != bsontype.Int32 {
+		return 0, false
+	}
+
+	return v.Int(), true
 }
 
 // Int64OK is the same as Int64, except that it returns a boolean instead of
@@ -925,138 +940,6 @@ func (v *Value) Decimal128OK() (decimal.Decimal128, bool) {
 	return v.Decimal128(), true
 }
 
-func (v *Value) asString() (string, error) {
-	var str string
-	var err error
-	switch v.Type() {
-	case bsontype.String:
-		str = v.StringValue()
-	case bsontype.Double:
-		str = fmt.Sprintf("%f", v.Double())
-	case bsontype.Int32:
-		str = fmt.Sprintf("%d", v.Int32())
-	case bsontype.Int64:
-		str = fmt.Sprintf("%d", v.Int64())
-	case bsontype.Boolean:
-		str = fmt.Sprintf("%t", v.Boolean())
-	case bsontype.Null:
-		str = "null"
-	default:
-		err = errors.Errorf("cannot Stringify %s yet", v.Type())
-	}
-	return str, err
-}
-
-func (v *Value) setString(str string) {
-	size := 2 + 4 + len(str) + 1
-	b := make([]byte, size)
-	b[0], b[1] = byte(bsontype.String), 0x00
-	copy(b[2:], str)
-	b[size-1] = 0x00
-
-	v.start = 0
-	v.offset = 2
-	v.data = b
-}
-
-func (v *Value) setDouble(f float64) {
-	header := v.data[v.start:v.offset]
-	if v.start != 0 || len(v.data) < len(header)+8 {
-		b := make([]byte, len(header)+8)
-		copy(b, header)
-		v.offset = v.offset - v.start
-		v.start = 0
-		v.data = b
-	}
-	v.data[v.start] = byte(bsontype.Double)
-	bits := math.Float64bits(f)
-	binary.LittleEndian.PutUint64(v.data[v.offset:v.offset+8], bits)
-}
-
-func (v *Value) setInt32(i int32) {
-	header := v.data[v.start:v.offset]
-	if v.start != 0 || len(v.data) < len(header)+4 {
-		b := make([]byte, len(header)+4)
-		copy(b, header)
-		v.offset = v.offset - v.start
-		v.start = 0
-		v.data = b
-	}
-	v.data[v.start] = byte(bsontype.Int32)
-	binary.LittleEndian.PutUint32(v.data[v.offset:v.offset+4], uint32(i))
-}
-
-func (v *Value) setInt64(i int64) {
-	header := v.data[v.start:v.offset]
-	if v.start != 0 || len(v.data) < len(header)+8 {
-		b := make([]byte, len(header)+8)
-		copy(b, header)
-		v.offset = v.offset - v.start
-		v.start = 0
-		v.data = b
-	}
-	v.data[v.start] = byte(bsontype.Int64)
-	binary.LittleEndian.PutUint64(v.data[v.offset:v.offset+8], uint64(i))
-}
-
-func (v *Value) addNumber(v2 *Value) {
-	// TODO: decimal128
-	switch v.Type() {
-	case bsontype.Double:
-		switch v2.Type() {
-		case bsontype.Double:
-			v.setDouble(v.Double() + v2.Double())
-		case bsontype.Int32:
-			v.setDouble(v.Double() + float64(v2.Int32()))
-		case bsontype.Int64:
-			v.setDouble(v.Double() + float64(v2.Int64()))
-		}
-	case bsontype.Int32:
-		switch v2.Type() {
-		case bsontype.Double:
-			v.setDouble(float64(v.Int32()) + v2.Double())
-		case bsontype.Int32:
-			v.setInt32(v.Int32() + v2.Int32())
-		case bsontype.Int64:
-			v.setInt64(int64(v.Int32()) + v2.Int64())
-		}
-	case bsontype.Int64:
-		switch v2.Type() {
-		case bsontype.Double:
-			v.setDouble(float64(v.Int64()) + v.Double())
-		case bsontype.Int32:
-			v.setInt64(v.Int64() + int64(v2.Int32()))
-		case bsontype.Int64:
-			v.setInt64(v.Int64() + v2.Int64())
-		}
-	}
-}
-
-// Add will add this Value to another. This is currently only implemented for
-// strings and numbers. If either value is a string, the other type is coerced
-// into a string and added to the other.
-func (v *Value) Add(v2 *Value) error {
-	if v.Type() == bsontype.String || v2.Type() == bsontype.String {
-		str1, err := v.asString()
-		if err != nil {
-			return err
-		}
-		str2, err := v2.asString()
-		if err != nil {
-			return err
-		}
-		v.setString(str1 + str2)
-		return nil
-	}
-
-	if v.IsNumber() && v2.IsNumber() {
-		v.addNumber(v2)
-		return nil
-	}
-
-	return errors.Errorf("cannot Add values of types %s and %s yet", v.Type(), v2.Type())
-}
-
 // Equal compares v to v2 and returns true if they are equal. This method will
 // ensure that the values are logically equal, even if their internal structure
 // is different. This method should be used over reflect.DeepEqual which will
@@ -1086,7 +969,7 @@ func (v *Value) Equal(v2 *Value) bool {
 		return false
 	}
 
-	return checkEqualVal(bsontype.Type(t1), bsontype.Type(t2), data1, data2)
+	return checkEqualVal(t1, t2, data1, data2)
 }
 
 func (v *Value) docToBytes(t bsontype.Type) ([]byte, error) {

@@ -8,10 +8,14 @@ package bsonx
 
 import (
 	"bytes"
+	"math"
 	"testing"
 	"time"
 
+	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -937,4 +941,349 @@ func TestConstructor(t *testing.T) {
 			requireValuesEqual(t, expected, actual)
 		})
 	})
+}
+
+func TestDocumentConstructor(t *testing.T) {
+	t.Run("Individual", func(t *testing.T) {
+		for _, test := range []struct {
+			Name        string
+			Constructor func() (*Document, error)
+			IsNil       bool
+			Size        int
+			Check       func(*testing.T, *Document)
+		}{
+			{
+				Name: "EmptyMake",
+				Size: 0,
+				Constructor: func() (*Document, error) {
+					return DC.Make(0), nil
+				},
+			},
+			{
+				Name: "EmptyMakeWithCapacity",
+				Size: 0,
+				Constructor: func() (*Document, error) {
+					return DC.Make(100), nil
+				},
+			},
+			{
+				Name: "EmptyNew",
+				Size: 0,
+				Constructor: func() (*Document, error) {
+					return DC.New(), nil
+				},
+			},
+			{
+				Name: "ReaderNil",
+				Size: 0,
+				Constructor: func() (*Document, error) {
+					_, err := DC.ReaderErr(nil)
+					if err == nil {
+						return nil, errors.New("new reader")
+					}
+					return nil, nil
+				},
+				IsNil: true,
+			},
+			{
+				Name: "ReaderEmpty",
+				Size: 0,
+				Constructor: func() (*Document, error) {
+					_, err := DC.ReaderErr(Reader{})
+					if err == nil {
+						return nil, errors.New("new reader")
+					}
+
+					return nil, nil
+				},
+				IsNil: true,
+			},
+			{
+				Name: "Reader",
+				Size: 1,
+				Constructor: func() (*Document, error) {
+					doc := DC.Elements(EC.Int("foo", 42))
+					bytes, err := doc.MarshalBSON()
+					if err != nil {
+						return nil, err
+					}
+
+					return DC.Reader(Reader(bytes)), nil
+				},
+				Check: func(t *testing.T, _ *Document) {
+					assert.Panics(t, func() {
+						DC.Reader(nil)
+					})
+				},
+			},
+			{
+				Name: "MapString",
+				Size: 2,
+				Constructor: func() (*Document, error) {
+					return DC.MapString(map[string]string{"a": "b", "b": "c"}), nil
+				},
+			},
+			{
+				Name: "MapInterface",
+				Size: 2,
+				Constructor: func() (*Document, error) {
+					return DC.MapInterface(map[string]interface{}{"a": true, "b": "c"}), nil
+				},
+			},
+			{
+				Name: "MapInt",
+				Size: 2,
+				Constructor: func() (*Document, error) {
+					return DC.MapInt(map[string]int{"a": math.MaxInt32 + 2, "b": math.MaxInt64}), nil
+				},
+			},
+			{
+				Name: "MapInt32",
+				Size: 2,
+				Constructor: func() (*Document, error) {
+					return DC.MapInt32(map[string]int32{"a": 1, "b": 1000}), nil
+				},
+			},
+			{
+				Name: "MapInt64",
+				Size: 2,
+				Constructor: func() (*Document, error) {
+					return DC.MapInt64(map[string]int64{"a": math.MaxInt64 - 4, "b": 1000}), nil
+				},
+			},
+			{
+				Name: "Marshaler",
+				Size: 3,
+				Constructor: func() (*Document, error) {
+					return DC.Marshaler(DC.Elements(EC.Int("hi", 100), EC.String("there", "this"), EC.Time("now", time.Now()))), nil
+				},
+			},
+			{
+				Name: "MarshalerErr",
+				Size: 3,
+				Constructor: func() (*Document, error) {
+					return DC.MarshalerErr(DC.Elements(EC.Int("hi", 100), EC.String("there", "this"), EC.Time("now", time.Now())))
+				},
+			},
+			{
+				Name:  "MarshalerErrNil",
+				Size:  0,
+				IsNil: true,
+				Constructor: func() (*Document, error) {
+					doc, err := DC.MarshalerErr(Reader(nil))
+					if err == nil {
+						return nil, errors.New("missed error")
+					}
+
+					return doc, nil
+				},
+			},
+		} {
+			t.Run(test.Name, func(t *testing.T) {
+				doc, err := test.Constructor()
+				require.NoError(t, err)
+				if test.IsNil {
+					require.Nil(t, doc)
+					return
+				}
+
+				require.NotNil(t, doc)
+
+				assert.Equal(t, test.Size, doc.Len())
+				if test.Check != nil {
+					t.Run("Check", func(t *testing.T) {
+						test.Check(t, doc)
+					})
+				}
+			})
+
+		}
+
+	})
+	t.Run("Interface", func(t *testing.T) {
+		for _, test := range []struct {
+			Name      string
+			Input     interface{}
+			Size      int
+			HasErrors bool
+			Type      bsontype.Type
+		}{
+			{
+				Name:  "Empty",
+				Input: map[string]interface{}{},
+				Size:  0,
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name:      "Nil",
+				Input:     nil,
+				Size:      0,
+				Type:      bsontype.Null,
+				HasErrors: true,
+			},
+			{
+				Name:      "ReaderNil",
+				Input:     Reader(nil),
+				Size:      0,
+				HasErrors: true,
+				Type:      bsontype.Null,
+			},
+			{
+				Name:  "MapString",
+				Size:  1,
+				Type:  bsontype.EmbeddedDocument,
+				Input: map[string]string{"hi": "world"},
+			},
+			{
+				Name:  "MapInterfaceInterfaceErrorKey",
+				Size:  1,
+				Input: map[interface{}]interface{}{errors.New("hi"): "world"},
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name:  "MapInterfaceInterfaceStrings",
+				Size:  1,
+				Input: map[interface{}]interface{}{"hi": "world"},
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name:  "MapInterfaceInterfaceBool",
+				Size:  1,
+				Input: map[interface{}]interface{}{true: "world"},
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name:  "MapInterfaceInterfaceStringer",
+				Size:  1,
+				Input: map[interface{}]interface{}{DC.New(): "world"},
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name:  "MapInterfaceStrings",
+				Size:  2,
+				Input: map[string]interface{}{"a": true, "b": "c"},
+				Type:  bsontype.EmbeddedDocument,
+			},
+			{
+				Name: "MapStringInterfaceSlice",
+				Type: bsontype.EmbeddedDocument,
+				Size: 2,
+				Input: map[string][]interface{}{
+					"a": []interface{}{"1", 2, "3"},
+					"b": []interface{}{false, true, "1", 2, "3"},
+				},
+			},
+			{
+				Name:  "DocumentMarshaler",
+				Type:  bsontype.EmbeddedDocument,
+				Size:  3,
+				Input: DC.Elements(EC.Int("hi", 100), EC.String("there", "this"), EC.Time("now", time.Now())),
+			},
+			{
+				Name:  "Elements",
+				Type:  bsontype.EmbeddedDocument,
+				Size:  3,
+				Input: []*Element{EC.Int("hi", 100), EC.String("there", "this"), EC.Time("now", time.Now())},
+			},
+			{
+				Name:  "ElementSingle",
+				Type:  bsontype.DateTime,
+				Size:  1,
+				Input: EC.Time("now", time.Now()),
+			},
+			{
+				Name: "MapMarshaler",
+				Size: 2,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string]Marshaler{
+					"one": NewDocument(),
+					"two": NewArray(),
+				},
+			},
+			{
+				Name: "MapMarshalerSlice",
+				Size: 2,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string][]Marshaler{
+					"one": []Marshaler{NewDocument(), NewDocument()},
+					"two": []Marshaler{NewArray()},
+				},
+			},
+			{
+				Name:  "Marshaler",
+				Size:  1,
+				Type:  bsontype.EmbeddedDocument,
+				Input: NewArray(VC.String("hi")),
+			},
+			{
+				Name: "MapStringSlice",
+				Size: 3,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string][]string{
+					"hi":      []string{"hello", "world"},
+					"results": []string{},
+					"other":   []string{"one"},
+				},
+			},
+			{
+				Name: "MapStringInt64",
+				Size: 5,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string]int64{
+					"one":   400,
+					"two":   math.MaxInt32,
+					"three": math.MaxInt64 - 10,
+					"four":  -100,
+					"five":  -math.MaxInt64,
+				},
+			}, {
+				Name: "MapStringInt",
+				Size: 5,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string]int{
+					"one":   400,
+					"two":   math.MaxInt32,
+					"three": math.MaxInt64 - 10,
+					"four":  -100,
+					"five":  -math.MaxInt64,
+				},
+			},
+			{
+				Name: "MapStringInt32",
+				Size: 4,
+				Type: bsontype.EmbeddedDocument,
+				Input: map[string]int32{
+					"one":  400,
+					"two":  math.MaxInt32,
+					"four": -100,
+					"five": -math.MaxInt32,
+				},
+			},
+		} {
+			t.Run(test.Name, func(t *testing.T) {
+				t.Run("NoErrors", func(t *testing.T) {
+					doc := DC.Interface(test.Input)
+					require.NotNil(t, doc)
+					assert.Equal(t, test.Size, doc.Len())
+				})
+				t.Run("Errors", func(t *testing.T) {
+					edoc, err := DC.InterfaceErr(test.Input)
+					if test.HasErrors {
+						assert.Error(t, err)
+						assert.Nil(t, edoc)
+					} else {
+						assert.NoError(t, err)
+						require.NotNil(t, edoc)
+						assert.Equal(t, test.Size, edoc.Len())
+					}
+				})
+				t.Run("ValueConstructor", func(t *testing.T) {
+					val := VC.Interface(test.Input)
+					require.NotNil(t, val)
+					require.Equal(t, test.Type, val.Type())
+				})
+			})
+		}
+	})
+
 }

@@ -121,7 +121,7 @@ func (itr *readerIterator) Next() bool {
 // Element returns the current element of the readerIterator. The pointer that it returns will
 // _always_ be the same for a given readerIterator.
 func (itr *readerIterator) Element() *Element { return itr.elem }
-func (iter *readerIterator) Value() *Value    { return iter.elem.value }
+func (itr *readerIterator) Value() *Value     { return itr.elem.value }
 func (itr *readerIterator) Err() error        { return itr.err }
 
 // arrayIterator facilitates iterating over a bson.Array.

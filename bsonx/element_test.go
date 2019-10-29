@@ -16,6 +16,7 @@ import (
 	"github.com/mongodb/ftdc/bsonx/bsontype"
 	"github.com/mongodb/ftdc/bsonx/decimal"
 	"github.com/mongodb/ftdc/bsonx/types"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestElement(t *testing.T) {
@@ -1722,6 +1723,12 @@ func TestElement(t *testing.T) {
 			})
 		}
 	})
+	t.Run("SetValue", func(t *testing.T) {
+		elem := EC.Int("foo", 300)
+		elem.SetValue(VC.Int32(42))
+		assert.Equal(t, 42, elem.Value().Int())
+	})
+
 }
 
 func testConvertValueToElem(t *testing.T) {
