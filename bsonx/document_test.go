@@ -818,6 +818,47 @@ func TestDocument(t *testing.T) {
 			assert.Equal(t, "forty-two", sdoc.Elements()[0].Value().StringValue())
 		})
 	})
+	t.Run("Lookup", func(t *testing.T) {
+		doc := DC.New().Append(EC.Int64("id", 42), EC.Int64("_id", 11), EC.String("hi", "hi"))
+		t.Run("Element", func(t *testing.T) {
+			elem := doc.LookupElement("id")
+			assert.Equal(t, "id", elem.Key())
+			assert.EqualValues(t, 42, elem.Value().Int64())
+		})
+		t.Run("ElementErr", func(t *testing.T) {
+			elem, err := doc.LookupElementErr("_id")
+			require.NoError(t, err)
+			assert.Equal(t, "_id", elem.Key())
+			assert.EqualValues(t, 11, elem.Value().Int64())
+		})
+		t.Run("Value", func(t *testing.T) {
+			val := doc.Lookup("id")
+			assert.EqualValues(t, 42, val.Int64())
+		})
+		t.Run("ValueErr", func(t *testing.T) {
+			val, err := doc.LookupErr("_id")
+			require.NoError(t, err)
+			assert.EqualValues(t, 11, val.Int64())
+		})
+		t.Run("Missing", func(t *testing.T) {
+			assert.Nil(t, doc.Lookup("NOT REAL"))
+		})
+		t.Run("MissingErr", func(t *testing.T) {
+			val, err := doc.LookupErr("NOT REAL")
+			assert.Error(t, err)
+			assert.Nil(t, val)
+		})
+		t.Run("MissingElement", func(t *testing.T) {
+			assert.Nil(t, doc.LookupElement("NOT REAL"))
+		})
+		t.Run("MissingElementErr", func(t *testing.T) {
+			elem, err := doc.LookupElementErr("NOT REAL")
+			assert.Error(t, err)
+			assert.Nil(t, elem)
+		})
+
+	})
+
 }
 
 var tpag testPrependAppendGenerator

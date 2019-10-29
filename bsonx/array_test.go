@@ -361,6 +361,34 @@ func TestArray(t *testing.T) {
 			assert.EqualValues(t, slice[1], 84)
 		})
 	})
+	t.Run("String", func(t *testing.T) {
+		t.Run("Empty", func(t *testing.T) {
+			ar := NewArray()
+			assert.Equal(t, "bson.Array[]", ar.String())
+		})
+		t.Run("Content", func(t *testing.T) {
+			ar := NewArray(VC.String("hello"), VC.String("world"))
+			assert.Equal(t, "bson.Array[hello, world]", ar.String())
+		})
+	})
+	t.Run("Set", func(t *testing.T) {
+		t.Run("OutOfBounds", func(t *testing.T) {
+			ar := NewArray()
+			assert.Panics(t, func() { ar.Set(10, VC.String("hi")) })
+		})
+		t.Run("Empty", func(t *testing.T) {
+			ar := NewArray()
+			assert.Panics(t, func() { ar.Set(0, VC.String("hi")) })
+		})
+		t.Run("Replace", func(t *testing.T) {
+			ar := NewArray(VC.Int(42))
+			assert.EqualValues(t, 42, ar.Lookup(0).Interface())
+			ar.Set(0, VC.Int(84))
+			assert.EqualValues(t, 84, ar.Lookup(0).Interface())
+		})
+
+	})
+
 }
 
 type testArrayPrependAppendGenerator struct{}

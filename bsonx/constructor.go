@@ -163,8 +163,12 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SliceDuration(key, t)
 	case []Marshaler:
 		elem, err = EC.SliceMarshalerErr(key, t)
+	case []*Element:
+		elem = EC.SubDocumentFromElements(key, t...)
 	case *Element:
 		elem = t
+	case *Value:
+		elem, err = EC.ValueErr(key, t)
 	case *Document:
 		if t != nil {
 			elem = EC.SubDocument(key, t)
@@ -175,8 +179,6 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		if err == nil {
 			elem = EC.SubDocument(key, doc)
 		}
-	case *Value:
-		elem, err = EC.FromValueErr(key, t)
 	case Marshaler:
 		elem, err = EC.MarshalerErr(key, t)
 	default:
@@ -239,7 +241,7 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 	case []interface{}, []Marshaler:
 		return EC.InterfaceErr(key, value)
 	case *Value:
-		return EC.FromValueErr(key, t)
+		return EC.ValueErr(key, t)
 	case Marshaler:
 		return EC.MarshalerErr(key, t)
 	default:
@@ -628,13 +630,13 @@ func (ElementConstructor) MaxKey(key string) *Element {
 	return elem
 }
 
-// FromValue constructs an element using the underlying value.
-func (ElementConstructor) FromValue(key string, value *Value) *Element {
+// Value constructs an element using the underlying value.
+func (ElementConstructor) Value(key string, value *Value) *Element {
 	return convertValueToElem(key, value)
 }
 
-func (ElementConstructor) FromValueErr(key string, value *Value) (*Element, error) {
-	elem := EC.FromValue(key, value)
+func (ElementConstructor) ValueErr(key string, value *Value) (*Element, error) {
+	elem := EC.Value(key, value)
 	if elem == nil {
 		return nil, errors.Errorf("could not convert '%s' value to an element", key)
 	}

@@ -40,13 +40,6 @@ type Value struct {
 	d *Document
 }
 
-// Offset returns the offset to the beginning of the value in the underlying data. When called on
-// a value obtained from a Reader, it can be used to find the value manually within the Reader's
-// bytes.
-func (v *Value) Offset() uint32 {
-	return v.offset
-}
-
 func (v *Value) Copy() *Value {
 	return &Value{
 		start:  v.start,
@@ -375,16 +368,6 @@ func (v *Value) Type() bsontype.Type {
 		panic(bsonerr.UninitializedElement)
 	}
 	return bsontype.Type(v.data[v.start])
-}
-
-// IsNumber returns true if the type of v is a numberic BSON type.
-func (v *Value) IsNumber() bool {
-	switch v.Type() {
-	case bsontype.Double, bsontype.Int32, bsontype.Int64, bsontype.Decimal128:
-		return true
-	default:
-		return false
-	}
 }
 
 // Double returns the float64 value for this element.

@@ -213,7 +213,7 @@ func (a *Array) String() string {
 		if idx > 0 {
 			buf.Write([]byte(", "))
 		}
-		fmt.Fprintf(&buf, "%s", elem)
+		fmt.Fprintf(&buf, "%s", elem.value.Interface())
 	}
 	buf.WriteByte(']')
 
