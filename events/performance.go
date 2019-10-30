@@ -13,7 +13,11 @@
 // aware of its own failure.
 package events
 
-import "time"
+import (
+	"time"
+
+	"github.com/mongodb/ftdc/bsonx"
+)
 
 // Performance represents a single raw event in a metrics collection
 // system for performance metric collection system.
@@ -53,4 +57,33 @@ type PerformanceGauges struct {
 	State   int64 `bson:"state" json:"state" yaml:"state"`
 	Workers int64 `bson:"workers" json:"workers" yaml:"workers"`
 	Failed  bool  `bson:"failed" json:"failed" yaml:"failed"`
+}
+
+// MarshalBSON implements the bson marshaler interface to support
+// converting this type into BSON without relying on a
+// reflection-based BSON library.
+func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
+
+// Document exports the Performance type as a bsonx.Document to
+// support more efficent operations.
+func (p *Performance) Document() *bsonx.Document {
+	return bsonx.DC.Elements(
+		bsonx.EC.Time("ts", p.Timestamp),
+		bsonx.EC.Int64("id", p.ID),
+		bsonx.EC.SubDocument("counters", bsonx.DC.Elements(
+			bsonx.EC.Int64("n", p.Counters.Number),
+			bsonx.EC.Int64("ops", p.Counters.Operations),
+			bsonx.EC.Int64("size", p.Counters.Size),
+			bsonx.EC.Int64("errors", p.Counters.Errors),
+		)),
+		bsonx.EC.SubDocument("timers", bsonx.DC.Elements(
+			bsonx.EC.Duration("dur", p.Timers.Duration),
+			bsonx.EC.Duration("total", p.Timers.Total),
+		)),
+		bsonx.EC.SubDocument("gauges", bsonx.DC.Elements(
+			bsonx.EC.Int64("state", p.Gauges.State),
+			bsonx.EC.Int64("workers", p.Gauges.Workers),
+			bsonx.EC.Boolean("failed", p.Gauges.Failed),
+		)),
+	)
 }
