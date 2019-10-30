@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
@@ -205,16 +205,16 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 			return errors.New("unexpected field count change")
 		}
 
-		elems := make([]*bsonx.Element, 0, len(header))
+		elems := make([]*birch.Element, 0, len(header))
 		for idx := range record {
 			val, err := strconv.Atoi(record[idx])
 			if err != nil {
 				continue
 			}
-			elems = append(elems, bsonx.EC.Int64(header[idx], int64(val)))
+			elems = append(elems, birch.EC.Int64(header[idx], int64(val)))
 		}
 
-		if err := collector.Add(bsonx.NewDocument(elems...)); err != nil {
+		if err := collector.Add(birch.NewDocument(elems...)); err != nil {
 			return err
 		}
 	}

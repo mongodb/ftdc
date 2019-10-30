@@ -3,23 +3,23 @@ package ftdc
 import (
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
 
 ////////////////////////////////////////////////////////////////////////
 //
-// Helpers for encoding values from bsonx documents
+// Helpers for encoding values from birch documents
 
 type extractedMetrics struct {
-	values []*bsonx.Value
+	values []*birch.Value
 	types  []bsontype.Type
 	ts     time.Time
 }
 
-func extractMetricsFromDocument(doc *bsonx.Document) (extractedMetrics, error) {
+func extractMetricsFromDocument(doc *birch.Document) (extractedMetrics, error) {
 	metrics := extractedMetrics{}
 	iter := doc.Iterator()
 
@@ -50,7 +50,7 @@ func extractMetricsFromDocument(doc *bsonx.Document) (extractedMetrics, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromArray(array *bsonx.Array) (extractedMetrics, error) {
+func extractMetricsFromArray(array *birch.Array) (extractedMetrics, error) {
 	metrics := extractedMetrics{}
 
 	var (
@@ -77,7 +77,7 @@ func extractMetricsFromArray(array *bsonx.Array) (extractedMetrics, error) {
 	return metrics, catcher.Resolve()
 }
 
-func extractMetricsFromValue(val *bsonx.Value) (extractedMetrics, error) {
+func extractMetricsFromValue(val *birch.Value) (extractedMetrics, error) {
 	metrics := extractedMetrics{}
 	var err error
 
@@ -91,33 +91,33 @@ func extractMetricsFromValue(val *bsonx.Value) (extractedMetrics, error) {
 		err = errors.WithStack(err)
 	case bsontype.Boolean:
 		if val.Boolean() {
-			metrics.values = append(metrics.values, bsonx.VC.Int64(1))
+			metrics.values = append(metrics.values, birch.VC.Int64(1))
 		} else {
-			metrics.values = append(metrics.values, bsonx.VC.Int64(0))
+			metrics.values = append(metrics.values, birch.VC.Int64(0))
 		}
 		metrics.types = append(metrics.types, bsontype.Boolean)
 	case bsontype.Double:
 		metrics.values = append(metrics.values, val)
 		metrics.types = append(metrics.types, bsontype.Double)
 	case bsontype.Int32:
-		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(val.Int32())))
+		metrics.values = append(metrics.values, birch.VC.Int64(int64(val.Int32())))
 		metrics.types = append(metrics.types, bsontype.Int32)
 	case bsontype.Int64:
 		metrics.values = append(metrics.values, val)
 		metrics.types = append(metrics.types, bsontype.Int64)
 	case bsontype.DateTime:
-		metrics.values = append(metrics.values, bsonx.VC.Int64(epochMs(val.Time())))
+		metrics.values = append(metrics.values, birch.VC.Int64(epochMs(val.Time())))
 		metrics.types = append(metrics.types, bsontype.DateTime)
 	case bsontype.Timestamp:
 		t, i := val.Timestamp()
-		metrics.values = append(metrics.values, bsonx.VC.Int64(int64(t)), bsonx.VC.Int64(int64(i)))
+		metrics.values = append(metrics.values, birch.VC.Int64(int64(t)), birch.VC.Int64(int64(i)))
 		metrics.types = append(metrics.types, bsontype.Timestamp, bsontype.Timestamp)
 	}
 
 	return metrics, err
 }
 
-func extractDelta(current *bsonx.Value, previous *bsonx.Value) (int64, error) {
+func extractDelta(current *birch.Value, previous *birch.Value) (int64, error) {
 	switch current.Type() {
 	case bsontype.Double:
 		return normalizeFloat(current.Double() - previous.Double()), nil

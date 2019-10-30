@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type metricHashFunc func(*bsonx.Document) (string, int)
+type metricHashFunc func(*birch.Document) (string, int)
 
 func BenchmarkHashBSON(b *testing.B) {
 	for _, impl := range []struct {
@@ -36,7 +36,7 @@ func BenchmarkHashBSON(b *testing.B) {
 		b.Run(impl.Name, func(b *testing.B) {
 			for _, test := range []struct {
 				Name string
-				Doc  *bsonx.Document
+				Doc  *birch.Document
 			}{
 				{
 					Name: "FlatSmall",
@@ -91,7 +91,7 @@ func BenchmarkDocumentCreation(b *testing.B) {
 		Name      string
 		Samples   int
 		Length    int
-		Reference *bsonx.Document
+		Reference *birch.Document
 		Metrics   []Metric
 	}{
 		{
@@ -99,38 +99,38 @@ func BenchmarkDocumentCreation(b *testing.B) {
 			Samples:   1000,
 			Length:    15,
 			Reference: randFlatDocument(15),
-			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randFlatDocument(15) }),
+			Metrics:   produceMockMetrics(ctx, 1000, func() *birch.Document { return randFlatDocument(15) }),
 		},
 		{
 			Name:      "SmallFlat",
 			Samples:   1000,
 			Length:    5,
 			Reference: randFlatDocument(5),
-			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randFlatDocument(5) }),
+			Metrics:   produceMockMetrics(ctx, 1000, func() *birch.Document { return randFlatDocument(5) }),
 		},
 		{
 			Name:      "LargeFlat",
 			Samples:   1000,
 			Length:    15,
 			Reference: randFlatDocument(15),
-			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randFlatDocument(100) }),
+			Metrics:   produceMockMetrics(ctx, 1000, func() *birch.Document { return randFlatDocument(100) }),
 		},
 		{
 			Name:      "Complex",
 			Samples:   1000,
 			Length:    60,
 			Reference: randComplexDocument(20, 3),
-			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
+			Metrics:   produceMockMetrics(ctx, 1000, func() *birch.Document { return randComplexDocument(20, 3) }),
 		},
 		{
 			Name:      "SmallComplex",
 			Samples:   1000,
 			Length:    10,
 			Reference: randComplexDocument(5, 1),
-			Metrics:   produceMockMetrics(ctx, 1000, func() *bsonx.Document { return randComplexDocument(5, 1) }),
+			Metrics:   produceMockMetrics(ctx, 1000, func() *birch.Document { return randComplexDocument(5, 1) }),
 		},
 	} {
-		var doc *bsonx.Document
+		var doc *birch.Document
 		b.Run(test.Name, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				for i := 0; i < test.Samples; i++ {

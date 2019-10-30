@@ -3,15 +3,15 @@ package ftdc
 import (
 	"fmt"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 )
 
 ////////////////////////////////////////////////////////////////////////
 //
 // Helpers for parsing the timeseries data from a metrics payload
 
-func metricForDocument(path []string, d *bsonx.Document) []Metric {
+func metricForDocument(path []string, d *birch.Document) []Metric {
 	iter := d.Iterator()
 	o := []Metric{}
 
@@ -24,7 +24,7 @@ func metricForDocument(path []string, d *bsonx.Document) []Metric {
 	return o
 }
 
-func metricForArray(key string, path []string, a *bsonx.Array) []Metric {
+func metricForArray(key string, path []string, a *birch.Array) []Metric {
 	if a == nil {
 		return []Metric{}
 	}
@@ -40,7 +40,7 @@ func metricForArray(key string, path []string, a *bsonx.Array) []Metric {
 	return o
 }
 
-func metricForType(key string, path []string, val *bsonx.Value) []Metric {
+func metricForType(key string, path []string, val *birch.Value) []Metric {
 	switch val.Type() {
 	case bsontype.ObjectID:
 		return []Metric{}

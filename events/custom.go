@@ -15,7 +15,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 	mgobson "gopkg.in/mgo.v2/bson"
 )
@@ -73,10 +73,10 @@ func (ps Custom) Sort() { sort.Stable(ps) }
 func (ps Custom) MarshalBSON() ([]byte, error) {
 	ps.Sort()
 
-	doc := bsonx.DC.Make(ps.Len())
+	doc := birch.DC.Make(ps.Len())
 
 	for _, elem := range ps {
-		doc.Append(bsonx.EC.Interface(elem.Name, elem.Value))
+		doc.Append(birch.EC.Interface(elem.Name, elem.Value))
 	}
 
 	return doc.MarshalBSON()
@@ -97,7 +97,7 @@ func (ps Custom) GetBSON() (interface{}, error) {
 }
 
 func (ps *Custom) UnmarshalBSON(in []byte) error {
-	doc, err := bsonx.ReadDocument(in)
+	doc, err := birch.ReadDocument(in)
 	if err != nil {
 		return errors.Wrap(err, "problem parsing bson document")
 	}

@@ -3,26 +3,26 @@ package ftdc
 import (
 	"context"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 )
 
 // sampleIterator provides an iterator for iterating through the
 // results of a FTDC data chunk as BSON documents.
 type sampleIterator struct {
 	closer   context.CancelFunc
-	stream   <-chan *bsonx.Document
-	sample   *bsonx.Document
-	metadata *bsonx.Document
+	stream   <-chan *birch.Document
+	sample   *birch.Document
+	metadata *birch.Document
 }
 
-func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bsonx.Document {
-	out := make(chan *bsonx.Document, 100)
+func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *birch.Document {
+	out := make(chan *birch.Document, 100)
 
 	go func() {
 		defer close(out)
 		for i := 0; i < c.nPoints; i++ {
 
-			doc := bsonx.DC.Make(len(c.Metrics))
+			doc := birch.DC.Make(len(c.Metrics))
 			for _, m := range c.Metrics {
 				elem, ok := restoreFlat(m.originalType, m.Key(), m.Values[i])
 				if !ok {
@@ -44,8 +44,8 @@ func (c *Chunk) streamFlattenedDocuments(ctx context.Context) <-chan *bsonx.Docu
 	return out
 }
 
-func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bsonx.Document {
-	out := make(chan *bsonx.Document, 100)
+func (c *Chunk) streamDocuments(ctx context.Context) <-chan *birch.Document {
+	out := make(chan *birch.Document, 100)
 
 	go func() {
 		defer close(out)
@@ -68,12 +68,12 @@ func (c *Chunk) streamDocuments(ctx context.Context) <-chan *bsonx.Document {
 func (iter *sampleIterator) Close()     { iter.closer() }
 func (iter *sampleIterator) Err() error { return nil }
 
-func (iter *sampleIterator) Metadata() *bsonx.Document { return iter.metadata }
+func (iter *sampleIterator) Metadata() *birch.Document { return iter.metadata }
 
 // Document returns the current document in the iterator. It is safe
 // to call this method more than once, and the result will only be nil
 // before the iterator is advanced.
-func (iter *sampleIterator) Document() *bsonx.Document { return iter.sample }
+func (iter *sampleIterator) Document() *birch.Document { return iter.sample }
 
 // Next advances the iterator one document. Returns true when there is
 // a document, and false otherwise.

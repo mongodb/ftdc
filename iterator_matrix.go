@@ -5,8 +5,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,11 +20,11 @@ func (c *Chunk) exportMatrix() map[string]interface{} {
 	return out
 }
 
-func (c *Chunk) export() (*bsonx.Document, error) {
-	doc := bsonx.DC.Make(len(c.Metrics))
+func (c *Chunk) export() (*birch.Document, error) {
+	doc := birch.DC.Make(len(c.Metrics))
 	sample := 0
 
-	var elem *bsonx.Element
+	var elem *birch.Element
 	var err error
 
 	for i := 0; i < len(c.Metrics); i++ {
@@ -82,9 +82,9 @@ func (m *Metric) getSeries() interface{} {
 type matrixIterator struct {
 	chunks   *ChunkIterator
 	closer   context.CancelFunc
-	metadata *bsonx.Document
-	document *bsonx.Document
-	pipe     chan *bsonx.Document
+	metadata *birch.Document
+	document *birch.Document
+	pipe     chan *birch.Document
 	catcher  grip.Catcher
 	reflect  bool
 }
@@ -96,8 +96,8 @@ func (iter *matrixIterator) Close() {
 }
 
 func (iter *matrixIterator) Err() error                { return iter.catcher.Resolve() }
-func (iter *matrixIterator) Metadata() *bsonx.Document { return iter.metadata }
-func (iter *matrixIterator) Document() *bsonx.Document { return iter.document }
+func (iter *matrixIterator) Metadata() *birch.Document { return iter.metadata }
+func (iter *matrixIterator) Document() *birch.Document { return iter.document }
 func (iter *matrixIterator) Next() bool {
 	doc, ok := <-iter.pipe
 	if !ok {
@@ -113,7 +113,7 @@ func (iter *matrixIterator) worker(ctx context.Context) {
 	defer close(iter.pipe)
 
 	var payload []byte
-	var doc *bsonx.Document
+	var doc *birch.Document
 	var err error
 
 	for iter.chunks.Next() {
@@ -125,7 +125,7 @@ func (iter *matrixIterator) worker(ctx context.Context) {
 				iter.catcher.Add(err)
 				return
 			}
-			doc, err = bsonx.ReadDocument(payload)
+			doc, err = birch.ReadDocument(payload)
 			if err != nil {
 				iter.catcher.Add(err)
 				return

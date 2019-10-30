@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/recovery"
@@ -55,10 +55,10 @@ func (c Collectors) Less(i, j int) bool { return c[i].Name < c[j].Name }
 
 type CustomCollector struct {
 	Name      string
-	Operation func(context.Context) *bsonx.Document
+	Operation func(context.Context) *birch.Document
 }
 
-func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Document {
+func (opts *CollectOptions) generate(ctx context.Context, id int) *birch.Document {
 	pid := os.Getpid()
 	out := &Runtime{
 		ID:        id,
@@ -84,20 +84,20 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Documen
 	}
 
 	if len(opts.Collectors) == 0 {
-		return bsonx.DC.Make(1).Append(bsonx.EC.Marshaler("runtime", out))
+		return birch.DC.Make(1).Append(birch.EC.Marshaler("runtime", out))
 	}
 
-	doc := bsonx.DC.Make(len(opts.Collectors) + 1).Append(bsonx.EC.Marshaler("runtime", out))
+	doc := birch.DC.Make(len(opts.Collectors) + 1).Append(birch.EC.Marshaler("runtime", out))
 	if !opts.RunParallelCollectors {
 		for _, ec := range opts.Collectors {
-			doc.Append(bsonx.EC.SubDocument(ec.Name, ec.Operation(ctx)))
+			doc.Append(birch.EC.SubDocument(ec.Name, ec.Operation(ctx)))
 		}
 
 		return doc
 	}
 
 	collectors := make(chan CustomCollector, len(opts.Collectors))
-	elems := make(chan *bsonx.Element, len(opts.Collectors))
+	elems := make(chan *birch.Element, len(opts.Collectors))
 	num := runtime.NumCPU()
 	if num > len(opts.Collectors) {
 		num = len(opts.Collectors)
@@ -116,7 +116,7 @@ func (opts *CollectOptions) generate(ctx context.Context, id int) *bsonx.Documen
 			defer wg.Done()
 
 			for collector := range collectors {
-				elems <- bsonx.EC.SubDocument(collector.Name, collector.Operation(ctx))
+				elems <- birch.EC.SubDocument(collector.Name, collector.Operation(ctx))
 			}
 		}()
 	}

@@ -1,9 +1,8 @@
 buildDir := build
-srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*" -path "./bsonx*")
+srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*")
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
-bsonxFiles := $(shell find ./bsonx -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-_testPackages := ./ ./events ./metrics ./bsonx
+_testPackages := ./ ./events ./metrics 
 packages := _testPackages 
 
 ifeq (,$(SILENT))
@@ -91,7 +90,7 @@ test:metrics.ftdc perf_metrics.ftdc perf_metrics_small.ftdc
 	@grep -s -q -e "^PASS" $(buildDir)/test.ftdc.out
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/ftdc/%%' | column -t
-coverage-html:$(buildDir)/cover.html $(buildDir)/cover.bsonx.html
+coverage-html:$(buildDir)/cover.html
 lint:$(foreach target,$(packages),$(buildDir)/output.$(target).lint)
 benchmark:
 	go test -v -benchmem $(benchArgs) -timeout=20m ./...
@@ -144,5 +143,4 @@ vendor-clean:
 	rm -rf vendor/gopkg.in/mgo.v2/txn/
 	rm -rf vendor/github.com/papertrail/go-tail/vendor/github.com/spf13/pflag/
 	rm -rf vendor/github.com/papertrail/go-tail/main.go
-	sed -ri 's/bson:"(.*),omitempty"/bson:"\1"/' `find vendor/github.com/mongodb/grip/vendor/github.com/shirou/gopsutil/ -name "*go"` || true
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf

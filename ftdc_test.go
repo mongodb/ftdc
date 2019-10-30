@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/stretchr/testify/assert"
@@ -301,7 +301,7 @@ func TestRoundTrip(t *testing.T) {
 						collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4))
 					})
 
-					var docs []*bsonx.Document
+					var docs []*birch.Document
 					for _, d := range test.docs {
 						assert.NoError(t, collector.Add(d))
 						docs = append(docs, d)

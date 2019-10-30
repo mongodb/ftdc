@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,25 +70,25 @@ func TestReadCSVIntegration(t *testing.T) {
 	}{
 		{
 			Name:   "SimpleFlat",
-			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randFlatDocument(15) }),
+			Iter:   produceMockChunkIter(ctx, 1000, func() *birch.Document { return randFlatDocument(15) }),
 			Rows:   1000,
 			Fields: 15,
 		},
 		{
 			Name:   "LargerFlat",
-			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randFlatDocument(50) }),
+			Iter:   produceMockChunkIter(ctx, 1000, func() *birch.Document { return randFlatDocument(50) }),
 			Rows:   1000,
 			Fields: 50,
 		},
 		{
 			Name:   "Complex",
-			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(20, 3) }),
+			Iter:   produceMockChunkIter(ctx, 1000, func() *birch.Document { return randComplexDocument(20, 3) }),
 			Rows:   1000,
 			Fields: 100,
 		},
 		{
 			Name:   "LargComplex",
-			Iter:   produceMockChunkIter(ctx, 1000, func() *bsonx.Document { return randComplexDocument(100, 10) }),
+			Iter:   produceMockChunkIter(ctx, 1000, func() *birch.Document { return randComplexDocument(100, 10) }),
 			Rows:   1000,
 			Fields: 190,
 		},

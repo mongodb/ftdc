@@ -3,21 +3,21 @@ package ftdc
 import (
 	"io"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
-	"github.com/mongodb/ftdc/bsonx/types"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
+	"github.com/evergreen-ci/birch/types"
 	"github.com/pkg/errors"
 )
 
-func rehydrateMatrix(metrics []Metric, sample int) (*bsonx.Element, int, error) {
+func rehydrateMatrix(metrics []Metric, sample int) (*birch.Element, int, error) {
 	if sample >= len(metrics) {
 		return nil, sample, io.EOF
 	}
 
-	// the bsonx library's representation of arrays is more
+	// the birch library's representation of arrays is more
 	// efficent when constructing arrays from documents,
 	// otherwise.
-	array := bsonx.MakeArray(len(metrics[sample].Values))
+	array := birch.MakeArray(len(metrics[sample].Values))
 	key := metrics[sample].Key()
 	switch metrics[sample].originalType {
 	case bsontype.Boolean:
@@ -49,5 +49,5 @@ func rehydrateMatrix(metrics []Metric, sample int) (*bsonx.Element, int, error) 
 		return nil, sample, errors.New("invalid data type")
 	}
 	sample++
-	return bsonx.EC.Array(key, array), sample, nil
+	return birch.EC.Array(key, array), sample, nil
 }

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 )
 
 // Chunk represents a 'metric chunk' of data in the FTDC.
@@ -14,11 +14,11 @@ type Chunk struct {
 	Metrics   []Metric
 	nPoints   int
 	id        time.Time
-	metadata  *bsonx.Document
-	reference *bsonx.Document
+	metadata  *birch.Document
+	reference *birch.Document
 }
 
-func (c *Chunk) GetMetadata() *bsonx.Document { return c.metadata }
+func (c *Chunk) GetMetadata() *birch.Document { return c.metadata }
 func (c *Chunk) Size() int                    { return c.nPoints }
 func (c *Chunk) Len() int                     { return len(c.Metrics) }
 

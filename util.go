@@ -7,25 +7,25 @@ import (
 	"math"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-func readDocument(in interface{}) (*bsonx.Document, error) {
+func readDocument(in interface{}) (*birch.Document, error) {
 	switch doc := in.(type) {
-	case *bsonx.Document:
+	case *birch.Document:
 		return doc, nil
 	case []byte:
-		return bsonx.ReadDocument(doc)
+		return birch.ReadDocument(doc)
 	case bson.Marshaler:
 		data, err := doc.MarshalBSON()
 		if err != nil {
 			return nil, errors.Wrap(err, "problem with unmarshaler")
 		}
-		return bsonx.ReadDocument(data)
+		return birch.ReadDocument(data)
 	case map[string]interface{}, map[string]string, map[string]int, map[string]int64, map[string]uint, map[string]uint64:
 		return nil, errors.New("cannot use a map type as an ftdc value")
 	case bson.M, message.Fields:
@@ -35,7 +35,7 @@ func readDocument(in interface{}) (*bsonx.Document, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "problem with fallback marshaling")
 		}
-		return bsonx.ReadDocument(data)
+		return birch.ReadDocument(data)
 	}
 }
 
@@ -97,7 +97,7 @@ func restoreFloat(in int64) float64   { return math.Float64frombits(uint64(in)) 
 func epochMs(t time.Time) int64       { return t.UnixNano() / 1000000 }
 func timeEpocMs(in int64) time.Time   { return time.Unix(int64(in)/1000, int64(in)%1000*1000000) }
 
-func isNum(num int, val *bsonx.Value) bool {
+func isNum(num int, val *birch.Value) bool {
 	if val == nil {
 		return false
 	}

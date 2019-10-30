@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
-	"github.com/mongodb/ftdc/bsonx/decimal"
-	"github.com/mongodb/ftdc/bsonx/types"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
+	"github.com/evergreen-ci/birch/decimal"
+	"github.com/evergreen-ci/birch/types"
 	"github.com/mongodb/grip/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,12 +23,12 @@ func TestFlattenArray(t *testing.T) {
 		assert.Len(t, out, 0)
 	})
 	t.Run("EmptyArray", func(t *testing.T) {
-		out := metricForArray("", nil, bsonx.NewArray())
+		out := metricForArray("", nil, birch.NewArray())
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})
 	t.Run("TwoElements", func(t *testing.T) {
-		m := metricForArray("foo", nil, bsonx.NewArray(bsonx.VC.Boolean(true), bsonx.VC.Boolean(false)))
+		m := metricForArray("foo", nil, birch.NewArray(birch.VC.Boolean(true), birch.VC.Boolean(false)))
 		assert.NotNil(t, m)
 		assert.Len(t, m, 2)
 
@@ -38,7 +38,7 @@ func TestFlattenArray(t *testing.T) {
 		assert.Equal(t, int64(0), m[1].startingValue)
 	})
 	t.Run("TwoElementsWithSkippedValue", func(t *testing.T) {
-		m := metricForArray("foo", nil, bsonx.NewArray(bsonx.VC.String("foo"), bsonx.VC.Boolean(false)))
+		m := metricForArray("foo", nil, birch.NewArray(birch.VC.String("foo"), birch.VC.Boolean(false)))
 		assert.NotNil(t, m)
 		assert.Len(t, m, 1)
 
@@ -46,7 +46,7 @@ func TestFlattenArray(t *testing.T) {
 		assert.Equal(t, int64(0), m[0].startingValue)
 	})
 	t.Run("ArrayWithOnlyStrings", func(t *testing.T) {
-		out := metricForArray("foo", nil, bsonx.NewArray(bsonx.VC.String("foo"), bsonx.VC.String("bar")))
+		out := metricForArray("foo", nil, birch.NewArray(birch.VC.String("foo"), birch.VC.String("bar")))
 		assert.NotNil(t, out)
 		assert.Len(t, out, 0)
 	})
@@ -73,12 +73,12 @@ func TestReadDocument(t *testing.T) {
 		},
 		{
 			name: "NewDocument",
-			in:   bsonx.NewDocument(),
+			in:   birch.NewDocument(),
 			len:  0,
 		},
 		{
 			name:        "NewReader",
-			in:          bsonx.Reader{},
+			in:          birch.Reader{},
 			shouldError: true,
 			len:         0,
 		},
@@ -89,7 +89,7 @@ func TestReadDocument(t *testing.T) {
 		},
 		{
 			name: "DocumentOneValue",
-			in:   bsonx.NewDocument(bsonx.EC.ObjectID("_id", types.NewObjectID())),
+			in:   birch.NewDocument(birch.EC.ObjectID("_id", types.NewObjectID())),
 			len:  1,
 		},
 		{
@@ -120,23 +120,23 @@ func TestReadDocument(t *testing.T) {
 		},
 		{
 			name: "Reader",
-			in: func() bsonx.Reader {
-				out, err := bsonx.NewDocument(
-					bsonx.EC.String("foo", "bar"),
-					bsonx.EC.Int64("baz", 33)).MarshalBSON()
+			in: func() birch.Reader {
+				out, err := birch.NewDocument(
+					birch.EC.String("foo", "bar"),
+					birch.EC.Int64("baz", 33)).MarshalBSON()
 				require.NoError(t, err)
-				return bsonx.Reader(out)
+				return birch.Reader(out)
 			}(),
 			len: 2,
 		},
 		{
 			name: "Raw",
 			in: func() bson.Raw {
-				out, err := bsonx.NewDocument(
-					bsonx.EC.String("foo", "bar"),
-					bsonx.EC.Boolean("wat", false),
-					bsonx.EC.Time("ts", time.Now()),
-					bsonx.EC.Int64("baz", 33)).MarshalBSON()
+				out, err := birch.NewDocument(
+					birch.EC.String("foo", "bar"),
+					birch.EC.Boolean("wat", false),
+					birch.EC.Time("ts", time.Now()),
+					birch.EC.Int64("baz", 33)).MarshalBSON()
 				require.NoError(t, err)
 				return bson.Raw(out)
 			}(),
@@ -150,13 +150,13 @@ func TestReadDocument(t *testing.T) {
 		{
 			name: "MarshalerEmtpy",
 			in: &marshaler{
-				bsonx.NewDocument(),
+				birch.NewDocument(),
 			},
 		},
 		{
 			name: "MarshalerValue",
 			in: &marshaler{
-				bsonx.NewDocument(bsonx.EC.String("foo", "bat")),
+				birch.NewDocument(birch.EC.String("foo", "bat")),
 			},
 			len: 1,
 		},
@@ -211,7 +211,7 @@ func TestBSONValueToMetric(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
 		Name  string
-		Value *bsonx.Value
+		Value *birch.Value
 		Key   string
 		Path  []string
 
@@ -220,37 +220,37 @@ func TestBSONValueToMetric(t *testing.T) {
 	}{
 		{
 			Name:  "ObjectID",
-			Value: bsonx.VC.ObjectID(types.NewObjectID()),
+			Value: birch.VC.ObjectID(types.NewObjectID()),
 		},
 		{
 			Name:  "StringShort",
-			Value: bsonx.VC.String("Hello World"),
+			Value: birch.VC.String("Hello World"),
 		},
 		{
 			Name:  "StringEmpty",
-			Value: bsonx.VC.String(""),
+			Value: birch.VC.String(""),
 		},
 		{
 			Name:  "StringLooksLikeNumber",
-			Value: bsonx.VC.String("42"),
+			Value: birch.VC.String("42"),
 		},
 		{
 			Name:  "Decimal128Empty",
-			Value: bsonx.VC.Decimal128(decimal.Decimal128{}),
+			Value: birch.VC.Decimal128(decimal.Decimal128{}),
 		},
 		{
 			Name:  "Decimal128",
-			Value: bsonx.VC.Decimal128(decimal.NewDecimal128(33, 43)),
+			Value: birch.VC.Decimal128(decimal.NewDecimal128(33, 43)),
 		},
 		{
 			Name:  "DBPointer",
-			Value: bsonx.VC.DBPointer("foo.bar", types.NewObjectID()),
+			Value: birch.VC.DBPointer("foo.bar", types.NewObjectID()),
 		},
 		{
 			Name:      "BoolTrue",
 			Path:      []string{"one", "two"},
 			Key:       "foo",
-			Value:     bsonx.VC.Boolean(true),
+			Value:     birch.VC.Boolean(true),
 			OutputLen: 1,
 			Expected:  1,
 		},
@@ -258,7 +258,7 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "BoolFalse",
 			Key:       "foo",
 			Path:      []string{"one", "two"},
-			Value:     bsonx.VC.Boolean(false),
+			Value:     birch.VC.Boolean(false),
 			OutputLen: 1,
 			Expected:  0,
 		},
@@ -266,19 +266,19 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:  "ArrayEmpty",
 			Key:   "foo",
 			Path:  []string{"one", "two"},
-			Value: bsonx.VC.ArrayFromValues(),
+			Value: birch.VC.ArrayFromValues(),
 		},
 		{
 			Name:  "ArrayOfStrings",
 			Key:   "foo",
 			Path:  []string{"one", "two"},
-			Value: bsonx.VC.ArrayFromValues(bsonx.VC.String("one"), bsonx.VC.String("two")),
+			Value: birch.VC.ArrayFromValues(birch.VC.String("one"), birch.VC.String("two")),
 		},
 		{
 			Name:      "ArrayOfMixed",
 			Key:       "foo",
 			Path:      []string{"one", "two"},
-			Value:     bsonx.VC.ArrayFromValues(bsonx.VC.String("one"), bsonx.VC.Boolean(true)),
+			Value:     birch.VC.ArrayFromValues(birch.VC.String("one"), birch.VC.Boolean(true)),
 			OutputLen: 1,
 			Expected:  1,
 		},
@@ -286,21 +286,21 @@ func TestBSONValueToMetric(t *testing.T) {
 			Name:      "ArrayOfBools",
 			Key:       "foo",
 			Path:      []string{"one", "two"},
-			Value:     bsonx.VC.ArrayFromValues(bsonx.VC.Boolean(true), bsonx.VC.Boolean(true)),
+			Value:     birch.VC.ArrayFromValues(birch.VC.Boolean(true), birch.VC.Boolean(true)),
 			OutputLen: 2,
 			Expected:  1,
 		},
 		{
 			Name:  "EmptyDocument",
-			Value: bsonx.VC.DocumentFromElements(),
+			Value: birch.VC.DocumentFromElements(),
 		},
 		{
 			Name:  "DocumentWithNonMetricFields",
-			Value: bsonx.VC.DocumentFromElements(bsonx.EC.String("foo", "bar")),
+			Value: birch.VC.DocumentFromElements(birch.EC.String("foo", "bar")),
 		},
 		{
 			Name:      "DocumentWithOneValue",
-			Value:     bsonx.VC.DocumentFromElements(bsonx.EC.Boolean("foo", true)),
+			Value:     birch.VC.DocumentFromElements(birch.EC.Boolean("foo", true)),
 			Key:       "foo",
 			Path:      []string{"exists"},
 			OutputLen: 1,
@@ -308,7 +308,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "Double",
-			Value:     bsonx.VC.Double(42.42),
+			Value:     birch.VC.Double(42.42),
 			OutputLen: 1,
 			Expected:  normalizeFloat(42.42),
 			Key:       "foo",
@@ -316,7 +316,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "OtherDouble",
-			Value:     bsonx.VC.Double(42.0),
+			Value:     birch.VC.Double(42.0),
 			OutputLen: 1,
 			Expected:  normalizeFloat(42.0),
 			Key:       "foo",
@@ -324,7 +324,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DoubleZero",
-			Value:     bsonx.VC.Double(0),
+			Value:     birch.VC.Double(0),
 			OutputLen: 1,
 			Expected:  0,
 			Key:       "foo",
@@ -332,7 +332,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DoubleShortZero",
-			Value:     bsonx.VC.Int32(0),
+			Value:     birch.VC.Int32(0),
 			OutputLen: 1,
 			Expected:  0,
 			Key:       "foo",
@@ -340,7 +340,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DoubleShort",
-			Value:     bsonx.VC.Int32(42),
+			Value:     birch.VC.Int32(42),
 			OutputLen: 1,
 			Expected:  42,
 			Key:       "foo",
@@ -348,7 +348,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DoubleLong",
-			Value:     bsonx.VC.Int64(42),
+			Value:     birch.VC.Int64(42),
 			OutputLen: 1,
 			Expected:  42,
 			Key:       "foo",
@@ -356,7 +356,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DoubleLongZero",
-			Value:     bsonx.VC.Int64(0),
+			Value:     birch.VC.Int64(0),
 			OutputLen: 1,
 			Expected:  0,
 			Key:       "foo",
@@ -364,7 +364,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DatetimeZero",
-			Value:     bsonx.VC.DateTime(0),
+			Value:     birch.VC.DateTime(0),
 			OutputLen: 1,
 			Expected:  0,
 			Key:       "foo",
@@ -372,7 +372,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "DatetimeLarge",
-			Value:     bsonx.EC.Time("", now).Value(),
+			Value:     birch.EC.Time("", now).Value(),
 			OutputLen: 1,
 			Expected:  epochMs(now),
 			Key:       "foo",
@@ -380,7 +380,7 @@ func TestBSONValueToMetric(t *testing.T) {
 		},
 		{
 			Name:      "TimeStamp",
-			Value:     bsonx.VC.Timestamp(100, 100),
+			Value:     birch.VC.Timestamp(100, 100),
 			OutputLen: 2,
 			Expected:  100000,
 			Key:       "foo",
@@ -406,7 +406,7 @@ func TestExtractingMetrics(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
 		Name              string
-		Value             *bsonx.Value
+		Value             *birch.Value
 		ExpectedCount     int
 		FirstEncodedValue int64
 		NumEncodedValues  int
@@ -414,35 +414,35 @@ func TestExtractingMetrics(t *testing.T) {
 	}{
 		{
 			Name:              "IgnoredType",
-			Value:             bsonx.VC.Null(),
+			Value:             birch.VC.Null(),
 			ExpectedCount:     0,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  0,
 		},
 		{
 			Name:              "ObjectID",
-			Value:             bsonx.VC.ObjectID(types.NewObjectID()),
+			Value:             birch.VC.ObjectID(types.NewObjectID()),
 			ExpectedCount:     0,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  0,
 		},
 		{
 			Name:              "String",
-			Value:             bsonx.VC.String("foo"),
+			Value:             birch.VC.String("foo"),
 			ExpectedCount:     0,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  0,
 		},
 		{
 			Name:              "Decimal128",
-			Value:             bsonx.VC.Decimal128(decimal.NewDecimal128(42, 42)),
+			Value:             birch.VC.Decimal128(decimal.NewDecimal128(42, 42)),
 			ExpectedCount:     0,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  0,
 		},
 		{
 			Name:              "BoolTrue",
-			Value:             bsonx.VC.Boolean(true),
+			Value:             birch.VC.Boolean(true),
 			ExpectedCount:     1,
 			FirstEncodedValue: 1,
 			NumEncodedValues:  1,
@@ -450,7 +450,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "BoolFalse",
-			Value:             bsonx.VC.Boolean(false),
+			Value:             birch.VC.Boolean(false),
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
@@ -458,7 +458,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int32",
-			Value:             bsonx.VC.Int32(42),
+			Value:             birch.VC.Int32(42),
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  1,
@@ -466,7 +466,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int32Zero",
-			Value:             bsonx.VC.Int32(0),
+			Value:             birch.VC.Int32(0),
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
@@ -474,7 +474,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int32Negative",
-			Value:             bsonx.VC.Int32(-42),
+			Value:             birch.VC.Int32(-42),
 			ExpectedCount:     1,
 			FirstEncodedValue: -42,
 			NumEncodedValues:  1,
@@ -482,7 +482,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int64",
-			Value:             bsonx.VC.Int64(42),
+			Value:             birch.VC.Int64(42),
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  1,
@@ -490,7 +490,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int64Zero",
-			Value:             bsonx.VC.Int64(0),
+			Value:             birch.VC.Int64(0),
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
@@ -498,7 +498,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "Int64Negative",
-			Value:             bsonx.VC.Int64(-42),
+			Value:             birch.VC.Int64(-42),
 			ExpectedCount:     1,
 			FirstEncodedValue: -42,
 			NumEncodedValues:  1,
@@ -506,7 +506,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "DateTimeZero",
-			Value:             bsonx.VC.DateTime(0),
+			Value:             birch.VC.DateTime(0),
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  1,
@@ -514,7 +514,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "TimestampZero",
-			Value:             bsonx.VC.Timestamp(0, 0),
+			Value:             birch.VC.Timestamp(0, 0),
 			ExpectedCount:     1,
 			FirstEncodedValue: 0,
 			NumEncodedValues:  2,
@@ -522,7 +522,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "TimestampLarger",
-			Value:             bsonx.VC.Timestamp(42, 42),
+			Value:             birch.VC.Timestamp(42, 42),
 			ExpectedCount:     1,
 			FirstEncodedValue: 42,
 			NumEncodedValues:  2,
@@ -530,13 +530,13 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "EmptyDocument",
-			Value:             bsonx.EC.SubDocumentFromElements("data").Value(),
+			Value:             birch.EC.SubDocumentFromElements("data").Value(),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "SingleMetricValue",
-			Value:             bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Int64("foo", 42)).Value(),
+			Value:             birch.EC.SubDocumentFromElements("data", birch.EC.Int64("foo", 42)).Value(),
 			ExpectedCount:     1,
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
@@ -544,7 +544,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "MultiMetricValue",
-			Value:             bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Int64("foo", 7), bsonx.EC.Int32("foo", 72)).Value(),
+			Value:             birch.EC.SubDocumentFromElements("data", birch.EC.Int64("foo", 7), birch.EC.Int32("foo", 72)).Value(),
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
@@ -552,14 +552,14 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "MultiNonMetricValue",
-			Value:             bsonx.EC.SubDocumentFromElements("data", bsonx.EC.String("foo", "var"), bsonx.EC.String("bar", "bar")).Value(),
+			Value:             birch.EC.SubDocumentFromElements("data", birch.EC.String("foo", "var"), birch.EC.String("bar", "bar")).Value(),
 			ExpectedCount:     0,
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "MixedArrayFirstMetrics",
-			Value:             bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Boolean("zp", true), bsonx.EC.String("foo", "var"), bsonx.EC.Int64("bar", 7)).Value(),
+			Value:             birch.EC.SubDocumentFromElements("data", birch.EC.Boolean("zp", true), birch.EC.String("foo", "var"), birch.EC.Int64("bar", 7)).Value(),
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
@@ -567,13 +567,13 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "ArraEmptyArray",
-			Value:             bsonx.VC.Array(bsonx.NewArray()),
+			Value:             birch.VC.Array(birch.NewArray()),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "ArrayWithSingleMetricValue",
-			Value:             bsonx.VC.ArrayFromValues(bsonx.VC.Int64(42)),
+			Value:             birch.VC.ArrayFromValues(birch.VC.Int64(42)),
 			ExpectedCount:     1,
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
@@ -581,7 +581,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "ArrayWithMultiMetricValue",
-			Value:             bsonx.VC.ArrayFromValues(bsonx.VC.Int64(7), bsonx.VC.Int32(72)),
+			Value:             birch.VC.ArrayFromValues(birch.VC.Int64(7), birch.VC.Int32(72)),
 			ExpectedCount:     2,
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
@@ -589,13 +589,13 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "ArrayWithMultiNonMetricValue",
-			Value:             bsonx.VC.ArrayFromValues(bsonx.VC.String("var"), bsonx.VC.String("bar")),
+			Value:             birch.VC.ArrayFromValues(birch.VC.String("var"), birch.VC.String("bar")),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "ArrayWithMixedArrayFirstMetrics",
-			Value:             bsonx.VC.ArrayFromValues(bsonx.VC.Boolean(true), bsonx.VC.String("var"), bsonx.VC.Int64(7)),
+			Value:             birch.VC.ArrayFromValues(birch.VC.Boolean(true), birch.VC.String("var"), birch.VC.Int64(7)),
 			NumEncodedValues:  2,
 			ExpectedCount:     2,
 			FirstEncodedValue: 1,
@@ -603,7 +603,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "DoubleNoTruncate",
-			Value:             bsonx.VC.Double(40.0),
+			Value:             birch.VC.Double(40.0),
 			NumEncodedValues:  1,
 			ExpectedCount:     1,
 			FirstEncodedValue: 40,
@@ -611,7 +611,7 @@ func TestExtractingMetrics(t *testing.T) {
 		},
 		{
 			Name:              "DateTime",
-			Value:             bsonx.EC.Time("", now).Value(),
+			Value:             birch.EC.Time("", now).Value(),
 			ExpectedCount:     1,
 			FirstEncodedValue: epochMs(now),
 			NumEncodedValues:  1,
@@ -644,7 +644,7 @@ func TestExtractingMetrics(t *testing.T) {
 func TestDocumentExtraction(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
-		Document           *bsonx.Document
+		Document           *birch.Document
 		EncoderShouldError bool
 		NumEncodedValues   int
 		FirstEncodedValue  int64
@@ -652,39 +652,39 @@ func TestDocumentExtraction(t *testing.T) {
 	}{
 		{
 			Name:              "EmptyDocument",
-			Document:          bsonx.NewDocument(),
+			Document:          birch.NewDocument(),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "NilDocumentsDocument",
-			Document:          (&bsonx.Document{IgnoreNilInsert: true}).Append(nil, nil),
+			Document:          (&birch.Document{IgnoreNilInsert: true}).Append(nil, nil),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "SingleMetricValue",
-			Document:          bsonx.NewDocument(bsonx.EC.Int64("foo", 42)),
+			Document:          birch.NewDocument(birch.EC.Int64("foo", 42)),
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
 			Types:             []bsontype.Type{bsontype.Int64},
 		},
 		{
 			Name:              "MultiMetricValue",
-			Document:          bsonx.NewDocument(bsonx.EC.Int64("foo", 7), bsonx.EC.Int32("foo", 72)),
+			Document:          birch.NewDocument(birch.EC.Int64("foo", 7), birch.EC.Int32("foo", 72)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
 			Types:             []bsontype.Type{bsontype.Int64, bsontype.Int32},
 		},
 		{
 			Name:              "MultiNonMetricValue",
-			Document:          bsonx.NewDocument(bsonx.EC.String("foo", "var"), bsonx.EC.String("bar", "bar")),
+			Document:          birch.NewDocument(birch.EC.String("foo", "var"), birch.EC.String("bar", "bar")),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "MixedArrayFirstMetrics",
-			Document:          bsonx.NewDocument(bsonx.EC.Boolean("zp", true), bsonx.EC.String("foo", "var"), bsonx.EC.Int64("bar", 7)),
+			Document:          birch.NewDocument(birch.EC.Boolean("zp", true), birch.EC.String("foo", "var"), birch.EC.Int64("bar", 7)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
 			Types:             []bsontype.Type{bsontype.Boolean, bsontype.Int64},
@@ -709,7 +709,7 @@ func TestDocumentExtraction(t *testing.T) {
 func TestArrayExtraction(t *testing.T) {
 	for _, test := range []struct {
 		Name               string
-		Array              *bsonx.Array
+		Array              *birch.Array
 		EncoderShouldError bool
 		NumEncodedValues   int
 		FirstEncodedValue  int64
@@ -717,33 +717,33 @@ func TestArrayExtraction(t *testing.T) {
 	}{
 		{
 			Name:              "EmptyArray",
-			Array:             bsonx.NewArray(),
+			Array:             birch.NewArray(),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "SingleMetricValue",
-			Array:             bsonx.NewArray(bsonx.VC.Int64(42)),
+			Array:             birch.NewArray(birch.VC.Int64(42)),
 			NumEncodedValues:  1,
 			FirstEncodedValue: 42,
 			Types:             []bsontype.Type{bsontype.Int64},
 		},
 		{
 			Name:              "MultiMetricValue",
-			Array:             bsonx.NewArray(bsonx.VC.Int64(7), bsonx.VC.Int32(72)),
+			Array:             birch.NewArray(birch.VC.Int64(7), birch.VC.Int32(72)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 7,
 			Types:             []bsontype.Type{bsontype.Int64, bsontype.Int32},
 		},
 		{
 			Name:              "MultiNonMetricValue",
-			Array:             bsonx.NewArray(bsonx.VC.String("var"), bsonx.VC.String("bar")),
+			Array:             birch.NewArray(birch.VC.String("var"), birch.VC.String("bar")),
 			NumEncodedValues:  0,
 			FirstEncodedValue: 0,
 		},
 		{
 			Name:              "MixedArrayFirstMetrics",
-			Array:             bsonx.NewArray(bsonx.VC.Boolean(true), bsonx.VC.String("var"), bsonx.VC.Int64(7)),
+			Array:             birch.NewArray(birch.VC.Boolean(true), birch.VC.String("var"), birch.VC.Int64(7)),
 			NumEncodedValues:  2,
 			FirstEncodedValue: 1,
 			Types:             []bsontype.Type{bsontype.Boolean, bsontype.Int64},
@@ -768,163 +768,163 @@ func TestMetricsHashValue(t *testing.T) {
 	now := time.Now()
 	for _, test := range []struct {
 		name        string
-		value       *bsonx.Value
+		value       *birch.Value
 		expectedNum int
 		keyElems    int
 	}{
 		{
 			name:        "IgnoredType",
-			value:       bsonx.VC.Null(),
+			value:       birch.VC.Null(),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "ObjectID",
-			value:       bsonx.VC.ObjectID(types.NewObjectID()),
+			value:       birch.VC.ObjectID(types.NewObjectID()),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "String",
-			value:       bsonx.VC.String("foo"),
+			value:       birch.VC.String("foo"),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "Decimal128",
-			value:       bsonx.VC.Decimal128(decimal.NewDecimal128(42, 42)),
+			value:       birch.VC.Decimal128(decimal.NewDecimal128(42, 42)),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "BoolTrue",
-			value:       bsonx.VC.Boolean(true),
+			value:       birch.VC.Boolean(true),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "BoolFalse",
-			value:       bsonx.VC.Boolean(false),
+			value:       birch.VC.Boolean(false),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int32",
-			value:       bsonx.VC.Int32(42),
+			value:       birch.VC.Int32(42),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int32Zero",
-			value:       bsonx.VC.Int32(0),
+			value:       birch.VC.Int32(0),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int32Negative",
-			value:       bsonx.VC.Int32(-42),
+			value:       birch.VC.Int32(-42),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int64",
-			value:       bsonx.VC.Int64(42),
+			value:       birch.VC.Int64(42),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int64Zero",
-			value:       bsonx.VC.Int64(0),
+			value:       birch.VC.Int64(0),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "Int64Negative",
-			value:       bsonx.VC.Int64(-142),
+			value:       birch.VC.Int64(-142),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "DateTimeZero",
-			value:       bsonx.VC.DateTime(0),
+			value:       birch.VC.DateTime(0),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "DateTime",
-			value:       bsonx.EC.Time("", now.Round(time.Second)).Value(),
+			value:       birch.EC.Time("", now.Round(time.Second)).Value(),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "TimestampZero",
-			value:       bsonx.VC.Timestamp(0, 0),
+			value:       birch.VC.Timestamp(0, 0),
 			expectedNum: 2,
 			keyElems:    1,
 		},
 		{
 			name:        "TimestampLarger",
-			value:       bsonx.VC.Timestamp(42, 42),
+			value:       birch.VC.Timestamp(42, 42),
 			expectedNum: 2,
 			keyElems:    1,
 		},
 		{
 			name:        "EmptyDocument",
-			value:       bsonx.EC.SubDocumentFromElements("data").Value(),
+			value:       birch.EC.SubDocumentFromElements("data").Value(),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "SingleMetricValue",
-			value:       bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Int64("foo", 42)).Value(),
+			value:       birch.EC.SubDocumentFromElements("data", birch.EC.Int64("foo", 42)).Value(),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "MultiMetricValue",
-			value:       bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Int64("foo", 7), bsonx.EC.Int32("foo", 72)).Value(),
+			value:       birch.EC.SubDocumentFromElements("data", birch.EC.Int64("foo", 7), birch.EC.Int32("foo", 72)).Value(),
 			expectedNum: 2,
 			keyElems:    2,
 		},
 		{
 			name:        "MultiNonMetricValue",
-			value:       bsonx.EC.SubDocumentFromElements("data", bsonx.EC.String("foo", "var"), bsonx.EC.String("bar", "bar")).Value(),
+			value:       birch.EC.SubDocumentFromElements("data", birch.EC.String("foo", "var"), birch.EC.String("bar", "bar")).Value(),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "MixedArrayFirstMetrics",
-			value:       bsonx.EC.SubDocumentFromElements("data", bsonx.EC.Boolean("zp", true), bsonx.EC.String("foo", "var"), bsonx.EC.Int64("bar", 7)).Value(),
+			value:       birch.EC.SubDocumentFromElements("data", birch.EC.Boolean("zp", true), birch.EC.String("foo", "var"), birch.EC.Int64("bar", 7)).Value(),
 			expectedNum: 2,
 			keyElems:    2,
 		},
 		{
 			name:        "ArraEmptyArray",
-			value:       bsonx.VC.Array(bsonx.NewArray()),
+			value:       birch.VC.Array(birch.NewArray()),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "ArrayWithSingleMetricValue",
-			value:       bsonx.VC.ArrayFromValues(bsonx.VC.Int64(42)),
+			value:       birch.VC.ArrayFromValues(birch.VC.Int64(42)),
 			expectedNum: 1,
 			keyElems:    1,
 		},
 		{
 			name:        "ArrayWithMultiMetricValue",
-			value:       bsonx.VC.ArrayFromValues(bsonx.VC.Int64(7), bsonx.VC.Int32(72)),
+			value:       birch.VC.ArrayFromValues(birch.VC.Int64(7), birch.VC.Int32(72)),
 			expectedNum: 2,
 			keyElems:    2,
 		},
 		{
 			name:        "ArrayWithMultiNonMetricValue",
-			value:       bsonx.VC.ArrayFromValues(bsonx.VC.String("var"), bsonx.VC.String("bar")),
+			value:       birch.VC.ArrayFromValues(birch.VC.String("var"), birch.VC.String("bar")),
 			expectedNum: 0,
 			keyElems:    0,
 		},
 		{
 			name:        "ArrayWithMixedArrayFirstMetrics",
-			value:       bsonx.VC.ArrayFromValues(bsonx.VC.Boolean(true), bsonx.VC.String("var"), bsonx.VC.Int64(7)),
+			value:       birch.VC.ArrayFromValues(birch.VC.Boolean(true), birch.VC.String("var"), birch.VC.Int64(7)),
 			expectedNum: 2,
 			keyElems:    2,
 		},
@@ -945,126 +945,126 @@ func TestMetricsHashValue(t *testing.T) {
 func TestMetricsToElement(t *testing.T) {
 	for _, test := range []struct {
 		name       string
-		ref        *bsonx.Element
+		ref        *birch.Element
 		metrics    []Metric
-		expected   *bsonx.Element
+		expected   *birch.Element
 		outNum     int
 		isDocument bool
 	}{
 		{
 			name: "ObjectID",
-			ref:  bsonx.EC.ObjectID("foo", types.NewObjectID()),
+			ref:  birch.EC.ObjectID("foo", types.NewObjectID()),
 		},
 		{
 			name: "String",
-			ref:  bsonx.EC.String("foo", "bar"),
+			ref:  birch.EC.String("foo", "bar"),
 		},
 		{
 			name: "Regex",
-			ref:  bsonx.EC.Regex("foo", "bar", "bar"),
+			ref:  birch.EC.Regex("foo", "bar", "bar"),
 		},
 		{
 			name: "Decimal128",
-			ref:  bsonx.EC.Decimal128("foo", decimal.NewDecimal128(1, 2)),
+			ref:  birch.EC.Decimal128("foo", decimal.NewDecimal128(1, 2)),
 		},
 		{
 			name: "Double",
-			ref:  bsonx.EC.Double("foo", 4.42),
+			ref:  birch.EC.Double("foo", 4.42),
 			metrics: []Metric{
 				{Values: []int64{normalizeFloat(4.42)}},
 			},
-			expected: bsonx.EC.Double("foo", 4.42),
+			expected: birch.EC.Double("foo", 4.42),
 			outNum:   1,
 		},
 		{
 			name: "Short",
-			ref:  bsonx.EC.Int32("foo", 4),
+			ref:  birch.EC.Int32("foo", 4),
 			metrics: []Metric{
 				{Values: []int64{37}},
 			},
-			expected: bsonx.EC.Int32("foo", 37),
+			expected: birch.EC.Int32("foo", 37),
 			outNum:   1,
 		},
 		{
 
 			name: "FalseBool",
-			ref:  bsonx.EC.Boolean("foo", true),
+			ref:  birch.EC.Boolean("foo", true),
 			metrics: []Metric{
 				{Values: []int64{0}},
 			},
-			expected: bsonx.EC.Boolean("foo", false),
+			expected: birch.EC.Boolean("foo", false),
 			outNum:   1,
 		},
 		{
 
 			name: "TrueBool",
-			ref:  bsonx.EC.Boolean("foo", false),
+			ref:  birch.EC.Boolean("foo", false),
 			metrics: []Metric{
 				{Values: []int64{1}},
 			},
-			expected: bsonx.EC.Boolean("foo", true),
+			expected: birch.EC.Boolean("foo", true),
 			outNum:   1,
 		},
 		{
 
 			name: "SuperTrueBool",
-			ref:  bsonx.EC.Boolean("foo", false),
+			ref:  birch.EC.Boolean("foo", false),
 			metrics: []Metric{
 				{Values: []int64{100}},
 			},
-			expected: bsonx.EC.Boolean("foo", true),
+			expected: birch.EC.Boolean("foo", true),
 			outNum:   1,
 		},
 		{
 
 			name:       "EmptyDocument",
-			ref:        bsonx.EC.SubDocument("foo", bsonx.NewDocument()),
-			expected:   bsonx.EC.SubDocument("foo", bsonx.NewDocument()),
+			ref:        birch.EC.SubDocument("foo", birch.NewDocument()),
+			expected:   birch.EC.SubDocument("foo", birch.NewDocument()),
 			isDocument: true,
 		},
 		{
 
 			name: "DateTimeFromTime",
-			ref:  bsonx.EC.Time("foo", time.Now()),
+			ref:  birch.EC.Time("foo", time.Now()),
 			metrics: []Metric{
 				{Values: []int64{1000}},
 			},
-			expected: bsonx.EC.DateTime("foo", 1000),
+			expected: birch.EC.DateTime("foo", 1000),
 			outNum:   1,
 		},
 		{
 
 			name: "DateTime",
-			ref:  bsonx.EC.DateTime("foo", 19999),
+			ref:  birch.EC.DateTime("foo", 19999),
 			metrics: []Metric{
 				{Values: []int64{1000}},
 			},
-			expected: bsonx.EC.DateTime("foo", 1000),
+			expected: birch.EC.DateTime("foo", 1000),
 			outNum:   1,
 		},
 		{
 
 			name: "TimeStamp",
-			ref:  bsonx.EC.Timestamp("foo", 19999, 100),
+			ref:  birch.EC.Timestamp("foo", 19999, 100),
 			metrics: []Metric{
 				{Values: []int64{1000}},
 				{Values: []int64{1000}},
 			},
-			expected: bsonx.EC.Timestamp("foo", 1000, 1000),
+			expected: birch.EC.Timestamp("foo", 1000, 1000),
 			outNum:   2,
 		},
 		{
 			name:     "ArrayEmpty",
-			ref:      bsonx.EC.ArrayFromElements("foo", bsonx.VC.String("foo"), bsonx.VC.String("bar")),
-			expected: bsonx.EC.Array("foo", bsonx.NewArray()),
+			ref:      birch.EC.ArrayFromElements("foo", birch.VC.String("foo"), birch.VC.String("bar")),
+			expected: birch.EC.Array("foo", birch.NewArray()),
 		},
 		{
 			name: "ArraySingle",
 			metrics: []Metric{
 				{Values: []int64{1}},
 			},
-			ref:      bsonx.EC.ArrayFromElements("foo", bsonx.VC.Boolean(true)),
-			expected: bsonx.EC.Array("foo", bsonx.NewArray(bsonx.VC.Boolean(true))),
+			ref:      birch.EC.ArrayFromElements("foo", birch.VC.Boolean(true)),
+			expected: birch.EC.Array("foo", birch.NewArray(birch.VC.Boolean(true))),
 			outNum:   1,
 		},
 		{
@@ -1073,8 +1073,8 @@ func TestMetricsToElement(t *testing.T) {
 				{Values: []int64{1}},
 				{Values: []int64{77}},
 			},
-			ref:      bsonx.EC.ArrayFromElements("foo", bsonx.VC.Boolean(true), bsonx.VC.Int32(33)),
-			expected: bsonx.EC.Array("foo", bsonx.NewArray(bsonx.VC.Boolean(true), bsonx.VC.Int32(77))),
+			ref:      birch.EC.ArrayFromElements("foo", birch.VC.Boolean(true), birch.VC.Int32(33)),
+			expected: birch.EC.Array("foo", birch.NewArray(birch.VC.Boolean(true), birch.VC.Int32(77))),
 			outNum:   2,
 		},
 	} {
@@ -1093,18 +1093,18 @@ func TestMetricsToElement(t *testing.T) {
 
 func TestIsOneChecker(t *testing.T) {
 	assert.False(t, isNum(1, nil))
-	assert.False(t, isNum(1, bsonx.VC.Int32(32)))
-	assert.False(t, isNum(1, bsonx.VC.Int32(0)))
-	assert.False(t, isNum(1, bsonx.VC.Int64(32)))
-	assert.False(t, isNum(1, bsonx.VC.Int64(0)))
-	assert.False(t, isNum(1, bsonx.VC.Double(32.2)))
-	assert.False(t, isNum(1, bsonx.VC.Double(0.45)))
-	assert.False(t, isNum(1, bsonx.VC.Double(0.0)))
-	assert.False(t, isNum(1, bsonx.VC.String("foo")))
-	assert.False(t, isNum(1, bsonx.VC.Boolean(true)))
-	assert.False(t, isNum(1, bsonx.VC.Boolean(false)))
+	assert.False(t, isNum(1, birch.VC.Int32(32)))
+	assert.False(t, isNum(1, birch.VC.Int32(0)))
+	assert.False(t, isNum(1, birch.VC.Int64(32)))
+	assert.False(t, isNum(1, birch.VC.Int64(0)))
+	assert.False(t, isNum(1, birch.VC.Double(32.2)))
+	assert.False(t, isNum(1, birch.VC.Double(0.45)))
+	assert.False(t, isNum(1, birch.VC.Double(0.0)))
+	assert.False(t, isNum(1, birch.VC.String("foo")))
+	assert.False(t, isNum(1, birch.VC.Boolean(true)))
+	assert.False(t, isNum(1, birch.VC.Boolean(false)))
 
-	assert.True(t, isNum(1, bsonx.VC.Int32(1)))
-	assert.True(t, isNum(1, bsonx.VC.Int64(1)))
-	assert.True(t, isNum(1, bsonx.VC.Double(1.0)))
+	assert.True(t, isNum(1, birch.VC.Int32(1)))
+	assert.True(t, isNum(1, birch.VC.Int64(1)))
+	assert.True(t, isNum(1, birch.VC.Double(1.0)))
 }

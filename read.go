@@ -8,12 +8,12 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/mongodb/ftdc/bsonx"
-	"github.com/mongodb/ftdc/bsonx/bsontype"
+	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/pkg/errors"
 )
 
-func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bsonx.Document) error {
+func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *birch.Document) error {
 	defer close(ch)
 	buf := bufio.NewReader(f)
 	for {
@@ -33,10 +33,10 @@ func readDiagnostic(ctx context.Context, f io.Reader, ch chan<- *bsonx.Document)
 	}
 }
 
-func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk) error {
+func readChunks(ctx context.Context, ch <-chan *birch.Document, o chan<- *Chunk) error {
 	defer close(o)
 
-	var metadata *bsonx.Document
+	var metadata *birch.Document
 
 	for doc := range ch {
 		// the FTDC streams typically have onetime-per-file
@@ -145,8 +145,8 @@ func readChunks(ctx context.Context, ch <-chan *bsonx.Document, o chan<- *Chunk)
 	return nil
 }
 
-func readBufBSON(buf *bufio.Reader) (*bsonx.Document, error) {
-	doc := &bsonx.Document{}
+func readBufBSON(buf *bufio.Reader) (*birch.Document, error) {
+	doc := &birch.Document{}
 
 	if _, err := doc.ReadFrom(buf); err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func readBufBSON(buf *bufio.Reader) (*bsonx.Document, error) {
 	return doc, nil
 }
 
-func readBufMetrics(buf *bufio.Reader) (*bsonx.Document, []Metric, error) {
+func readBufMetrics(buf *bufio.Reader) (*birch.Document, []Metric, error) {
 	doc, err := readBufBSON(buf)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "problem reading reference doc")

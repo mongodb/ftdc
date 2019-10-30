@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 )
 
 type betterCollector struct {
-	metadata   *bsonx.Document
-	reference  *bsonx.Document
+	metadata   *birch.Document
+	reference  *birch.Document
 	startedAt  time.Time
 	lastSample *extractedMetrics
 	deltas     []int64
@@ -127,19 +127,19 @@ func (c *betterCollector) Resolve() ([]byte, error) {
 
 	buf := bytes.NewBuffer([]byte{})
 	if c.metadata != nil {
-		_, err := bsonx.NewDocument(
-			bsonx.EC.Time("_id", c.startedAt),
-			bsonx.EC.Int32("type", 0),
-			bsonx.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
+		_, err := birch.NewDocument(
+			birch.EC.Time("_id", c.startedAt),
+			birch.EC.Int32("type", 0),
+			birch.EC.SubDocument("doc", c.metadata)).WriteTo(buf)
 		if err != nil {
 			return nil, errors.Wrap(err, "problem writing metadata document")
 		}
 	}
 
-	_, err = bsonx.NewDocument(
-		bsonx.EC.Time("_id", c.startedAt),
-		bsonx.EC.Int32("type", 1),
-		bsonx.EC.Binary("data", data)).WriteTo(buf)
+	_, err = birch.NewDocument(
+		birch.EC.Time("_id", c.startedAt),
+		birch.EC.Int32("type", 1),
+		birch.EC.Binary("data", data)).WriteTo(buf)
 	if err != nil {
 		return nil, errors.Wrap(err, "problem writing metric chunk document")
 	}

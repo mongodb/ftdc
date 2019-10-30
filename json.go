@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/message"
 	"github.com/papertrail/go-tail/follower"
@@ -44,8 +44,8 @@ func (opts CollectJSONOptions) validate() error {
 	return nil
 }
 
-func (opts CollectJSONOptions) getSource() (<-chan *bsonx.Document, <-chan error) {
-	out := make(chan *bsonx.Document)
+func (opts CollectJSONOptions) getSource() (<-chan *birch.Document, <-chan error) {
+	out := make(chan *birch.Document)
 	errs := make(chan error)
 
 	switch {
@@ -55,7 +55,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bsonx.Document, <-chan error
 			defer close(errs)
 
 			for stream.Scan() {
-				doc := &bsonx.Document{}
+				doc := &birch.Document{}
 				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
@@ -76,7 +76,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bsonx.Document, <-chan error
 			stream := bufio.NewScanner(f)
 
 			for stream.Scan() {
-				doc := &bsonx.Document{}
+				doc := &birch.Document{}
 				err := bson.UnmarshalExtJSON(stream.Bytes(), false, doc)
 				if err != nil {
 					errs <- err
@@ -99,7 +99,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *bsonx.Document, <-chan error
 			defer tail.Close()
 
 			for line := range tail.Lines() {
-				doc := bsonx.NewDocument()
+				doc := birch.NewDocument()
 				err := bson.UnmarshalExtJSON([]byte(line.String()), false, doc)
 				if err != nil {
 					errs <- err

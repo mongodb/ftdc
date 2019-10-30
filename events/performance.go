@@ -16,7 +16,7 @@ package events
 import (
 	"time"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 )
 
 // Performance represents a single raw event in a metrics collection
@@ -64,26 +64,26 @@ type PerformanceGauges struct {
 // reflection-based BSON library.
 func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
 
-// Document exports the Performance type as a bsonx.Document to
+// Document exports the Performance type as a birch.Document to
 // support more efficent operations.
-func (p *Performance) Document() *bsonx.Document {
-	return bsonx.DC.Elements(
-		bsonx.EC.Time("ts", p.Timestamp),
-		bsonx.EC.Int64("id", p.ID),
-		bsonx.EC.SubDocument("counters", bsonx.DC.Elements(
-			bsonx.EC.Int64("n", p.Counters.Number),
-			bsonx.EC.Int64("ops", p.Counters.Operations),
-			bsonx.EC.Int64("size", p.Counters.Size),
-			bsonx.EC.Int64("errors", p.Counters.Errors),
+func (p *Performance) Document() *birch.Document {
+	return birch.DC.Elements(
+		birch.EC.Time("ts", p.Timestamp),
+		birch.EC.Int64("id", p.ID),
+		birch.EC.SubDocument("counters", birch.DC.Elements(
+			birch.EC.Int64("n", p.Counters.Number),
+			birch.EC.Int64("ops", p.Counters.Operations),
+			birch.EC.Int64("size", p.Counters.Size),
+			birch.EC.Int64("errors", p.Counters.Errors),
 		)),
-		bsonx.EC.SubDocument("timers", bsonx.DC.Elements(
-			bsonx.EC.Duration("dur", p.Timers.Duration),
-			bsonx.EC.Duration("total", p.Timers.Total),
+		birch.EC.SubDocument("timers", birch.DC.Elements(
+			birch.EC.Duration("dur", p.Timers.Duration),
+			birch.EC.Duration("total", p.Timers.Total),
 		)),
-		bsonx.EC.SubDocument("gauges", bsonx.DC.Elements(
-			bsonx.EC.Int64("state", p.Gauges.State),
-			bsonx.EC.Int64("workers", p.Gauges.Workers),
-			bsonx.EC.Boolean("failed", p.Gauges.Failed),
+		birch.EC.SubDocument("gauges", birch.DC.Elements(
+			birch.EC.Int64("state", p.Gauges.State),
+			birch.EC.Int64("workers", p.Gauges.Workers),
+			birch.EC.Boolean("failed", p.Gauges.Failed),
 		)),
 	)
 }

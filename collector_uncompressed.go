@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -140,12 +140,12 @@ type uncompressedCollector struct {
 	exportJSON  bool
 	batchSize   int
 	metricCount int
-	metadata    *bsonx.Document
-	samples     []*bsonx.Document
+	metadata    *birch.Document
+	samples     []*birch.Document
 }
 
 func (c *uncompressedCollector) Reset() {
-	c.samples = []*bsonx.Document{}
+	c.samples = []*birch.Document{}
 	c.metricCount = 0
 }
 
@@ -210,7 +210,7 @@ func (c *uncompressedCollector) Resolve() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (c *uncompressedCollector) marshalWrite(buf io.Writer, doc *bsonx.Document) error {
+func (c *uncompressedCollector) marshalWrite(buf io.Writer, doc *birch.Document) error {
 	switch {
 	case c.exportBSON == c.exportJSON:
 		return errors.New("collector export format is not configured")

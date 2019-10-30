@@ -3,7 +3,7 @@ package ftdc
 import (
 	"io"
 
-	"github.com/mongodb/ftdc/bsonx"
+	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 )
 
@@ -23,7 +23,7 @@ func NewWriterCollector(chunkSize int, writer io.WriteCloser) io.WriteCloser {
 }
 
 func (w *writerCollector) Write(in []byte) (int, error) {
-	doc, err := bsonx.ReadDocument(in)
+	doc, err := birch.ReadDocument(in)
 	if err != nil {
 		return 0, errors.Wrap(err, "problem reading bson document")
 	}
