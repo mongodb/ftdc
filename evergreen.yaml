@@ -101,6 +101,7 @@ buildvariants:
     display_name: Race Detector (Arch Linux)
     expansions:
       RACE_DETECTOR: true
+      TEST_TIMEOUT: 15m
     run_on:
       - archlinux-test
     tasks: [ "testGroup" ]
@@ -135,16 +136,8 @@ buildvariants:
     run_on:
       - windows-64-vs2015-small
       - windows-64-vs2015-test
-      - windows-64-vs2015-large
-      - windows-64-vs2015-compile
-      - windows-64-vs2017-test
-      - windows-64-vs2017-compile
-      - windows-64-vs2013-test
-      - windows-64-vs2013-compile
-      - windows-64-vs2010-test
-      - windows-64-vs2010-compile
     expansions:
       DISABLE_COVERAGE: true
-      GOBIN: /cygdrive/c/golang/go1.9/bin/go
-      GOROOT: c:/golang/go1.9
+      GOBIN: "C:\\golang\\go1.9\\bin\\go"
+      GOROOT: "C:\\golang\\go1.9"
     tasks: [ "testGroup" ]

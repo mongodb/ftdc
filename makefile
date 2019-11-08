@@ -15,8 +15,8 @@ $(buildDir)/output.ftdc.test:perf_metrics.ftdc metrics.ftdc
 # end test files
 
 # start environment setup
-ifneq (,$(GO_BIN_PATH))
- gobin := $(GO_BIN_PATH)
+ifneq (,$(GOBIN))
+ gobin := $(GOBIN)
 else
  gobin := $(shell if [ -x /opt/golang/go1.9/bin/go ]; then echo /opt/golang/go1.9/bin/go; fi)
  ifeq (,$(gobin))
@@ -26,6 +26,7 @@ endif
 
 gopath := $(GOPATH)
 ifeq ($(OS),Windows_NT)
+ gobin := $(shell cygpath -m $(gobin))
  ifneq (,$(gopath))
   gopath := $(shell cygpath -m $(gopath))
  endif
@@ -137,7 +138,7 @@ phony += vendor-clean
 #    run. (The "build" target is intentional and makes these targetsb
 #    rerun as expected.)
 testRunEnv := GOPATH=$(gopath)
-testArgs := -v -timeout=10m
+testArgs := -v
 ifneq (,$(RUN_TEST))
 testArgs += -run='$(RUN_TEST)'
 endif
@@ -152,6 +153,11 @@ testArgs += -cover
 endif
 ifneq (,$(RACE_DETECTOR))
 testArgs += -race
+endif
+ifneq (,$(TEST_TIMEOUT))
+testArgs += -timeout=$(TEST_TIMEOUT)
+else
+testArgs += -timeout=10m
 endif
 # testing targets
 $(buildDir)/output.%.test: .FORCE

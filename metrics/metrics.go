@@ -33,15 +33,15 @@ type Runtime struct {
 // CollectOptions are the settings to provide the behavior of
 // the collection process process.
 type CollectOptions struct {
-	OutputFilePrefix      string
-	SampleCount           int
 	FlushInterval         time.Duration
 	CollectionInterval    time.Duration
 	SkipGolang            bool
 	SkipSystem            bool
 	SkipProcess           bool
-	Collectors            Collectors
 	RunParallelCollectors bool
+	SampleCount           int
+	Collectors            Collectors
+	OutputFilePrefix      string
 }
 
 type Collectors []CustomCollector

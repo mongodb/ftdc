@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,7 @@ func TestCollectJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
+		grip.Alert(os.RemoveAll(dir))
 	}()
 
 	hundredDocs, err := makeJSONRandComplex(100)
