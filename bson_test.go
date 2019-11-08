@@ -1,6 +1,7 @@
 package ftdc
 
 import (
+	"fmt"
 	"hash/fnv"
 	"strings"
 	"testing"
@@ -1084,7 +1085,7 @@ func TestMetricsToElement(t *testing.T) {
 			if !test.isDocument {
 				assert.Equal(t, test.expected, elem)
 			} else {
-				assert.True(t, test.expected.Value().MutableDocument().Equal(elem.Value().MutableDocument()))
+				assert.Equal(t, fmt.Sprint(test.expected.Value().Interface()), fmt.Sprint(elem.Value().Interface()))
 			}
 
 		})

@@ -65,7 +65,7 @@ type PerformanceGauges struct {
 func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
 
 // Document exports the Performance type as a birch.Document to
-// support more efficent operations.
+// support more efficient operations.
 func (p *Performance) Document() *birch.Document {
 	return birch.DC.Elements(
 		birch.EC.Time("ts", p.Timestamp),

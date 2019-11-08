@@ -83,7 +83,7 @@ type Recorder interface {
 	SetID(int64)
 
 	// SetTime defines the timestamp of the current point. SetTime
-	// is ususally not needed: Begin will set the time to the
+	// is usually not needed: Begin will set the time to the
 	// current time; however, if you're using a recorder as part
 	// of post-processing, you will want to use SetTime directly.
 	SetTime(time.Time)

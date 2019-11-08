@@ -116,7 +116,7 @@ func TestCollectorInterface(t *testing.T) {
 							t.Run(fmt.Sprintf("DocumentNumber_%d", idx), func(t *testing.T) {
 								s := iter.Document()
 
-								if !assert.True(t, s.Equal(docs[idx])) {
+								if !assert.Equal(t, fmt.Sprint(s), fmt.Sprint(docs[idx])) {
 									fmt.Println("---", idx)
 									fmt.Println("in: ", docs[idx])
 									fmt.Println("out:", s)
@@ -213,7 +213,7 @@ func TestStreamingEncoding(t *testing.T) {
 							res = append(res, val)
 							idx := len(res) - 1
 
-							assert.True(t, doc.Equal(docs[idx]))
+							assert.Equal(t, fmt.Sprint(doc), fmt.Sprint(docs[idx]))
 						}
 
 						require.NoError(t, iter.Err())
@@ -258,7 +258,7 @@ func TestStreamingEncoding(t *testing.T) {
 							res = append(res, val)
 							idx := len(res) - 1
 
-							assert.True(t, doc.Equal(docs[idx]))
+							assert.Equal(t, fmt.Sprint(doc), fmt.Sprint(docs[idx]))
 						}
 
 						require.NoError(t, iter.Err())
@@ -305,7 +305,7 @@ func TestStreamingEncoding(t *testing.T) {
 							res = append(res, val)
 							idx := len(res) - 1
 
-							assert.True(t, doc.Equal(docs[idx]))
+							assert.Equal(t, fmt.Sprint(doc), fmt.Sprint(docs[idx]))
 						}
 						require.NoError(t, iter.Err())
 						require.Equal(t, len(test.dataset), len(res), "%v -> %v", test.dataset, res)
@@ -395,7 +395,7 @@ func TestFixedEncoding(t *testing.T) {
 							res = append(res, val)
 							idx := len(res) - 1
 
-							assert.True(t, doc.Equal(docs[idx]))
+							assert.Equal(t, fmt.Sprint(doc), fmt.Sprint(docs[idx]))
 						}
 
 						require.NoError(t, iter.Err())

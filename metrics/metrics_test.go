@@ -59,19 +59,19 @@ func TestCollectRuntime(t *testing.T) {
 				path := filepath.Join(dir, info.Name())
 				f, err := os.Open(path)
 				require.NoError(t, err)
-				defer f.Close()
+				defer func() { assert.NoError(t, f.Close()) }()
 				iter := ftdc.ReadMetrics(ctx, f)
 				counter := 0
 				for iter.Next() {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					assert.Equal(t, doc.Len(), 15)
+					require.True(t, doc.Len() > 100, "%s > 100", doc.Len())
 				}
-				assert.NoError(t, iter.Err())
+				require.NoError(t, iter.Err())
 				total += counter
 			})
-			assert.True(t, total > len(files))
+			assert.True(t, total > len(files), "total: %d > numFiles: %d", total, len(files))
 		}
 	})
 }
