@@ -24,10 +24,9 @@ else
  endif
 endif
 
-gopath := $(GOPATH)
 ifeq ($(OS),Windows_NT)
- ifneq (,$(gopath))
-  gopath := $(shell cygpath -m $(gopath))
+ ifneq (,$(GOPATH))
+  export GOPATH = $(shell cygpath -w -m $(GOPATH))
  endif
 endif
 
