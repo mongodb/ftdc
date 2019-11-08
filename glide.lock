@@ -13,7 +13,7 @@ imports:
   version: 973c153b04319fc4604d847b09861a5730cbbde2
 
 - name: go.mongodb.org/mongo-driver
-  version: 1c3b9b9a41eecdf056560e07b68e6407b8d598c3
+  version: 85a8e363c138e7c405976deb9816c72efe54f7b4
 - name: gopkg.in/mgo.v2
   version: 3f83fa5005286a7fe593b055f0d7771a7dce4655
 

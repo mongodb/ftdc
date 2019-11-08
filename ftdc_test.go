@@ -3,6 +3,7 @@ package ftdc
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -45,15 +46,6 @@ func TestReadPathIntegration(t *testing.T) {
 		reportInterval  int
 		docLen          int
 	}{
-		{
-			name:            "PerfMockSmall",
-			path:            "perf_metrics_small.ftdc",
-			docLen:          4,
-			expectedNum:     10,
-			expectedChunks:  10,
-			expectedMetrics: 100,
-			reportInterval:  1000,
-		},
 		{
 			name:            "PerfMock",
 			path:            "perf_metrics.ftdc",
@@ -315,7 +307,8 @@ func TestRoundTrip(t *testing.T) {
 					for iter.Next() {
 						require.True(t, docNum < len(docs))
 						roundtripDoc := iter.Document()
-						assert.True(t, roundtripDoc.Equal(docs[docNum]))
+
+						assert.Equal(t, fmt.Sprint(roundtripDoc), fmt.Sprint(docs[docNum]))
 						docNum++
 					}
 				})

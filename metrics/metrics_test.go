@@ -66,9 +66,9 @@ func TestCollectRuntime(t *testing.T) {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					assert.Equal(t, doc.Len(), 15)
+					require.Equal(t, doc.Len(), 416)
 				}
-				assert.NoError(t, iter.Err())
+				require.NoError(t, iter.Err())
 				total += counter
 			})
 			assert.True(t, total > len(files))

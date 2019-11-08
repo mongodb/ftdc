@@ -2,6 +2,7 @@ package ftdc
 
 import (
 	"bytes"
+	"sync"
 	"time"
 
 	"github.com/evergreen-ci/birch"
@@ -9,6 +10,7 @@ import (
 )
 
 type betterCollector struct {
+	mu         sync.RWMutex
 	metadata   *birch.Document
 	reference  *birch.Document
 	startedAt  time.Time
@@ -33,10 +35,17 @@ func (c *betterCollector) SetMetadata(in interface{}) error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.metadata = doc
 	return nil
 }
 func (c *betterCollector) Reset() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.reference = nil
 	c.lastSample = nil
 	c.deltas = nil
@@ -45,14 +54,16 @@ func (c *betterCollector) Reset() {
 
 func (c *betterCollector) Info() CollectorInfo {
 	var num int
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if c.reference != nil {
 		num++
 	}
 
 	var metricsCount int
-	if c.lastSample == nil {
-		metricsCount = 0
-	} else {
+	if c.lastSample != nil {
 		metricsCount = len(c.lastSample.values)
 	}
 
@@ -63,6 +74,9 @@ func (c *betterCollector) Info() CollectorInfo {
 }
 
 func (c *betterCollector) Add(in interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	doc, err := readDocument(in)
 	if err != nil {
 		return errors.WithStack(err)
@@ -116,6 +130,9 @@ func (c *betterCollector) Add(in interface{}) error {
 }
 
 func (c *betterCollector) Resolve() ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.reference == nil {
 		return nil, errors.New("no reference document")
 	}
