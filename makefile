@@ -24,13 +24,12 @@ else
  endif
 endif
 
-gopath := $(shell go env GOPATH)
+gopath := $(GOPATH)
 ifeq ($(OS),Windows_NT)
-gopath := $(shell cygpath -m $(gopath))
+ ifneq (,$(gopath))
+  gopath := $(shell cygpath -m $(gopath))
+ endif
 endif
-goos := $(shell go env GOOS)
-goarch := $(shell go env GOARCH)
-# end environment setup
 
 # start linting configuration
 #   package, testing, and linter dependencies specified
