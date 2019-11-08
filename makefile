@@ -24,9 +24,11 @@ else
  endif
 endif
 
-gopath := $(shell go env GOPATH)
+gopath := $(GOPATH)
 ifeq ($(OS),Windows_NT)
-   export GOPATH = $(shell cygpath -w -m $(gopath))
+ ifneq (,$(gopath))
+  gopath := $(shell cygpath -m $(gopath))
+ endif
 endif
 # end environment setup
 
@@ -134,6 +136,7 @@ phony += vendor-clean
 #    This varable includes everything that the tests actually need to
 #    run. (The "build" target is intentional and makes these targetsb
 #    rerun as expected.)
+testRunEnv := GOPATH=$(gopath)
 testArgs := -v -timeout=10m
 ifneq (,$(RUN_TEST))
 testArgs += -run='$(RUN_TEST)'
@@ -153,13 +156,13 @@ endif
 # testing targets
 $(buildDir)/output.%.test: .FORCE
 	@mkdir -p $(buildDir)
-	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
+	$(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
 $(buildDir)/output.%.coverage: $(buildDir)/ .FORCE
 	@mkdir -p $(buildDir)
-	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
-	@-[ -f $@ ] && $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
+	$(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
+	@-[ -f $@ ] && $(testRunEnv) $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
 $(buildDir)/output.%.coverage.html:$(buildDir)/output.%.coverage
-	$(gobin)tool cover -html=$< -o $@
+	$(testRunEnv) $(gobin) tool cover -html=$< -o $@
 #  targets to generate gotest output from the linter.
 $(buildDir)/output.%.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 	@./$< --output=$@ --lintArgs='$(lintArgs)' --packages='$*'
