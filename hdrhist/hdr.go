@@ -440,8 +440,7 @@ func (h *Histogram) countsIndex(bucketIdx, subBucketIdx int32) int32 {
 
 func (h *Histogram) getBucketIndex(v int64) int32 {
 	pow2Ceiling := bitLen(v | h.subBucketMask)
-	return int32(pow2Ceiling - int64(h.unitMagnitude) -
-		int64(h.subBucketHalfCountMagnitude+1))
+	return int32(pow2Ceiling - h.unitMagnitude - int64(h.subBucketHalfCountMagnitude+1))
 }
 
 func (h *Histogram) getSubBucketIdx(v int64, idx int32) int32 {
