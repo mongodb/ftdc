@@ -276,7 +276,7 @@ func TestRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	collectors := createCollectors()
+	collectors := createCollectors(ctx)
 	for _, collect := range collectors {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
