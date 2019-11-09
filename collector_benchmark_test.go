@@ -1,11 +1,15 @@
 package ftdc
 
 import (
+	"context"
 	"testing"
 )
 
 func BenchmarkCollectorInterface(b *testing.B) {
-	collectors := createCollectors()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	collectors := createCollectors(ctx)
 	for _, collect := range collectors {
 		if collect.skipBench {
 			continue

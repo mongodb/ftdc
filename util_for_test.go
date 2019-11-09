@@ -155,11 +155,15 @@ func randComplexDocument(numKeys, otherNum int) *birch.Document {
 	return doc
 }
 
-func createCollectors() []*customCollector {
+func createCollectors(ctx context.Context) []*customCollector {
 	collectors := []*customCollector{
 		{
 			name:    "Better",
 			factory: func() Collector { return NewBaseCollector(1000) },
+		},
+		{
+			name:    "Buffered",
+			factory: func() Collector { return NewBufferedCollector(ctx, 0, NewBaseCollector(1000)) },
 		},
 		{
 			name:      "SmallBatch",

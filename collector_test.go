@@ -20,8 +20,7 @@ func TestCollectorInterface(t *testing.T) {
 	defer cancel()
 
 	t.Parallel()
-	collectors := createCollectors()
-	for _, collect := range collectors {
+	for _, collect := range createCollectors(ctx) {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
 
@@ -102,6 +101,7 @@ func TestCollectorInterface(t *testing.T) {
 							count++
 							assert.NoError(t, collector.Add(d))
 						}
+						time.Sleep(time.Millisecond) // force context switch so that the buffered collector flushes
 						info := collector.Info()
 						require.Equal(t, info.SampleCount, count)
 

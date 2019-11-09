@@ -4,36 +4,47 @@ import (
 	"context"
 
 	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/recovery"
 )
 
 type bufferedCollector struct {
-	pipe chan interface{}
-	ctx  context.Context
 	Collector
+	pipe    chan interface{}
+	catcher grip.Catcher
+	ctx     context.Context
 }
 
-// NewBufferedCollector constructs a buffered collector which wraps
-// another collector and buffers the pending elements.
-func NewBufferedCollector(ctx context.Context, bufferSize int, collector Collector) Collector {
-	coll := &bufferedCollector{
-		Collector: collector,
+// NewBufferedCollector wraps an existing collector with a buffer to
+// normalize throughput to an underlying collector implementation.
+func NewBufferedCollector(ctx context.Context, size int, coll Collector) Collector {
+	c := &bufferedCollector{
+		Collector: coll,
+		pipe:      make(chan interface{}, size),
+		catcher:   grip.NewBasicCatcher(),
 		ctx:       ctx,
-		pipe:      make(chan interface{}, bufferSize),
 	}
-	go coll.worker(ctx)
-	return coll
-}
 
-func (c *bufferedCollector) worker(ctx context.Context) {
-	defer func() { grip.Alert(recover()) }()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case in := <-c.pipe:
-			grip.Critical(c.Collector.Add(in))
+	go func() {
+		defer recovery.LogStackTraceAndContinue("buffered collector background")
+
+		for {
+			select {
+			case <-ctx.Done():
+				close(c.pipe)
+				if len(c.pipe) != 0 {
+					grip.Infof("flushing %d events from buffered collector", len(c.pipe))
+					for in := range c.pipe {
+						c.catcher.Add(c.Collector.Add(in))
+					}
+				}
+
+				return
+			case in := <-c.pipe:
+				c.catcher.Add(c.Collector.Add(in))
+			}
 		}
-	}
+	}()
+	return c
 }
 
 func (c *bufferedCollector) Add(in interface{}) error {
@@ -43,4 +54,12 @@ func (c *bufferedCollector) Add(in interface{}) error {
 	case c.pipe <- in:
 		return nil
 	}
+}
+
+func (c *bufferedCollector) Resolve() ([]byte, error) {
+	if c.catcher.HasErrors() {
+		return nil, c.catcher.Resolve()
+	}
+
+	return c.Collector.Resolve()
 }
