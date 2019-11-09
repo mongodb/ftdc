@@ -40,7 +40,7 @@ endif
 lintDeps := github.com/alecthomas/gometalinter
 #   include test files and give13m --vendor --aggregate --sort=line
 lintArgs := --tests --deadline=14m --vendor
-lintArgs += --enable-gc --disable=golint --disable=gocyclo
+lintArgs += --enable-gc --disable=golint --disable=gocyclo --disable=gosec
 #   gotype produces false positives because it reads .a files which
 #   are rarely up to date.
 lintArgs += --skip="$(buildDir)" --skip="buildscripts" --skip="$(gopath)"

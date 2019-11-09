@@ -36,9 +36,7 @@ func TestCollectorInterface(t *testing.T) {
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 
-					assert.NotPanics(t, func() {
-						collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4))
-					})
+					assert.NoError(t, collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
 
 					info := collector.Info()
 					assert.Zero(t, info)

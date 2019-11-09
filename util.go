@@ -75,9 +75,10 @@ func compressBuffer(input []byte) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	zbuf := zlib.NewWriter(buf)
 
-	var err error
-
-	buf.Write(encodeSizeValue(uint32(len(input))))
+	_, err := buf.Write(encodeSizeValue(uint32(len(input))))
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = zbuf.Write(input)
 	if err != nil {
@@ -95,7 +96,7 @@ func compressBuffer(input []byte) ([]byte, error) {
 func normalizeFloat(in float64) int64 { return int64(math.Float64bits(in)) }
 func restoreFloat(in int64) float64   { return math.Float64frombits(uint64(in)) }
 func epochMs(t time.Time) int64       { return t.UnixNano() / 1000000 }
-func timeEpocMs(in int64) time.Time   { return time.Unix(int64(in)/1000, int64(in)%1000*1000000) }
+func timeEpocMs(in int64) time.Time   { return time.Unix(in/1000, in%1000*1000000) }
 
 func isNum(num int, val *birch.Value) bool {
 	if val == nil {

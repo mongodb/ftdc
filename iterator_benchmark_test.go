@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/mongodb/grip"
 	"github.com/stretchr/testify/require"
 )
 
@@ -34,7 +35,7 @@ func BenchmarkIterator(b *testing.B) {
 		b.Run(test.Name, func(b *testing.B) {
 			file, err := os.Open(test.Path)
 			require.NoError(b, err)
-			defer file.Close()
+			defer func() { grip.Alert(file.Close()) }()
 			data, err := ioutil.ReadAll(file)
 			require.NoError(b, err)
 			b.ResetTimer()

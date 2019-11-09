@@ -182,7 +182,7 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 	collector := NewStreamingDynamicCollector(bucketSize, output)
 	defer func() { grip.Error(FlushCollector(collector, output)) }()
 
-	record := make([]string, 0, len(header))
+	var record []string
 	for {
 		if ctx.Err() != nil {
 			return errors.New("operation aborted")
@@ -196,7 +196,6 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 		if err != nil {
 			if pr, ok := err.(*csv.ParseError); ok && pr.Err == csv.ErrFieldCount {
 				header = record
-				record = make([]string, 0, len(header))
 				continue
 			}
 			return errors.Wrap(err, "problem parsing csv")

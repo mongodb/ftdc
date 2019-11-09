@@ -474,7 +474,7 @@ func TestRecorder(t *testing.T) {
 						switch data := c.Data[0].(type) {
 						case Performance:
 							// it's 42 or 53 depending on the behavior of end
-							assert.True(t, 42 == data.Counters.Number || 43 == data.Counters.Number)
+							assert.True(t, 42 == data.Counters.Number || 43 == data.Counters.Number) // nolint
 						case PerformanceHDR:
 							count := data.Counters.Number.TotalCount()
 							assert.True(t, 1 <= count, "count=%d", count)

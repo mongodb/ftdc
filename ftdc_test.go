@@ -74,7 +74,7 @@ func TestReadPathIntegration(t *testing.T) {
 
 			file, err := os.Open(test.path)
 			require.NoError(t, err)
-			defer file.Close()
+			defer func() { grip.Alert(file.Close()) }()
 			ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
 			defer cancel()
 			data, err := ioutil.ReadAll(file)
@@ -289,9 +289,7 @@ func TestRoundTrip(t *testing.T) {
 				}
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
-					assert.NotPanics(t, func() {
-						collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4))
-					})
+					assert.NoError(t, collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
 
 					var docs []*birch.Document
 					for _, d := range test.docs {

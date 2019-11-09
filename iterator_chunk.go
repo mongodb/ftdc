@@ -38,7 +38,6 @@ type ChunkIterator struct {
 	cancel  context.CancelFunc
 	closed  bool
 	catcher grip.Catcher
-	count   int
 }
 
 // ReadChunks creates a ChunkIterator from an underlying FTDC data

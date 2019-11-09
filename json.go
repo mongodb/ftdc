@@ -46,7 +46,7 @@ func (opts CollectJSONOptions) validate() error {
 
 func (opts CollectJSONOptions) getSource() (<-chan *birch.Document, <-chan error) {
 	out := make(chan *birch.Document)
-	errs := make(chan error)
+	errs := make(chan error, 2)
 
 	switch {
 	case opts.InputSource != nil:
@@ -72,7 +72,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *birch.Document, <-chan error
 				errs <- errors.Wrapf(err, "problem opening data file %s", opts.FileName)
 				return
 			}
-			defer f.Close()
+			defer func() { errs <- f.Close() }()
 			stream := bufio.NewScanner(f)
 
 			for stream.Scan() {
@@ -96,7 +96,10 @@ func (opts CollectJSONOptions) getSource() (<-chan *birch.Document, <-chan error
 				errs <- errors.Wrapf(err, "problem setting up file follower of '%s'", opts.FileName)
 				return
 			}
-			defer tail.Close()
+			defer func() {
+				tail.Close()
+				errs <- tail.Err()
+			}()
 
 			for line := range tail.Lines() {
 				doc := birch.NewDocument()
@@ -116,7 +119,7 @@ func (opts CollectJSONOptions) getSource() (<-chan *birch.Document, <-chan error
 }
 
 // CollectJSONStream provides a blocking process that reads new-line
-// seperated JSON documents from a file and creates FTDC data from
+// separated JSON documents from a file and creates FTDC data from
 // these sources.
 //
 // The Options structure allows you to define the collection intervals

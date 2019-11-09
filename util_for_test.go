@@ -3,12 +3,13 @@ package ftdc
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/evergreen-ci/birch"
+	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
@@ -35,12 +36,6 @@ func createEventRecord(count, duration, size, workers int64) *birch.Document {
 		birch.EC.Int64("size", size),
 		birch.EC.Int64("workers", workers),
 	)
-}
-
-func randStr() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
 }
 
 func randFlatDocument(numKeys int) *birch.Document {
@@ -153,6 +148,69 @@ func randComplexDocument(numKeys, otherNum int) *birch.Document {
 	}
 
 	return doc
+}
+func isMetricsDocument(key string, doc *birch.Document) ([]string, int) {
+	iter := doc.Iterator()
+	keys := []string{}
+	seen := 0
+	for iter.Next() {
+		elem := iter.Element()
+		k, num := isMetricsValue(fmt.Sprintf("%s/%s", key, elem.Key()), elem.Value())
+		if num > 0 {
+			seen += num
+			keys = append(keys, k...)
+		}
+	}
+
+	return keys, seen
+}
+
+func isMetricsArray(key string, array *birch.Array) ([]string, int) {
+	idx := 0
+	numKeys := 0
+	keys := []string{}
+	iter := array.Iterator()
+	for iter.Next() {
+		ks, num := isMetricsValue(key+strconv.Itoa(idx), iter.Value())
+
+		if num > 0 {
+			numKeys += num
+			keys = append(keys, ks...)
+		}
+
+		idx++
+	}
+
+	return keys, numKeys
+}
+
+func isMetricsValue(key string, val *birch.Value) ([]string, int) {
+	switch val.Type() {
+	case bsontype.ObjectID:
+		return nil, 0
+	case bsontype.String:
+		return nil, 0
+	case bsontype.Decimal128:
+		return nil, 0
+	case bsontype.Array:
+		return isMetricsArray(key, val.MutableArray())
+	case bsontype.EmbeddedDocument:
+		return isMetricsDocument(key, val.MutableDocument())
+	case bsontype.Boolean:
+		return []string{key}, 1
+	case bsontype.Double:
+		return []string{key}, 1
+	case bsontype.Int32:
+		return []string{key}, 1
+	case bsontype.Int64:
+		return []string{key}, 1
+	case bsontype.DateTime:
+		return []string{key}, 1
+	case bsontype.Timestamp:
+		return []string{key}, 2
+	default:
+		return nil, 0
+	}
 }
 
 func createCollectors(ctx context.Context) []*customCollector {

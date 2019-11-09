@@ -46,9 +46,7 @@ func (m *Metric) getSeries() interface{} {
 	switch m.originalType {
 	case bsontype.Int64, bsontype.Timestamp:
 		out := make([]int64, len(m.Values))
-		for idx, p := range m.Values {
-			out[idx] = p
-		}
+		copy(out, m.Values)
 		return out
 	case bsontype.Int32:
 		out := make([]int32, len(m.Values))

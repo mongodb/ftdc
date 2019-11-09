@@ -17,20 +17,8 @@ func BenchmarkHashBSON(b *testing.B) {
 		HashFunc metricHashFunc
 	}{
 		{
-			Name:     "Legacy",
-			HashFunc: metricsHash,
-		},
-		{
 			Name:     "FNVChecksum",
 			HashFunc: metricKeyHash,
-		},
-		{
-			Name:     "SHA1Checksum",
-			HashFunc: metricKeySHA1,
-		},
-		{
-			Name:     "MD5Checksum",
-			HashFunc: metricKeyMD5,
 		},
 	} {
 		b.Run(impl.Name, func(b *testing.B) {
