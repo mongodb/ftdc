@@ -68,11 +68,30 @@ func TestCollectRuntime(t *testing.T) {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					require.True(t, doc.Len() > 100, "%s > 100", doc.Len())
+					require.True(t, doc.Len() > 10, "%s > 100", doc.Len())
 				}
 				require.NoError(t, iter.Err())
 				total += counter
 			})
 		}
 	})
+	t.Run("CollectAllData", func(t *testing.T) {
+		// this test runs without the skips, which are
+		// expected to be less reliable in different environment
+		opts := CollectOptions{
+			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("sysinfo.%d.%s",
+				os.Getpid(),
+				time.Now().Format("2006-01-02.15-04-05"))),
+			SampleCount:        10,
+			FlushInterval:      time.Second,
+			CollectionInterval: time.Millisecond,
+		}
+		var cancel context.CancelFunc
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		err = CollectRuntime(ctx, opts)
+		require.NoError(t, err)
+	})
+
 }
