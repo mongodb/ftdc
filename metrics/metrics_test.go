@@ -35,7 +35,7 @@ func TestCollectRuntime(t *testing.T) {
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			SampleCount:        10,
-			FlushInterval:      2 * time.Second,
+			FlushInterval:      time.Second,
 			CollectionInterval: time.Millisecond,
 		}
 		var cancel context.CancelFunc
@@ -71,7 +71,6 @@ func TestCollectRuntime(t *testing.T) {
 				require.NoError(t, iter.Err())
 				total += counter
 			})
-			assert.True(t, total > len(files), "total: %d > numFiles: %d", total, len(files))
 		}
 	})
 }

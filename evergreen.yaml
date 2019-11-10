@@ -137,7 +137,7 @@ buildvariants:
       - windows-64-vs2015-small
       - windows-64-vs2015-test
     expansions:
-      TEST_TIMEOUT: 20m
+      TEST_TIMEOUT: 15m
       DISABLE_COVERAGE: true
       GOBIN: "C:\\golang\\go1.9\\bin\\go"
       GOROOT: "C:\\golang\\go1.9"

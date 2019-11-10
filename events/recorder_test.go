@@ -54,6 +54,7 @@ func TestRecorder(t *testing.T) {
 						iterations := 10
 						for i := 0; i < iterations; i++ {
 							r.Begin()
+							time.Sleep(time.Millisecond)
 							start := time.Now()
 							assert.Len(t, c.Data, i)
 							r.IncOps(10)
@@ -107,6 +108,7 @@ func TestRecorder(t *testing.T) {
 					Name: "IncOpsFullCycle",
 					Case: func(t *testing.T, r Recorder, c *MockCollector) {
 						r.Begin()
+						time.Sleep(time.Millisecond)
 						assert.Len(t, c.Data, 0)
 						r.IncOps(10)
 						assert.Len(t, c.Data, 0)
@@ -199,6 +201,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						for i := 0; i < 10; i++ {
 							r.Begin()
+							time.Sleep(time.Millisecond)
 							r.IncOps(1)
 							r.End(time.Second)
 						}
@@ -231,6 +234,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						for i := 0; i < 10; i++ {
 							r.Begin()
+							time.Sleep(time.Millisecond)
 							r.IncSize(1024)
 							r.End(100 * time.Millisecond)
 						}
@@ -262,6 +266,7 @@ func TestRecorder(t *testing.T) {
 						assert.Len(t, c.Data, 0)
 						for i := 0; i < 10; i++ {
 							r.Begin()
+							time.Sleep(time.Millisecond)
 							r.IncError(3)
 							r.End(10 * time.Millisecond)
 						}
