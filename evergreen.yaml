@@ -115,6 +115,7 @@ buildvariants:
   - name: ubuntu1604
     display_name: Ubuntu 16.04
     expansions:
+      TEST_TIMEOUT: 15m
       GO_BIN_PATH: /opt/golang/go1.9/bin/go
       GOROOT: /opt/golang/go1.9
     run_on:
