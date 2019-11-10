@@ -127,7 +127,7 @@ buildvariants:
       DISABLE_COVERAGE: true
       GO_BIN_PATH: /opt/golang/go1.9/bin/go
       GOROOT: /opt/golang/go1.9
-     run_on:
+    run_on:
       - macos-1014
     tasks: [ "testGroup" ]
 
