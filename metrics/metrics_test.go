@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
+	"github.com/mongodb/grip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestCollectRuntime(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		require.NoError(t, os.RemoveAll(dir))
+		grip.Alert(os.RemoveAll(dir))
 	}()
 
 	t.Run("CollectData", func(t *testing.T) {
@@ -82,7 +83,7 @@ func TestCollectRuntime(t *testing.T) {
 			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("complete.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
-			SampleCount:        10,
+			SampleCount:        100,
 			FlushInterval:      time.Second,
 			CollectionInterval: time.Millisecond,
 		}
@@ -93,5 +94,4 @@ func TestCollectRuntime(t *testing.T) {
 		err = CollectRuntime(ctx, opts)
 		require.NoError(t, err)
 	})
-
 }
