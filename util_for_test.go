@@ -400,37 +400,6 @@ func createCollectors(ctx context.Context) []*customCollector {
 func createTests() []customTest {
 	return []customTest{
 		{
-			name: "OneDocNoStats",
-			docs: []*birch.Document{
-				birch.NewDocument(birch.EC.String("foo", "bar")),
-			},
-			skipBench: true,
-		},
-		{
-			name: "OneDocumentOneStat",
-			docs: []*birch.Document{
-				birch.NewDocument(birch.EC.Int32("foo", 42)),
-			},
-			skipBench: true,
-			numStats:  1,
-		},
-		{
-			name: "OneSmallFlat",
-			docs: []*birch.Document{
-				randFlatDocument(12),
-			},
-			numStats:  12,
-			skipBench: true,
-		},
-		{
-			name: "OneLargeFlat",
-			docs: []*birch.Document{
-				randFlatDocument(360),
-			},
-			numStats:  360,
-			skipBench: true,
-		},
-		{
 			name: "SeveralDocNoStats",
 			docs: []*birch.Document{
 				birch.NewDocument(birch.EC.String("foo", "bar")),
@@ -497,15 +466,6 @@ func createTests() []customTest {
 			numStats:  2000,
 		},
 		{
-			name: "OneSmallComplex",
-			docs: []*birch.Document{
-				randComplexDocument(4, 10),
-			},
-			randStats: true,
-			numStats:  11,
-			skipBench: true,
-		},
-		{
 			name: "SeveralSmallComplex",
 			docs: []*birch.Document{
 				randComplexDocument(4, 100),
@@ -521,15 +481,6 @@ func createTests() []customTest {
 			},
 			numStats:  101,
 			randStats: true,
-		},
-		{
-			name: "OneHugeComplex",
-			docs: []*birch.Document{
-				randComplexDocument(10000, 10000),
-			},
-			randStats: true,
-			numStats:  1000,
-			skipBench: true,
 		},
 		{
 			name: "SeveralHugeComplex",

@@ -37,6 +37,8 @@ func TestCollectRuntime(t *testing.T) {
 			SampleCount:        10,
 			FlushInterval:      time.Second,
 			CollectionInterval: time.Millisecond,
+			SkipProcess:        true,
+			SkipSystem:         true,
 		}
 		var cancel context.CancelFunc
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
