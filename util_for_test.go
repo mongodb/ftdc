@@ -431,14 +431,6 @@ func createTests() []customTest {
 			skipBench: true,
 		},
 		{
-			name: "OneHugeFlat",
-			docs: []*birch.Document{
-				randFlatDocument(36000),
-			},
-			numStats:  36000,
-			skipBench: true,
-		},
-		{
 			name: "SeveralDocNoStats",
 			docs: []*birch.Document{
 				birch.NewDocument(birch.EC.String("foo", "bar")),
@@ -512,15 +504,6 @@ func createTests() []customTest {
 			randStats: true,
 			numStats:  11,
 			skipBench: true,
-		},
-		{
-			name: "OneLargeComplex",
-			docs: []*birch.Document{
-				randComplexDocument(100, 100),
-			},
-			randStats: true,
-			skipBench: true,
-			numStats:  101,
 		},
 		{
 			name: "SeveralSmallComplex",
