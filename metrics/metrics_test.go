@@ -79,7 +79,7 @@ func TestCollectRuntime(t *testing.T) {
 		// this test runs without the skips, which are
 		// expected to be less reliable in different environment
 		opts := CollectOptions{
-			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("sysinfo.%d.%s",
+			OutputFilePrefix: filepath.Join(dir, fmt.Sprintf("complete.%d.%s",
 				os.Getpid(),
 				time.Now().Format("2006-01-02.15-04-05"))),
 			SampleCount:        10,

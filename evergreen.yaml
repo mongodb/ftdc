@@ -101,7 +101,7 @@ buildvariants:
     display_name: Race Detector (Arch Linux)
     expansions:
       RACE_DETECTOR: true
-      TEST_TIMEOUT: 30m
+      TEST_TIMEOUT: 1h
     run_on:
       - archlinux-test
     tasks: [ "testGroup" ]
@@ -115,7 +115,6 @@ buildvariants:
   - name: ubuntu1604
     display_name: Ubuntu 16.04
     expansions:
-      TEST_TIMEOUT: 15m
       GO_BIN_PATH: /opt/golang/go1.9/bin/go
       GOROOT: /opt/golang/go1.9
     run_on:
@@ -138,7 +137,7 @@ buildvariants:
       - windows-64-vs2015-small
       - windows-64-vs2015-test
     expansions:
-      TEST_TIMEOUT: 15m
+      SKIP_LONG: true 
       DISABLE_COVERAGE: true
       GOBIN: "C:\\golang\\go1.9\\bin\\go"
       GOROOT: "C:\\golang\\go1.9"

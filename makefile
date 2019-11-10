@@ -157,7 +157,7 @@ endif
 ifneq (,$(TEST_TIMEOUT))
 testArgs += -timeout=$(TEST_TIMEOUT)
 else
-testArgs += -timeout=10m
+testArgs += -timeout=30m
 endif
 # testing targets
 $(buildDir)/output.%.test: .FORCE
