@@ -64,9 +64,9 @@ type PerformanceGauges struct {
 // reflection-based BSON library.
 func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
 
-// Document exports the Performance type as a birch.Document to
+// MarshalDocument exports the Performance type as a birch.Document to
 // support more efficient operations.
-func (p *Performance) Document() *birch.Document {
+func (p *Performance) MarshalDocument() *birch.Document {
 	return birch.DC.Elements(
 		birch.EC.Time("ts", p.Timestamp),
 		birch.EC.Int64("id", p.ID),
@@ -86,4 +86,24 @@ func (p *Performance) Document() *birch.Document {
 			birch.EC.Boolean("failed", p.Gauges.Failed),
 		)),
 	)
+}
+
+// Add combines the values of the input Performance struct into this
+// struct, logically, overriding the Gauges values as well as the
+// timestamp and ID values, while summing the Counters and Timers
+// values.
+func (p *Performance) Add(in *Performance) {
+	p.Timestamp = in.Timestamp
+	p.ID = in.ID
+	p.Counters.Number += in.Counters.Number
+	p.Counters.Errors += in.Counters.Errors
+	p.Counters.Operations += in.Counters.Operations
+	p.Counters.Size += in.Counters.Size
+
+	p.Timers.Duration += in.Timers.Duration
+	p.Timers.Total += in.Timers.Total
+
+	p.Gauges.Failed = in.Gauges.Failed
+	p.Gauges.Workers = in.Gauges.Workers
+	p.Gauges.State = in.Gauges.State
 }
