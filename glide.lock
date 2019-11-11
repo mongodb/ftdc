@@ -21,6 +21,6 @@ imports:
   version: 9d25e1f074f259c00ff62d6690943ce61666b626
 
 - name: github.com/evergreen-ci/birch
-  version: 5b054047680765b089c1e6f77d0896803d1fd73d
+  version: c4fb86e5ead7faf7fd03440c716381e98f6a7cea
 devImports: []
 

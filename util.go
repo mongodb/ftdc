@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/binary"
 	"math"
+	"sort"
 	"time"
 
 	"github.com/evergreen-ci/birch"
@@ -18,6 +19,8 @@ func readDocument(in interface{}) (*birch.Document, error) {
 	switch doc := in.(type) {
 	case *birch.Document:
 		return doc, nil
+	case birch.DocumentMarshaler:
+		return doc.MarshalDocument()
 	case []byte:
 		return birch.ReadDocument(doc)
 	case bson.Marshaler:
@@ -26,10 +29,13 @@ func readDocument(in interface{}) (*birch.Document, error) {
 			return nil, errors.Wrap(err, "problem with unmarshaler")
 		}
 		return birch.ReadDocument(data)
-	case map[string]interface{}, map[string]string, map[string]int, map[string]int64, map[string]uint, map[string]uint64:
-		return nil, errors.New("cannot use a map type as an ftdc value")
-	case bson.M, message.Fields:
-		return nil, errors.New("cannot use a custom map type as an ftdc value")
+	case map[string]interface{}, map[string]int, map[string]int64, map[string]uint, map[string]uint64,
+		bson.M, message.Fields:
+		elems := birch.DC.Interface(doc).Elements()
+		sort.Stable(elems)
+		return birch.DC.Elements(elems...), nil
+	case map[string]string:
+		return nil, errors.New("cannot use string maps for metrics documents")
 	default:
 		data, err := bson.Marshal(in)
 		if err != nil {

@@ -111,12 +111,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SubDocument(key, DC.MapTime(t))
 	case map[string]time.Duration:
 		elem = EC.SubDocument(key, DC.MapDuration(t))
+	case map[string]DocumentMarshaler:
+		elem = EC.SubDocument(key, DC.MapDocumentMarshaler(t))
 	case map[string]Marshaler:
-		var doc *Document
-		doc, err = DC.MapMarshalerErr(t)
-		if err == nil {
-			elem = EC.SubDocument(key, doc)
-		}
+		elem = EC.SubDocument(key, DC.MapMarshaler(t))
 	case map[string][]string:
 		elem = EC.SubDocument(key, DC.MapSliceString(t))
 	case map[string][]interface{}:
@@ -135,12 +133,10 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SubDocument(key, DC.MapSliceTime(t))
 	case map[string][]time.Duration:
 		elem = EC.SubDocument(key, DC.MapSliceDuration(t))
+	case map[string][]DocumentMarshaler:
+		elem = EC.SubDocument(key, DC.MapSliceDocumentMarshaler(t))
 	case map[string][]Marshaler:
-		var doc *Document
-		doc, err = DC.MapSliceMarshalerErr(t)
-		if err == nil {
-			elem = EC.SubDocument(key, doc)
-		}
+		elem = EC.SubDocument(key, DC.MapSliceMarshaler(t))
 	case map[interface{}]interface{}:
 		elem = EC.SubDocument(key, DC.Interface(t))
 	case []interface{}:
@@ -161,6 +157,8 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		elem = EC.SliceTime(key, t)
 	case []time.Duration:
 		elem = EC.SliceDuration(key, t)
+	case []DocumentMarshaler:
+		elem, err = EC.SliceDocumentMarshalerErr(key, t)
 	case []Marshaler:
 		elem, err = EC.SliceMarshalerErr(key, t)
 	case []*Element:
@@ -179,6 +177,8 @@ func (ElementConstructor) Interface(key string, value interface{}) *Element {
 		if err == nil {
 			elem = EC.SubDocument(key, doc)
 		}
+	case DocumentMarshaler:
+		elem, err = EC.DocumentMarshalerErr(key, t)
 	case Marshaler:
 		elem, err = EC.MarshalerErr(key, t)
 	default:
@@ -225,23 +225,22 @@ func (ElementConstructor) InterfaceErr(key string, value interface{}) (*Element,
 		map[string]time.Time, map[string]time.Duration:
 
 		return EC.Interface(key, t), nil
-
-	case map[string]interface{}, map[interface{}]interface{}, map[string]Marshaler:
-
-		return EC.InterfaceErr(key, t)
-
 	case map[string][]string, map[string][]int32, map[string][]int64, map[string][]int,
 		map[string][]time.Time, map[string][]time.Duration, map[string][]float32, map[string][]float64:
 
 		return EC.Interface(key, value), nil
 	case []string, []int32, []int64, []int, []time.Time, []time.Duration, []float64, []float32:
 		return EC.Interface(key, value), nil
-	case map[string][]interface{}, map[string][]Marshaler:
+	case map[string]interface{}, map[interface{}]interface{}, map[string]Marshaler, map[string]DocumentMarshaler:
+		return EC.InterfaceErr(key, t)
+	case map[string][]interface{}, map[string][]Marshaler, map[string][]DocumentMarshaler:
 		return EC.InterfaceErr(key, value)
-	case []interface{}, []Marshaler:
+	case []interface{}, []Marshaler, []DocumentMarshaler:
 		return EC.InterfaceErr(key, value)
 	case *Value:
 		return EC.ValueErr(key, t)
+	case DocumentMarshaler:
+		return EC.DocumentMarshalerErr(key, t)
 	case Marshaler:
 		return EC.MarshalerErr(key, t)
 	default:

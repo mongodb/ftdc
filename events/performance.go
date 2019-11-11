@@ -64,9 +64,9 @@ type PerformanceGauges struct {
 // reflection-based BSON library.
 func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
 
-// Document exports the Performance type as a birch.Document to
+// MarshalDocument exports the Performance type as a birch.Document to
 // support more efficient operations.
-func (p *Performance) Document() *birch.Document {
+func (p *Performance) MarshalDocument() *birch.Document {
 	return birch.DC.Elements(
 		birch.EC.Time("ts", p.Timestamp),
 		birch.EC.Int64("id", p.ID),

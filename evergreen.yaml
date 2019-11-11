@@ -101,9 +101,9 @@ buildvariants:
     display_name: Race Detector (Arch Linux)
     expansions:
       RACE_DETECTOR: true
-      TEST_TIMEOUT: 1h
+      TEST_TIMEOUT: 45m
     run_on:
-      - archlinux-test
+      - archlinux-build
     tasks: [ "testGroup" ]
 
   - name: lint

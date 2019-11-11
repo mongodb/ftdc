@@ -412,6 +412,11 @@ func (d *Document) Iterator() Iterator {
 func (d *Document) Extend(d2 *Document) *Document   { d.Append(d2.elems...); return d }
 func (d *Document) ExtendReader(r Reader) *Document { d.Append(DC.Reader(r).elems...); return d }
 
+func (d *Document) ExtendInterface(in interface{}) *Document {
+	d.Append(DC.Interface(in).elems...)
+	return d
+}
+
 // Reset clears a document so it can be reused. This method clears references
 // to the underlying pointers to elements so they can be garbage collected.
 func (d *Document) Reset() {
