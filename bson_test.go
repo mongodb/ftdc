@@ -164,32 +164,43 @@ func TestReadDocument(t *testing.T) {
 		{
 			name:        "BSONMap",
 			in:          bson.M{},
+			shouldError: false,
+		},
+		{
+			name:        "StringMapEmpty",
+			in:          map[string]string{},
+			shouldError: true,
+		},
+		{
+			name:        "StringMap",
+			in:          map[string]string{"foo": "bar"},
 			shouldError: true,
 		},
 		{
 			name:        "BSONMapPopulated",
 			in:          bson.M{"foo": "bar"},
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name:        "MessageFieldsMap",
 			in:          message.Fields{},
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name:        "MessageFieldsMapPopulated",
 			in:          message.Fields{"foo": "bar"},
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name:        "Map",
 			in:          map[string]interface{}{},
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name:        "MapPopulated",
 			in:          map[string]interface{}{"foo": "bar"},
-			shouldError: true,
+			shouldError: false,
+			len:         1,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
