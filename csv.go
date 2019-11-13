@@ -181,7 +181,7 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 	collector := NewStreamingDynamicCollector(bucketSize, output)
 
 	defer func() {
-		if err != nil {
+		if err != nil && (errors.Cause(err) != context.Canceled || errors.Cause(err) != context.DeadlineExceeded) {
 			err = errors.Wrap(err, "omitting final flush, because of prior error")
 		}
 		err = FlushCollector(collector, output)
@@ -197,7 +197,9 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 
 		record, err = csvr.Read()
 		if err == io.EOF {
-			return nil
+			// this is weird so that the defer can work
+			err = nil
+			return err
 		}
 
 		if err != nil {
@@ -225,6 +227,4 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 			return errors.WithStack(err)
 		}
 	}
-
-	return err
 }
