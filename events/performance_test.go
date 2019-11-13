@@ -14,7 +14,8 @@ func TestPerformanceType(t *testing.T) {
 			perf.MarshalDocument()
 		})
 		assert.Panics(t, func() {
-			perf.MarshalBSON()
+			_, err := perf.MarshalBSON()
+			assert.Error(t, err)
 		})
 		assert.Panics(t, func() {
 			perf.Add(nil)
