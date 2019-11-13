@@ -9,6 +9,9 @@ type synchronizedCollector struct {
 	mu sync.RWMutex
 }
 
+// NewSynchronizedCollector wraps an existing collector in a
+// synchronized wrapper that guards against incorrect concurrent
+// access.
 func NewSynchronizedCollector(coll Collector) Collector {
 	return &synchronizedCollector{
 		Collector: coll,
