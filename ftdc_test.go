@@ -3,6 +3,7 @@ package ftdc
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -12,15 +13,10 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/birch"
-	"github.com/mongodb/grip"
-	"github.com/mongodb/grip/message"
+	"github.com/mongodb/ftdc/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func init() {
-	grip.SetName("ftdc")
-}
 
 // Map converts the chunk to a map representation. Each key in the map
 // is a "composite" key with a dot-separated fully qualified document
@@ -32,6 +28,22 @@ func (c *Chunk) renderMap() map[string]Metric {
 		m[metric.Key()] = metric
 	}
 	return m
+}
+
+func printError(err error) {
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+type testMessage map[string]interface{}
+
+func (m testMessage) String() string {
+	by, err := json.Marshal(m)
+	if err != nil {
+		return ""
+	}
+	return string(by)
 }
 
 func TestReadPathIntegration(t *testing.T) {
@@ -74,7 +86,7 @@ func TestReadPathIntegration(t *testing.T) {
 
 			file, err := os.Open(test.path)
 			require.NoError(t, err)
-			defer func() { grip.Alert(file.Close()) }()
+			defer func() { printError(file.Close()) }()
 			ctx, cancel := context.WithTimeout(context.Background(), 600*time.Second)
 			defer cancel()
 			data, err := ioutil.ReadAll(file)
@@ -100,18 +112,17 @@ func TestReadPathIntegration(t *testing.T) {
 					metric := c.Metrics[rand.Intn(num)]
 					if len(metric.Values) > 0 {
 						hasSeries++
-						passed := assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
+						if !assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key()) {
+							fmt.Println(testMessage{
+								"key":      metric.Key(),
+								"id":       metric.KeyName,
+								"parents":  metric.ParentPath,
+								"starting": metric.startingValue,
+								"first":    metric.Values[0],
+								"last":     metric.Values[len(metric.Values)-1],
+							})
 
-						grip.DebugWhen(!passed, message.Fields{
-							"checkPassed": passed,
-							"key":         metric.Key(),
-							"id":          metric.KeyName,
-							"parents":     metric.ParentPath,
-							"starting":    metric.startingValue,
-							"first":       metric.Values[0],
-							"last":        metric.Values[len(metric.Values)-1],
-						})
-
+						}
 						assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
 					}
 
@@ -171,7 +182,7 @@ func TestReadPathIntegration(t *testing.T) {
 				assert.Equal(t, test.expectedChunks, counter)
 				assert.Equal(t, counter, hasSeries)
 
-				grip.Notice(message.Fields{
+				fmt.Println(testMessage{
 					"parser":   "original",
 					"series":   num,
 					"iters":    counter,
@@ -189,7 +200,7 @@ func TestReadPathIntegration(t *testing.T) {
 					counter++
 				}
 				assert.Equal(t, test.expectedChunks, counter)
-				grip.Notice(message.Fields{
+				fmt.Println(testMessage{
 					"parser":   "matrix_series",
 					"iters":    counter,
 					"dur_secs": time.Since(startAt).Seconds(),
@@ -210,7 +221,7 @@ func TestReadPathIntegration(t *testing.T) {
 					counter++
 				}
 				assert.Equal(t, test.expectedChunks, counter)
-				grip.Notice(message.Fields{
+				fmt.Println(testMessage{
 					"parser":   "matrix",
 					"iters":    counter,
 					"dur_secs": time.Since(startAt).Seconds(),
@@ -229,7 +240,7 @@ func TestReadPathIntegration(t *testing.T) {
 						require.NotNil(t, doc)
 						counter++
 						if counter%test.reportInterval == 0 {
-							grip.Debug(message.Fields{
+							fmt.Println(testMessage{
 								"flavor":   "STRC",
 								"seen":     counter,
 								"elapsed":  time.Since(startAt),
@@ -252,7 +263,7 @@ func TestReadPathIntegration(t *testing.T) {
 						require.NotNil(t, doc)
 						counter++
 						if counter%test.reportInterval == 0 {
-							grip.Debug(message.Fields{
+							fmt.Println(testMessage{
 								"flavor":   "FLAT",
 								"seen":     counter,
 								"elapsed":  time.Since(startAt),
@@ -289,7 +300,7 @@ func TestRoundTrip(t *testing.T) {
 				}
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
-					assert.NoError(t, collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
+					assert.NoError(t, collector.SetMetadata(testutil.CreateEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
 
 					var docs []*birch.Document
 					for _, d := range test.docs {

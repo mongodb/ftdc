@@ -1,7 +1,7 @@
 # start project configuration
 name := ftdc
 buildDir := build
-packages := $(name) events hdrhist metrics
+packages := $(name) events hdrhist metrics util
 orgPath := github.com/mongodb
 projectPath := $(orgPath)/$(name)
 # end project configuration

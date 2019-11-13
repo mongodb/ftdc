@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/birch"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +36,7 @@ func TestCollectorInterface(t *testing.T) {
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 
-					assert.NoError(t, collector.SetMetadata(createEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
+					assert.NoError(t, collector.SetMetadata(testutil.CreateEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
 
 					info := collector.Info()
 					assert.Zero(t, info)
@@ -80,10 +80,10 @@ func TestCollectorInterface(t *testing.T) {
 				}
 				for name, docs := range map[string][]*birch.Document{
 					"Integers": []*birch.Document{
-						randFlatDocument(5),
-						randFlatDocument(5),
-						randFlatDocument(5),
-						randFlatDocument(5),
+						testutil.RandFlatDocument(5),
+						testutil.RandFlatDocument(5),
+						testutil.RandFlatDocument(5),
+						testutil.RandFlatDocument(5),
 					},
 					"DecendingHandIntegers": []*birch.Document{
 						birch.NewDocument(birch.EC.Int64("one", 43), birch.EC.Int64("two", 5)),
@@ -178,10 +178,7 @@ func TestStreamingEncoding(t *testing.T) {
 						}
 						require.NoError(t, iter.Err())
 						require.Equal(t, len(test.dataset), len(res))
-						if !assert.Equal(t, test.dataset, res) {
-							grip.Infoln("in:", test.dataset)
-							grip.Infoln("out:", res)
-						}
+						assert.Equal(t, test.dataset, res)
 					})
 					t.Run("MultipleValues", func(t *testing.T) {
 						collector, buf := impl.factory()
@@ -361,10 +358,7 @@ func TestFixedEncoding(t *testing.T) {
 						}
 						require.NoError(t, iter.Err())
 						require.Equal(t, len(test.dataset), len(res))
-						if !assert.Equal(t, test.dataset, res) {
-							grip.Infoln("in:", test.dataset)
-							grip.Infoln("out:", res)
-						}
+						assert.Equal(t, test.dataset, res)
 					})
 					t.Run("MultipleValues", func(t *testing.T) {
 						collector := impl.factory()

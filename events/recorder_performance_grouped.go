@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 	"github.com/pkg/errors"
 )
 
@@ -14,7 +14,7 @@ type groupStream struct {
 	interval      time.Duration
 	point         Performance
 	collector     ftdc.Collector
-	catcher       grip.Catcher
+	catcher       util.Catcher
 }
 
 // NewGroupedRecorder blends the collapsed and the interval recorders,
@@ -26,7 +26,7 @@ type groupStream struct {
 func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Recorder {
 	return &groupStream{
 		collector:     collector,
-		catcher:       grip.NewExtendedCatcher(),
+		catcher:       util.NewCatcher(),
 		interval:      interval,
 		lastCollected: time.Now(),
 	}
@@ -77,7 +77,7 @@ func (r *groupStream) Flush() error {
 	r.lastCollected = time.Now()
 
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewExtendedCatcher()
+	r.catcher = util.NewCatcher()
 	r.point = Performance{
 		Gauges: r.point.Gauges,
 	}

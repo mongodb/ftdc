@@ -55,6 +55,9 @@ tasks:
   - <<: *run-build
     tags: ["test"]
     name: test-metrics
+  - <<: *run-build
+    tags: ["test"]
+    name: test-util
 
   - <<: *run-build
     tags: ["lint"]
@@ -68,6 +71,9 @@ tasks:
   - <<: *run-build
     tags: ["lint"]
     name: lint-metrics
+  - <<: *run-build
+    tags: ["lint"]
+    name: lint-util
 
 task_groups:
   - name: lintGroup

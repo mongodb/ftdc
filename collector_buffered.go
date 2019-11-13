@@ -3,14 +3,13 @@ package ftdc
 import (
 	"context"
 
-	"github.com/mongodb/grip"
-	"github.com/mongodb/grip/recovery"
+	"github.com/mongodb/ftdc/util"
 )
 
 type bufferedCollector struct {
 	Collector
 	pipe    chan interface{}
-	catcher grip.Catcher
+	catcher util.Catcher
 	ctx     context.Context
 }
 
@@ -20,19 +19,16 @@ func NewBufferedCollector(ctx context.Context, size int, coll Collector) Collect
 	c := &bufferedCollector{
 		Collector: coll,
 		pipe:      make(chan interface{}, size),
-		catcher:   grip.NewBasicCatcher(),
+		catcher:   util.NewCatcher(),
 		ctx:       ctx,
 	}
 
 	go func() {
-		defer recovery.LogStackTraceAndContinue("buffered collector background")
-
 		for {
 			select {
 			case <-ctx.Done():
 				close(c.pipe)
 				if len(c.pipe) != 0 {
-					grip.Infof("flushing %d events from buffered collector", len(c.pipe))
 					for in := range c.pipe {
 						c.catcher.Add(c.Collector.Add(in))
 					}

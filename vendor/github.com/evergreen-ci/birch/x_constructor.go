@@ -77,17 +77,15 @@ func (DocumentConstructor) MapInterface(in map[string]interface{}) *Document {
 }
 
 func (DocumentConstructor) MapInterfaceErr(in map[string]interface{}) (*Document, error) {
-	catcher := grip.NewBasicCatcher()
 	elems := make([]*Element, 0, len(in))
 	for k, v := range in {
 		elem, err := EC.InterfaceErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -167,17 +165,15 @@ func (DocumentConstructor) MapMarshaler(in map[string]Marshaler) *Document {
 
 func (DocumentConstructor) MapMarshalerErr(in map[string]Marshaler) (*Document, error) {
 	elems := make([]*Element, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 	for k, v := range in {
 		elem, err := EC.MarshalerErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -194,18 +190,15 @@ func (DocumentConstructor) MapSliceMarshaler(in map[string][]Marshaler) *Documen
 
 func (DocumentConstructor) MapSliceMarshalerErr(in map[string][]Marshaler) (*Document, error) {
 	elems := make([]*Element, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 
 	for k, v := range in {
 		elem, err := EC.SliceMarshalerErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -222,17 +215,15 @@ func (DocumentConstructor) MapDocumentMarshaler(in map[string]DocumentMarshaler)
 
 func (DocumentConstructor) MapDocumentMarshalerErr(in map[string]DocumentMarshaler) (*Document, error) {
 	elems := make([]*Element, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 	for k, v := range in {
 		elem, err := EC.DocumentMarshalerErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -285,19 +276,16 @@ func (DocumentConstructor) MapSliceInterface(in map[string][]interface{}) *Docum
 }
 
 func (DocumentConstructor) MapSliceInterfaceErr(in map[string][]interface{}) (*Document, error) {
-	catcher := grip.NewBasicCatcher()
 	elems := make([]*Element, 0, len(in))
 
 	for k, v := range in {
 		elem, err := EC.SliceInterfaceErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
