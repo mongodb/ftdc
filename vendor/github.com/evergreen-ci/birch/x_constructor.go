@@ -536,10 +536,6 @@ func (ElementConstructor) SliceInterfaceErr(key string, in []interface{}) (*Elem
 		}
 	}
 
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
-	}
-
 	return EC.Array(key, NewArray(vals...)), nil
 }
 
