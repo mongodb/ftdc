@@ -164,11 +164,22 @@ func TestReadDocument(t *testing.T) {
 		{
 			name:        "Map",
 			in:          map[string]interface{}{},
-			shouldError: true,
+			shouldError: false,
 		},
 		{
 			name:        "MapPopulated",
 			in:          map[string]interface{}{"foo": "bar"},
+			shouldError: false,
+			len:         1,
+		},
+		{
+			name:        "StringMapEmpty",
+			in:          map[string]string{},
+			shouldError: true,
+		},
+		{
+			name:        "StringMap",
+			in:          map[string]string{"foo": "bar"},
 			shouldError: true,
 		},
 	} {
