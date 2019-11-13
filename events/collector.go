@@ -76,9 +76,9 @@ type samplingCollector struct {
 	count   int
 }
 
-// NewSamplingCollector has the same semantics as the BasicCollector,
-// adding all sampled documents together, but only persisting every
-// n-th sample to the underlying collector.
+// NewSamplingCollector constructs a collector that has the same
+// semantics as the basic, adding all sampled documents together, but
+// only persisting every n-th sample to the underlying collector.
 func NewSamplingCollector(fc ftdc.Collector, n int) Collector {
 	return &samplingCollector{
 		sample:    sample,
@@ -110,10 +110,11 @@ type randSamplingCollector struct {
 	ftdc.Collector
 }
 
-// NewRandomSamplingCollector uses a psudorandom number generator
-// (go's standard library math/rand) to select how often to record an
-// event. All events are summed. Specify a percentage between 1 and 99
-// as the percent to reflect how many events to capture.
+// NewRandomSamplingCollector constructs a Collector that uses a
+// psudorandom number generator (go's standard library math/rand) to
+// select how often to record an event. All events are summed. Specify
+// a percentage between 1 and 99 as the percent to reflect how many
+// events to capture.
 func NewRandomSamplingCollector(fc ftdc.Collector, sumAll bool, percent int) Collector {
 	return &randSamplingCollector{
 		percent:   percent,
@@ -142,7 +143,9 @@ type intervalSamplingCollector struct {
 	lastCollected time.Time
 }
 
-// NewIntervalCollector selects
+// NewIntervalCollector constructs a Collector collapses events as in
+// the other collector implementations, but will record at most a
+// single event per interval.
 func NewIntervalCollector(fc ftdc.Collector, interval time.Duration) Collector {
 	return &intervalSamplingCollector{
 		Collector: fc,
@@ -169,6 +172,8 @@ type synchronizedCollector struct {
 	mu sync.RWMutex
 }
 
+// NewSynchronizedCollector wraps another collector and wraps all
+// required calls with the correct lock.
 func NewSynchronizedCollector(coll Collector) Collector {
 	return &synchronizedCollector{
 		Collector: coll,

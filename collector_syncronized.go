@@ -2,8 +2,6 @@ package ftdc
 
 import (
 	"sync"
-
-	"github.com/mongodb/ftdc"
 )
 
 type synchronizedCollector struct {
@@ -44,9 +42,9 @@ func (c *synchronizedCollector) Reset() {
 	c.Collector.Reset()
 }
 
-func (c *synchronizedCollector) Info() ftdc.CollectorInfo {
+func (c *synchronizedCollector) Info() CollectorInfo {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	c.Collector.Info()
+	return c.Collector.Info()
 }
