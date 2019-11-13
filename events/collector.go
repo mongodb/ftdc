@@ -1,11 +1,12 @@
 package events
 
 import (
+	"math/rand"
 	"sync"
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip/sometimes"
+	"github.com/pkg/errors"
 )
 
 // Collector wraps the ftdc.Collector interface and adds
@@ -42,6 +43,9 @@ func NewBasicCollector(fc ftdc.Collector) Collector {
 
 func (c *basicCumulativeCollector) Add(interface{}) error { return nil }
 func (c *basicCumulativeCollector) AddEvent(in *Performance) error {
+	if in == nil {
+		return errors.New("cannot add nil performance event")
+	}
 	if c.current == nil {
 		c.current = in
 		return c.Collector.Add(c.current.MarshalDocument())
@@ -66,6 +70,10 @@ func NewNoopCollector(fc ftdc.Collector) Collector {
 
 func (c *noopCollector) Add(interface{}) error { return nil }
 func (c *noopCollector) AddEvent(in *Performance) error {
+	if in == nil {
+		return errors.New("cannot add nil performance event")
+	}
+
 	return c.Collector.Add(in.MarshalDocument())
 }
 
@@ -81,13 +89,17 @@ type samplingCollector struct {
 // only persisting every n-th sample to the underlying collector.
 func NewSamplingCollector(fc ftdc.Collector, n int) Collector {
 	return &samplingCollector{
-		sample:    sample,
+		sample:    n,
 		Collector: fc,
 	}
 }
 
 func (c *samplingCollector) Add(interface{}) error { return nil }
 func (c *samplingCollector) AddEvent(in *Performance) error {
+	if in == nil {
+		return errors.New("cannot add nil performance event")
+	}
+
 	if c.current == nil {
 		c.current = in
 		return c.Collector.Add(c.current.MarshalDocument())
@@ -124,16 +136,32 @@ func NewRandomSamplingCollector(fc ftdc.Collector, sumAll bool, percent int) Col
 
 func (c *randSamplingCollector) Add(interface{}) error { return nil }
 func (c *randSamplingCollector) AddEvent(in *Performance) error {
+	if in == nil {
+		return errors.New("cannot add nil performance event")
+	}
+
 	if c.current == nil {
 		c.current = in
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
 
 	c.current.Add(in)
-	if sometimes.Percent(c.percent) {
+	if c.isPercent() {
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
 	return nil
+}
+
+func (c *randSamplingCollector) isPercent() bool {
+	if c.percent > 100 {
+		return true
+	}
+
+	if c.percent <= 0 {
+		return false
+	}
+
+	return rand.Intn(101) > (100 - c.percent)
 }
 
 type intervalSamplingCollector struct {
@@ -155,6 +183,10 @@ func NewIntervalCollector(fc ftdc.Collector, interval time.Duration) Collector {
 
 func (c *intervalSamplingCollector) Add(interface{}) error { return nil }
 func (c *intervalSamplingCollector) AddEvent(in *Performance) error {
+	if in == nil {
+		return errors.New("cannot add nil performance event")
+	}
+
 	if c.current == nil {
 		c.current = in
 		c.lastCollected = time.Now()
@@ -165,6 +197,7 @@ func (c *intervalSamplingCollector) AddEvent(in *Performance) error {
 		c.lastCollected = time.Now()
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
+	return nil
 }
 
 type synchronizedCollector struct {
@@ -217,5 +250,5 @@ func (c *synchronizedCollector) Info() ftdc.CollectorInfo {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	c.Collector.Info()
+	return c.Collector.Info()
 }

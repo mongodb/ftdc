@@ -62,7 +62,7 @@ type PerformanceGauges struct {
 // MarshalBSON implements the bson marshaler interface to support
 // converting this type into BSON without relying on a
 // reflection-based BSON library.
-func (p *Performance) MarshalBSON() ([]byte, error) { return p.Document().MarshalBSON() }
+func (p *Performance) MarshalBSON() ([]byte, error) { return p.MarshalDocument().MarshalBSON() }
 
 // MarshalDocument exports the Performance type as a birch.Document to
 // support more efficient operations.
