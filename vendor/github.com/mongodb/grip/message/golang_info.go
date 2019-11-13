@@ -77,8 +77,18 @@ func (s *goStats) mallocs() statRate { return s.getRate(s.mallocCounter.diff()) 
 func (s *goStats) frees() statRate   { return s.getRate(s.freesCounter.diff()) }
 func (s *goStats) gcs() statRate     { return s.getRate(s.gcRate.diff()) }
 
-func (s statRate) float() float64 { return float64(s.Delta) / float64(s.Duration) }
-func (s statRate) int() int64     { return s.Delta / int64(s.Duration) }
+func (s statRate) float() float64 {
+	if s.Duration == 0 {
+		return 0
+	}
+	return float64(s.Delta) / float64(s.Duration)
+}
+func (s statRate) int() int64 {
+	if s.Duration == 0 {
+		return 0
+	}
+	return s.Delta / int64(s.Duration)
+}
 
 // CollectBasicGoStats returns some very basic runtime statistics about the
 // current go process, using runtime.MemStats and

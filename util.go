@@ -10,7 +10,6 @@ import (
 
 	"github.com/evergreen-ci/birch"
 	"github.com/evergreen-ci/birch/bsontype"
-	"github.com/mongodb/grip/message"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -23,14 +22,13 @@ func readDocument(in interface{}) (*birch.Document, error) {
 		return doc.MarshalDocument()
 	case []byte:
 		return birch.ReadDocument(doc)
-	case bson.Marshaler:
+	case birch.Marshaler:
 		data, err := doc.MarshalBSON()
 		if err != nil {
 			return nil, errors.Wrap(err, "problem with unmarshaler")
 		}
 		return birch.ReadDocument(data)
-	case map[string]interface{}, map[string]int, map[string]int64, map[string]uint, map[string]uint64,
-		bson.M, message.Fields:
+	case map[string]interface{}, map[string]int, map[string]int64, map[string]uint, map[string]uint64:
 		elems := birch.DC.Interface(doc).Elements()
 		sort.Stable(elems)
 		return birch.DC.Elements(elems...), nil

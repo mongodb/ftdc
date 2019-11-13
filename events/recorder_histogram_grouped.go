@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 )
 
 type histogramGroupedStream struct {
@@ -13,7 +13,7 @@ type histogramGroupedStream struct {
 	started       time.Time
 	interval      time.Duration
 	collector     ftdc.Collector
-	catcher       grip.Catcher
+	catcher       util.Catcher
 }
 
 // NewHistogramGroupedRecorder captures data and stores them with a histogramGrouped
@@ -32,7 +32,7 @@ func NewHistogramGroupedRecorder(collector ftdc.Collector, interval time.Duratio
 	return &histogramGroupedStream{
 		point:     NewHistogramMillisecond(PerformanceGauges{}),
 		collector: collector,
-		catcher:   grip.NewExtendedCatcher(),
+		catcher:   util.NewCatcher(),
 	}
 }
 
@@ -89,6 +89,6 @@ func (r *histogramGroupedStream) Flush() error {
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewBasicCatcher()
+	r.catcher = util.NewCatcher()
 	return err
 }
