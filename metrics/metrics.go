@@ -13,11 +13,11 @@ import (
 
 	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/recovery"
 	"github.com/pkg/errors"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Runtime provides an aggregated view for
@@ -146,7 +146,7 @@ func NewCollectOptions(prefix string) CollectOptions {
 // Validate checks the Collect option settings and ensures that all
 // values are reasonable.
 func (opts CollectOptions) Validate() error {
-	catcher := grip.NewBasicCatcher()
+	catcher := util.NewCatcher()
 
 	sort.Stable(opts.Collectors)
 
@@ -215,7 +215,6 @@ func CollectRuntime(ctx context.Context, opts CollectOptions) error {
 	for {
 		select {
 		case <-ctx.Done():
-			grip.Info("collection aborted, flushing results")
 			return errors.WithStack(flusher())
 		case <-collectTimer.C:
 			if err := collector.Add(opts.generate(ctx, collectCount)); err != nil {

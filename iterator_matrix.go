@@ -7,7 +7,7 @@ import (
 
 	"github.com/evergreen-ci/birch"
 	"github.com/evergreen-ci/birch/bsontype"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -83,7 +83,7 @@ type matrixIterator struct {
 	metadata *birch.Document
 	document *birch.Document
 	pipe     chan *birch.Document
-	catcher  grip.Catcher
+	catcher  util.Catcher
 	reflect  bool
 }
 

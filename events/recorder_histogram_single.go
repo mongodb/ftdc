@@ -4,14 +4,14 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 )
 
 type histogramSingle struct {
 	point     *PerformanceHDR
 	started   time.Time
 	collector ftdc.Collector
-	catcher   grip.Catcher
+	catcher   util.Catcher
 }
 
 // NewHSingleistogramRecorder collects data and stores them with a histogram
@@ -29,7 +29,7 @@ func NewSingleHistogramRecorder(collector ftdc.Collector) Recorder {
 	return &histogramSingle{
 		point:     NewHistogramMillisecond(PerformanceGauges{}),
 		collector: collector,
-		catcher:   grip.NewExtendedCatcher(),
+		catcher:   util.NewCatcher(),
 	}
 }
 
@@ -75,6 +75,6 @@ func (r *histogramSingle) Flush() error {
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewExtendedCatcher()
+	r.catcher = util.NewCatcher()
 	return err
 }

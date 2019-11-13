@@ -1,4 +1,4 @@
-package grip
+package util
 
 import (
 	"errors"
@@ -10,39 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestDeprecatedLegacyCatcherSuite(t *testing.T) {
-	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewCatcher() }
-	suite.Run(t, s)
-}
-
-func TestExtendedCatcherSuite(t *testing.T) {
-	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewExtendedCatcher() }
-	suite.Run(t, s)
-}
-
 func TestBasicCatcherSuite(t *testing.T) {
 	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewBasicCatcher() }
-	suite.Run(t, s)
-}
-
-func TestSimpleCatcherSuite(t *testing.T) {
-	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewSimpleCatcher() }
-	suite.Run(t, s)
-}
-
-func TestTimestampCatcherSuite(t *testing.T) {
-	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewTimestampCatcher() }
-	suite.Run(t, s)
-}
-
-func TestExtendedTimestampCatcherSuite(t *testing.T) {
-	s := new(CatcherSuite)
-	s.reset = func() Catcher { return NewExtendedTimestampCatcher() }
+	s.reset = func() Catcher { return NewCatcher() }
 	suite.Run(t, s)
 }
 

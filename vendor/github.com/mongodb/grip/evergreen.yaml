@@ -121,6 +121,7 @@ buildvariants:
     display_name: Race Detector (Arch Linux)
     run_on:
       - archlinux-test
+      - archlinux-build
     tasks: [ ".race", ".report" ]
 
   - name: ubuntu1604
@@ -128,6 +129,7 @@ buildvariants:
     expansions:
       build_env: "PATH=/opt/golang/go1.9/bin:$PATH GOROOT=/opt/golang/go1.9"
     run_on:
+      - ubuntu1604-test
       - ubuntu1604-build
     tasks: [ ".test" ]
 
@@ -137,12 +139,18 @@ buildvariants:
       build_env: "GOROOT=/opt/golang/go1.9 PATH=/opt/golang/go1.9/bin:$PATH DISABLE_COVERAGE=yes"
     run_on:
       - macos-1014
+      - macos-1014-i7
     tasks: [ ".test" ]
 
   - name: windows
     display_name: Windows
     run_on:
-      - windows-64-vs2017-small
+      - windows-64-vs2017-test
+      - windows-64-vs2017-compile
+      - windows-64-vs2015-test
+      - windows-64-vs2015-compile
+      - windows-64-vs2015-small
+      - windows-64-vs2015-large
     expansions:
-      build_env: "GOROOT=c:/golang/go1.9 PATH=c:/golang/go1.9/bin:$PATH DISABLE_COVERAGE=yes"
+      build_env: "GOROOT='C:\\golang\\go1.9' PATH='C:\\golang\\go1.9\\bin':$PATH DISABLE_COVERAGE=yes"
     tasks: [ ".test" ]

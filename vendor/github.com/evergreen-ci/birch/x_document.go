@@ -7,6 +7,22 @@ import (
 	"github.com/evergreen-ci/birch/bsontype"
 )
 
+// MarshalDocument satisfies the DocumentMarshaler interface, and
+// returns the document itself.
+func (d *Document) MarshalDocument() (*Document, error) { return d, nil }
+
+// UnmarshalDocument satisfies the DocumentUnmarshaler interface and
+// appends the elements of the input document to the underlying
+// document. If the document is populated this could result in a
+// document that has multiple identical keys.
+func (d *Document) UnmarshalDocument(in *Document) error {
+	iter := in.Iterator()
+	for iter.Next() {
+		d.Append(iter.Element())
+	}
+	return nil
+}
+
 // ExportMap converts the values of the document to a map of strings
 // to interfaces, recursively, using the Value.Interface() method.
 func (d *Document) ExportMap() map[string]interface{} {

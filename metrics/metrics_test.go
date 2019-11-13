@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +27,9 @@ func TestCollectRuntime(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		grip.Alert(os.RemoveAll(dir))
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Println(err)
+		}
 	}()
 
 	t.Run("CollectData", func(t *testing.T) {
@@ -69,7 +71,7 @@ func TestCollectRuntime(t *testing.T) {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					require.True(t, doc.Len() > 10, "%s > 100", doc.Len())
+					require.Equal(t, 3, doc.Len())
 				}
 				require.NoError(t, iter.Err())
 				total += counter
@@ -77,6 +79,9 @@ func TestCollectRuntime(t *testing.T) {
 		}
 	})
 	t.Run("CollectAllData", func(t *testing.T) {
+		if strings.Contains(os.Getenv("EVR_TASK_ID"), "race") {
+			t.Skip("evergreen environment inconsistent")
+		}
 		// this test runs without the skips, which are
 		// expected to be less reliable in different environment
 		opts := CollectOptions{

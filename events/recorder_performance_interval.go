@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 )
 
 type intervalStream struct {
 	point     Performance
 	started   time.Time
 	collector ftdc.Collector
-	catcher   grip.Catcher
+	catcher   util.Catcher
 	sync.Mutex
 
 	interval time.Duration
@@ -33,7 +33,7 @@ func NewIntervalRecorder(ctx context.Context, collector ftdc.Collector, interval
 	return &intervalStream{
 		collector: collector,
 		rootCtx:   ctx,
-		catcher:   grip.NewExtendedCatcher(),
+		catcher:   util.NewCatcher(),
 		interval:  interval,
 	}
 }
@@ -120,7 +120,7 @@ func (r *intervalStream) Flush() error {
 
 	r.catcher.Add(r.collector.Add(r.point))
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewExtendedCatcher()
+	r.catcher = util.NewCatcher()
 	r.point = Performance{
 		Gauges: r.point.Gauges,
 	}

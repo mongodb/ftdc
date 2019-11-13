@@ -4,7 +4,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
 
@@ -77,17 +76,15 @@ func (DocumentConstructor) MapInterface(in map[string]interface{}) *Document {
 }
 
 func (DocumentConstructor) MapInterfaceErr(in map[string]interface{}) (*Document, error) {
-	catcher := grip.NewBasicCatcher()
 	elems := make([]*Element, 0, len(in))
 	for k, v := range in {
 		elem, err := EC.InterfaceErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -167,17 +164,15 @@ func (DocumentConstructor) MapMarshaler(in map[string]Marshaler) *Document {
 
 func (DocumentConstructor) MapMarshalerErr(in map[string]Marshaler) (*Document, error) {
 	elems := make([]*Element, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 	for k, v := range in {
 		elem, err := EC.MarshalerErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -194,18 +189,65 @@ func (DocumentConstructor) MapSliceMarshaler(in map[string][]Marshaler) *Documen
 
 func (DocumentConstructor) MapSliceMarshalerErr(in map[string][]Marshaler) (*Document, error) {
 	elems := make([]*Element, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 
 	for k, v := range in {
 		elem, err := EC.SliceMarshalerErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
 	}
 
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
+	return DC.Elements(elems...), nil
+}
+
+func (DocumentConstructor) MapDocumentMarshaler(in map[string]DocumentMarshaler) *Document {
+	elems := make([]*Element, 0, len(in))
+	for k, v := range in {
+		elems = append(elems, EC.DocumentMarshaler(k, v))
+	}
+
+	return DC.Elements(elems...)
+}
+
+func (DocumentConstructor) MapDocumentMarshalerErr(in map[string]DocumentMarshaler) (*Document, error) {
+	elems := make([]*Element, 0, len(in))
+	for k, v := range in {
+		elem, err := EC.DocumentMarshalerErr(k, v)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if elem != nil {
+			elems = append(elems, elem)
+		}
+	}
+
+	return DC.Elements(elems...), nil
+}
+
+func (DocumentConstructor) MapSliceDocumentMarshaler(in map[string][]DocumentMarshaler) *Document {
+	elems := make([]*Element, 0, len(in))
+	for k, v := range in {
+		elems = append(elems, EC.SliceDocumentMarshaler(k, v))
+	}
+
+	return DC.Elements(elems...)
+}
+
+func (DocumentConstructor) MapSliceDocumentMarshalerErr(in map[string][]DocumentMarshaler) (*Document, error) {
+	elems := make([]*Element, 0, len(in))
+
+	for k, v := range in {
+		elem, err := EC.SliceDocumentMarshalerErr(k, v)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if elem != nil {
+			elems = append(elems, elem)
+		}
 	}
 
 	return DC.Elements(elems...), nil
@@ -230,19 +272,16 @@ func (DocumentConstructor) MapSliceInterface(in map[string][]interface{}) *Docum
 }
 
 func (DocumentConstructor) MapSliceInterfaceErr(in map[string][]interface{}) (*Document, error) {
-	catcher := grip.NewBasicCatcher()
 	elems := make([]*Element, 0, len(in))
 
 	for k, v := range in {
 		elem, err := EC.SliceInterfaceErr(k, v)
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if elem != nil {
 			elems = append(elems, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return DC.Elements(elems...), nil
@@ -326,6 +365,10 @@ func (DocumentConstructor) Interface(value interface{}) *Document {
 		doc = DC.MapInterface(t)
 	case map[string][]interface{}:
 		doc = DC.MapSliceInterface(t)
+	case map[string]DocumentMarshaler:
+		doc, err = DC.MapDocumentMarshalerErr(t)
+	case map[string][]DocumentMarshaler:
+		doc, err = DC.MapSliceDocumentMarshalerErr(t)
 	case map[string]Marshaler:
 		doc, err = DC.MapMarshalerErr(t)
 	case map[string][]Marshaler:
@@ -363,6 +406,8 @@ func (DocumentConstructor) Interface(value interface{}) *Document {
 		doc = t
 	case Reader:
 		doc, err = DC.ReaderErr(t)
+	case DocumentMarshaler:
+		doc, err = t.MarshalDocument()
 	case Marshaler:
 		doc, err = DC.MarshalerErr(t)
 	case []*Element:
@@ -390,6 +435,10 @@ func (DocumentConstructor) InterfaceErr(value interface{}) (*Document, error) {
 		return DC.MapMarshalerErr(t)
 	case map[string][]Marshaler:
 		return DC.MapSliceMarshalerErr(t)
+	case map[string]DocumentMarshaler:
+		return DC.MapDocumentMarshalerErr(t)
+	case map[string][]DocumentMarshaler:
+		return DC.MapSliceDocumentMarshalerErr(t)
 	case map[string]interface{}:
 		return DC.MapInterfaceErr(t)
 	case map[string][]interface{}:
@@ -402,6 +451,8 @@ func (DocumentConstructor) InterfaceErr(value interface{}) (*Document, error) {
 		return DC.Elements(t...), nil
 	case *Document:
 		return t, nil
+	case DocumentMarshaler:
+		return t.MarshalDocument()
 	case Marshaler:
 		return DC.MarshalerErr(t)
 	default:
@@ -424,6 +475,24 @@ func (ElementConstructor) MarshalerErr(key string, val Marshaler) (*Element, err
 		return nil, errors.WithStack(err)
 	}
 	return EC.SubDocumentFromReader(key, doc), nil
+}
+
+func (ElementConstructor) DocumentMarshaler(key string, val DocumentMarshaler) *Element {
+	doc, err := val.MarshalDocument()
+	if err != nil {
+		panic(err)
+	}
+
+	return EC.SubDocument(key, doc)
+}
+
+func (ElementConstructor) DocumentMarshalerErr(key string, val DocumentMarshaler) (*Element, error) {
+	doc, err := val.MarshalDocument()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return EC.SubDocument(key, doc), nil
 }
 
 func (ElementConstructor) Int(key string, i int) *Element {
@@ -454,19 +523,17 @@ func (ElementConstructor) SliceInterface(key string, in []interface{}) *Element 
 }
 
 func (ElementConstructor) SliceInterfaceErr(key string, in []interface{}) (*Element, error) {
-	catcher := grip.NewBasicCatcher()
 	vals := make([]*Value, 0, len(in))
 
 	for idx := range in {
 		elem, err := VC.InterfaceErr(in[idx])
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
 		if elem != nil {
 			vals = append(vals, elem)
 		}
-	}
-
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
 	}
 
 	return EC.Array(key, NewArray(vals...)), nil
@@ -554,18 +621,41 @@ func (ElementConstructor) SliceMarshaler(key string, in []Marshaler) *Element {
 
 func (ElementConstructor) SliceMarshalerErr(key string, in []Marshaler) (*Element, error) {
 	vals := make([]*Value, 0, len(in))
-	catcher := grip.NewBasicCatcher()
 
 	for idx := range in {
 		val, err := VC.MarshalerErr(in[idx])
-		catcher.Add(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
 		if val != nil {
 			vals = append(vals, val)
 		}
 	}
 
-	if catcher.HasErrors() {
-		return nil, catcher.Resolve()
+	return EC.Array(key, NewArray(vals...)), nil
+}
+
+func (ElementConstructor) SliceDocumentMarshaler(key string, in []DocumentMarshaler) *Element {
+	vals := make([]*Value, len(in))
+
+	for idx := range in {
+		vals[idx] = VC.DocumentMarshaler(in[idx])
+	}
+
+	return EC.Array(key, NewArray(vals...))
+}
+
+func (ElementConstructor) SliceDocumentMarshalerErr(key string, in []DocumentMarshaler) (*Element, error) {
+	vals := make([]*Value, 0, len(in))
+
+	for idx := range in {
+		val, err := VC.DocumentMarshalerErr(in[idx])
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		if val != nil {
+			vals = append(vals, val)
+		}
 	}
 
 	return EC.Array(key, NewArray(vals...)), nil
@@ -597,6 +687,19 @@ func (ValueConstructor) Marshaler(in Marshaler) *Value {
 
 func (ValueConstructor) MarshalerErr(in Marshaler) (*Value, error) {
 	elem, err := EC.MarshalerErr("", in)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return elem.value, nil
+}
+
+func (ValueConstructor) DocumentMarshaler(in DocumentMarshaler) *Value {
+	return EC.DocumentMarshaler("", in).value
+}
+
+func (ValueConstructor) DocumentMarshalerErr(in DocumentMarshaler) (*Value, error) {
+	elem, err := EC.DocumentMarshalerErr("", in)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

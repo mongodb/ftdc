@@ -12,3 +12,15 @@ type Marshaler interface {
 type Unmarshaler interface {
 	UnmarshalBSON([]byte) error
 }
+
+// DocumentMarshaler describes types that are able to produce Document
+// represntations of themselves.
+type DocumentMarshaler interface {
+	MarshalDocument() (*Document, error)
+}
+
+// DocumentUnmarshaler describes a type that can populate itself from
+// a document.
+type DocumentUnmarshaler interface {
+	UnmarshalDocument(*Document) error
+}

@@ -14,8 +14,8 @@ import (
 )
 
 type VirtualMemoryExStat struct {
-	ActiveFile   uint64 `json:"activefile" bson:"activefile"`
-	InactiveFile uint64 `json:"inactivefile" bson:"inactivefile"`
+	ActiveFile   uint64 `json:"activefile" bson:"activefile,omitempty"`
+	InactiveFile uint64 `json:"inactivefile" bson:"inactivefile,omitempty"`
 }
 
 func VirtualMemory() (*VirtualMemoryStat, error) {

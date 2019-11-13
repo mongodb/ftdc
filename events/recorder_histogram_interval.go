@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 )
 
 type intervalHistogramStream struct {
 	point     *PerformanceHDR
 	started   time.Time
 	collector ftdc.Collector
-	catcher   grip.Catcher
+	catcher   util.Catcher
 	sync.Mutex
 
 	interval time.Duration
@@ -34,7 +34,7 @@ func NewIntervalHistogramRecorder(ctx context.Context, collector ftdc.Collector,
 	return &intervalHistogramStream{
 		collector: collector,
 		rootCtx:   ctx,
-		catcher:   grip.NewExtendedCatcher(),
+		catcher:   util.NewCatcher(),
 		interval:  interval,
 		point:     NewHistogramMillisecond(PerformanceGauges{}),
 	}
@@ -126,7 +126,7 @@ func (r *intervalHistogramStream) Flush() error {
 
 	r.catcher.Add(r.collector.Add(*r.point))
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewExtendedCatcher()
+	r.catcher = util.NewCatcher()
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 

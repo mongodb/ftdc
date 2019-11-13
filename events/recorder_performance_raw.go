@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/mongodb/ftdc"
-	"github.com/mongodb/grip"
+	"github.com/mongodb/ftdc/util"
 	"github.com/pkg/errors"
 )
 
@@ -12,7 +12,7 @@ type rawStream struct {
 	started   time.Time
 	point     Performance
 	collector ftdc.Collector
-	catcher   grip.Catcher
+	catcher   util.Catcher
 }
 
 // NewRawRecorder records a new event every time that the Record
@@ -22,7 +22,7 @@ type rawStream struct {
 func NewRawRecorder(collector ftdc.Collector) Recorder {
 	return &rawStream{
 		collector: collector,
-		catcher:   grip.NewExtendedCatcher(),
+		catcher:   util.NewCatcher(),
 	}
 }
 
@@ -69,7 +69,7 @@ func (r *rawStream) Flush() error {
 	r.catcher.Add(r.collector.Add(r.point))
 
 	err := r.catcher.Resolve()
-	r.catcher = grip.NewExtendedCatcher()
+	r.catcher = util.NewCatcher()
 	r.point = Performance{
 		Gauges: r.point.Gauges,
 	}
