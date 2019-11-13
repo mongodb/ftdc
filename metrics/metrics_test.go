@@ -71,7 +71,7 @@ func TestCollectRuntime(t *testing.T) {
 					counter++
 					doc := iter.Document()
 					assert.NotNil(t, doc)
-					require.True(t, doc.Len() > 10, "%s > 100", doc.Len())
+					require.Equal(t, 3, doc.Len())
 				}
 				require.NoError(t, iter.Err())
 				total += counter
