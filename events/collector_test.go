@@ -56,21 +56,9 @@ func TestCollector(t *testing.T) {
 					},
 				},
 				{
-					name: "SamplingHalf",
-					constructor: func(fc ftdc.Collector) Collector {
-						return NewSamplingCollector(fc, 2)
-					},
-				},
-				{
 					name: "RandomSamplingAll",
 					constructor: func(fc ftdc.Collector) Collector {
-						return NewSamplingCollector(fc, 2)
-					},
-				},
-				{
-					name: "RandomSamplingAll",
-					constructor: func(fc ftdc.Collector) Collector {
-						return NewRandomSamplingCollector(fc, true, 100)
+						return NewRandomSamplingCollector(fc, true, 1000)
 					},
 				},
 				{
