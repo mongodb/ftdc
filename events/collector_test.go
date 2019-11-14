@@ -44,9 +44,9 @@ func TestCollector(t *testing.T) {
 					},
 				},
 				{
-					name: "Noop",
+					name: "Passthrough",
 					constructor: func(fc ftdc.Collector) Collector {
-						return NewNoopCollector(fc)
+						return NewPassthroughCollector(fc)
 					},
 				},
 				{

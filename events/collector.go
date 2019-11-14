@@ -14,7 +14,7 @@ import (
 // collectors should be responsible for cumulative summing of values,
 // when appropriate.
 //
-// In general, implementations should obstruct calls to to underlying
+// In general, implementations should obstruct calls to underlying
 // collectors Add() method to avoid confusion, either by panicing or
 // by no-oping.
 type Collector interface {
@@ -27,13 +27,13 @@ type basicCumulativeCollector struct {
 	current *Performance
 }
 
-// NewBasicCollector produces a collector implementation that add
+// NewBasicCollector produces a collector implementation that adds
 // Performance points to the underlying FTDC collector. Counter values
 // in the point are added to the previous point so that the values are
 // cumulative.
 //
 // This event Collector implementation captures the maximal amount of
-// fidelity and should be used except when dictacted by retention
+// fidelity and should be used except when dictated by retention
 // strategy.
 func NewBasicCollector(fc ftdc.Collector) Collector {
 	return &basicCumulativeCollector{
@@ -55,21 +55,21 @@ func (c *basicCumulativeCollector) AddEvent(in *Performance) error {
 	return c.Collector.Add(c.current.MarshalDocument())
 }
 
-type noopCollector struct {
+type passthroughCollector struct {
 	ftdc.Collector
 }
 
-// NewNoopCollector constructs a collector that does not sum
+// NewPassthroughCollector constructs a collector that does not sum
 // Performance events and just passes them directly to the underlying
 // collector.
-func NewNoopCollector(fc ftdc.Collector) Collector {
-	return &noopCollector{
+func NewPassthroughCollector(fc ftdc.Collector) Collector {
+	return &passthroughCollector{
 		Collector: fc,
 	}
 }
 
-func (c *noopCollector) Add(interface{}) error { return nil }
-func (c *noopCollector) AddEvent(in *Performance) error {
+func (c *passthroughCollector) Add(interface{}) error { return nil }
+func (c *passthroughCollector) AddEvent(in *Performance) error {
 	if in == nil {
 		return errors.New("cannot add nil performance event")
 	}
@@ -102,6 +102,7 @@ func (c *samplingCollector) AddEvent(in *Performance) error {
 
 	if c.current == nil {
 		c.current = in
+		c.count++
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
 
@@ -161,7 +162,7 @@ func (c *randSamplingCollector) isPercent() bool {
 		return false
 	}
 
-	return rand.Intn(101) > (100 - c.percent)
+	return rand.Intn(101) < c.percent
 }
 
 type intervalSamplingCollector struct {
