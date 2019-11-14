@@ -102,8 +102,10 @@ func createCollectors(ctx context.Context) []*customCollector {
 			factory: func() Collector { return NewBaseCollector(1000) },
 		},
 		{
-			name:    "Buffered",
-			factory: func() Collector { return NewBufferedCollector(ctx, 0, NewBaseCollector(1000)) },
+			name: "Buffered",
+			factory: func() Collector {
+				return NewBufferedCollector(ctx, 0, NewSynchronizedCollector(NewBaseCollector(1000)))
+			},
 		},
 		{
 			name:      "SmallBatch",

@@ -147,13 +147,13 @@ func (c *randSamplingCollector) AddEvent(in *Performance) error {
 	}
 
 	c.current.Add(in)
-	if c.isPercent() {
+	if c.shouldCollect() {
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
 	return nil
 }
 
-func (c *randSamplingCollector) isPercent() bool {
+func (c *randSamplingCollector) shouldCollect() bool {
 	if c.percent > 100 {
 		return true
 	}
