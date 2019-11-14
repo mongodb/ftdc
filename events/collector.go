@@ -102,13 +102,12 @@ func (c *samplingCollector) AddEvent(in *Performance) error {
 
 	if c.current == nil {
 		c.current = in
-		c.count++
-		return c.Collector.Add(c.current.MarshalDocument())
+	} else {
+		c.current.Add(in)
 	}
 
 	shouldCollect := c.count%c.sample == 0
 	c.count++
-	c.current.Add(in)
 
 	if shouldCollect {
 		return c.Collector.Add(c.current.MarshalDocument())
@@ -143,10 +142,10 @@ func (c *randSamplingCollector) AddEvent(in *Performance) error {
 
 	if c.current == nil {
 		c.current = in
-		return c.Collector.Add(c.current.MarshalDocument())
+	} else {
+		c.current.Add(in)
 	}
 
-	c.current.Add(in)
 	if c.shouldCollect() {
 		return c.Collector.Add(c.current.MarshalDocument())
 	}
