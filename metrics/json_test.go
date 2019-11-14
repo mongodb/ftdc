@@ -109,8 +109,6 @@ func writeStream(docs [][]byte, writer io.Writer) error {
 }
 
 func TestCollectJSON(t *testing.T) {
-	t.Parallel()
-
 	buildDir, err := filepath.Abs(filepath.Join("..", "build"))
 	require.NoError(t, err)
 	dir, err := ioutil.TempDir(buildDir, "ftdc-")

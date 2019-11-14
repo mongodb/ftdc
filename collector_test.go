@@ -19,7 +19,6 @@ func TestCollectorInterface(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	t.Parallel()
 	for _, collect := range createCollectors(ctx) {
 		t.Run(collect.name, func(t *testing.T) {
 			tests := createTests()
@@ -315,7 +314,6 @@ func TestStreamingEncoding(t *testing.T) {
 func TestFixedEncoding(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	t.Parallel()
 
 	for _, impl := range []struct {
 		name    string
