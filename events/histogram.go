@@ -83,3 +83,13 @@ func newMillisecondDurationHistogram() *hdrhist.Histogram {
 func newMillisecondCounterHistogram() *hdrhist.Histogram {
 	return hdrhist.New(0, 10*1000, 5)
 }
+
+func (p *PerformanceHDR) setTimestamp(started time.Time) {
+	if p.Timestamp.IsZero() {
+		if !started.IsZero() {
+			p.Timestamp = started
+		} else {
+			p.Timestamp = time.Now()
+		}
+	}
+}

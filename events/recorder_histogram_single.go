@@ -5,6 +5,7 @@ import (
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/ftdc/util"
+	"github.com/pkg/errors"
 )
 
 type histogramSingle struct {
@@ -14,17 +15,17 @@ type histogramSingle struct {
 	catcher   util.Catcher
 }
 
-// NewHSingleistogramRecorder collects data and stores them with a histogram
-// format. Like the Single recorder, the implementation flushes the
-// histogram every time you call the flush recorder.
+// NewSingleHistogramRecorder collects data and stores them with a histogram
+// format. Like the Single recorder, the implementation persists the histogram
+// every time you call EndTest.
 //
-// The timer histograms have a minimum value of 1 microsecond, and a
-// maximum value of 1 minute, with 5 significant digits. The counter
-// histograms store between 0 and 10 thousand, with 5 significant
-// digits. The gauges are not stored as integers.
+// The timer histograms have a minimum value of 1 microsecond, and a maximum
+// value of 1 minute, with 5 significant digits. The counter histograms store
+// store between 0 and 10 thousand, with 5 significant digits. The gauges are
+// not stored as integers.
 //
-// The histogram reporter is not safe for concurrent use without a
-// synchronixed wrapper.
+// The histogram Single reporter is not safe for concurrent use without a
+// synchronized wrapper.
 func NewSingleHistogramRecorder(collector ftdc.Collector) Recorder {
 	return &histogramSingle{
 		point:     NewHistogramMillisecond(PerformanceGauges{}),
@@ -51,30 +52,33 @@ func (r *histogramSingle) IncIterations(val int64) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 }
 
-func (r *histogramSingle) End(dur time.Duration) {
+func (r *histogramSingle) EndIt(dur time.Duration) {
+	r.point.setTimestamp(r.started)
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 	if !r.started.IsZero() {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
+		r.started = time.Time{}
 	}
 }
 
 func (r *histogramSingle) SetTotalDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Total.RecordValue(int64(dur)))
 }
+
 func (r *histogramSingle) SetDuration(dur time.Duration) {
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 }
 
 func (r *histogramSingle) SetTime(t time.Time) { r.point.Timestamp = t }
-func (r *histogramSingle) Begin()              { r.started = time.Now() }
-func (r *histogramSingle) Reset()              { r.started = time.Now() }
+func (r *histogramSingle) BeginIt()            { r.started = time.Now() }
 
-func (r *histogramSingle) Flush() error {
+func (r *histogramSingle) EndTest() error {
+	r.point.setTimestamp(r.started)
 	r.catcher.Add(r.collector.Add(*r.point))
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
 	err := r.catcher.Resolve()
 	r.catcher = util.NewCatcher()
-	return err
+	return errors.WithStack(err)
 }

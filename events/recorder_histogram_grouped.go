@@ -5,6 +5,7 @@ import (
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/ftdc/util"
+	"github.com/pkg/errors"
 )
 
 type histogramGroupedStream struct {
@@ -16,17 +17,17 @@ type histogramGroupedStream struct {
 	catcher       util.Catcher
 }
 
-// NewHistogramGroupedRecorder captures data and stores them with a histogramGrouped
-// format. Like the Grouped Recorder, it persists an event if the specified
-// interval has elapsed since the last time an event was captured. The
-// reset method also resets the last-collected time.
+// NewHistogramGroupedRecorder captures data and stores them with a
+// histogramGrouped format. Like the Grouped recorder, it persists an event if
+// the specified interval has elapsed since the last time an event was
+// captured. The reset method also resets the last-collected time.
 //
 // The timer histgrams have a minimum value of 1 microsecond, and a
 // maximum value of 20 minutes, with 5 significant digits. The counter
 // histogramGroupeds store between 0 and 1 million, with 5 significant
 // digits. The gauges are not stored as integers.
 //
-// The histogramGrouped reporter is not safe for concurrent use without a
+// The histogram Grouped reporter is not safe for concurrent use without a
 // synchronixed wrapper.
 func NewHistogramGroupedRecorder(collector ftdc.Collector, interval time.Duration) Recorder {
 	return &histogramGroupedStream{
@@ -49,16 +50,14 @@ func (r *histogramGroupedStream) IncSize(val int64) {
 func (r *histogramGroupedStream) IncError(val int64) {
 	r.catcher.Add(r.point.Counters.Errors.RecordValue(val))
 }
-func (r *histogramGroupedStream) End(dur time.Duration) {
+func (r *histogramGroupedStream) EndIt(dur time.Duration) {
+	r.point.setTimestamp(r.started)
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
 
 	if !r.started.IsZero() {
 		r.catcher.Add(r.point.Timers.Total.RecordValue(int64(time.Since(r.started))))
-	}
-
-	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
+		r.started = time.Time{}
 	}
 
 	if time.Since(r.lastCollected) >= r.interval {
@@ -81,14 +80,15 @@ func (r *histogramGroupedStream) IncIterations(val int64) {
 }
 
 func (r *histogramGroupedStream) SetTime(t time.Time) { r.point.Timestamp = t }
-func (r *histogramGroupedStream) Begin()              { r.started = time.Now() }
-func (r *histogramGroupedStream) Reset()              { r.started = time.Now(); r.lastCollected = time.Now() }
+func (r *histogramGroupedStream) BeginIt()            { r.started = time.Now() }
 
-func (r *histogramGroupedStream) Flush() error {
-	r.catcher.Add(r.collector.Add(*r.point))
+func (r *histogramGroupedStream) EndTest() error {
+	if !r.point.Timestamp.IsZero() {
+		r.catcher.Add(r.collector.Add(*r.point))
+		r.lastCollected = time.Now()
+	}
 	r.point = NewHistogramMillisecond(r.point.Gauges)
-	r.started = time.Time{}
 	err := r.catcher.Resolve()
 	r.catcher = util.NewCatcher()
-	return err
+	return errors.WithStack(err)
 }

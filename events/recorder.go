@@ -56,7 +56,7 @@ type Recorder interface {
 	SetFailed(bool)
 
 	// The Begin and End methods mark the beginning and end of
-	// a tests's iteration. Typically calling record records the
+	// a tests's iteration. Typically calling End records the
 	// duration specified as its argument and increments the
 	// counter for number of iterations. Additionally there is a
 	// "total duration" value captured which represents the total
@@ -64,7 +64,7 @@ type Recorder interface {
 	// latency.
 	//
 	// The Flush method writes any unflushed material if the
-	// collector's Record method does not. In all cases Flush
+	// collector's End method does not. In all cases Flush
 	// reports all errors since the last flush call, and resets
 	// the internal error tracking and unsets the tracked starting
 	// time. Generally you should call Flush once at the end of
@@ -73,10 +73,9 @@ type Recorder interface {
 	// The Reset method set's the tracked starting time, like
 	// Begin, but does not record any other values, as some
 	// recorders use begin to persist the previous iteration.
-	Begin()
-	Reset()
-	End(time.Duration)
-	Flush() error
+	BeginIt()
+	EndIt(time.Duration)
+	EndTest() error
 
 	// SetID sets the unique id for the event, to allow users to
 	// identify events per thread.

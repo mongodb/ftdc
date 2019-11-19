@@ -75,7 +75,6 @@ func (r *syncRecorder) IncError(val int64)      { r.doOpInt(val, r.recorder.IncE
 func (r *syncRecorder) SetState(val int64)      { r.doOpInt(val, r.recorder.SetState) }
 func (r *syncRecorder) SetWorkers(val int64)    { r.doOpInt(val, r.recorder.SetWorkers) }
 func (r *syncRecorder) SetFailed(val bool)      { r.doOpBool(val, r.recorder.SetFailed) }
-func (r *syncRecorder) Begin()                  { r.doOp(r.recorder.Begin) }
-func (r *syncRecorder) Reset()                  { r.doOp(r.recorder.Reset) }
-func (r *syncRecorder) End(val time.Duration)   { r.doOpDur(val, r.recorder.End) }
-func (r *syncRecorder) Flush() error            { return r.doOpErr(r.recorder.Flush) }
+func (r *syncRecorder) BeginIt()                { r.doOp(r.recorder.BeginIt) }
+func (r *syncRecorder) EndIt(val time.Duration) { r.doOpDur(val, r.recorder.EndIt) }
+func (r *syncRecorder) EndTest() error          { return r.doOpErr(r.recorder.EndTest) }

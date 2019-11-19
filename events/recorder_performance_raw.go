@@ -15,8 +15,8 @@ type rawStream struct {
 	catcher   util.Catcher
 }
 
-// NewRawRecorder records a new event every time that the Record
-// method is called.
+// NewRawRecorder records a new event every time that the EndIt method is
+// called.
 //
 // The Raw recorder is not safe for concurrent access.
 func NewRawRecorder(collector ftdc.Collector) Recorder {
@@ -26,8 +26,7 @@ func NewRawRecorder(collector ftdc.Collector) Recorder {
 	}
 }
 
-func (r *rawStream) Reset()                             { r.started = time.Now() }
-func (r *rawStream) Begin()                             { r.started = time.Now() }
+func (r *rawStream) BeginIt()                           { r.started = time.Now() }
 func (r *rawStream) SetTime(t time.Time)                { r.point.Timestamp = t }
 func (r *rawStream) SetID(val int64)                    { r.point.ID = val }
 func (r *rawStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total = dur }
@@ -39,35 +38,20 @@ func (r *rawStream) IncError(val int64)                 { r.point.Counters.Error
 func (r *rawStream) SetState(val int64)                 { r.point.Gauges.State = val }
 func (r *rawStream) SetWorkers(val int64)               { r.point.Gauges.Workers = val }
 func (r *rawStream) SetFailed(val bool)                 { r.point.Gauges.Failed = val }
-func (r *rawStream) End(dur time.Duration) {
+func (r *rawStream) EndIt(dur time.Duration) {
 	r.point.Counters.Number++
 	if !r.started.IsZero() {
 		r.point.Timers.Total += time.Since(r.started)
 	}
 
-	if r.point.Timestamp.IsZero() {
-		r.point.Timestamp = r.started
-	}
-
+	r.point.setTimestamp(r.started)
 	r.point.Timers.Duration += dur
 	r.catcher.Add(r.collector.Add(r.point))
 	r.point.Timestamp = time.Time{}
 	r.started = time.Time{}
 }
 
-func (r *rawStream) Flush() error {
-	r.point.Counters.Number++
-
-	if r.point.Timestamp.IsZero() {
-		if !r.started.IsZero() {
-			r.point.Timestamp = r.started
-		} else {
-			r.point.Timestamp = time.Now()
-		}
-	}
-
-	r.catcher.Add(r.collector.Add(r.point))
-
+func (r *rawStream) EndTest() error {
 	err := r.catcher.Resolve()
 	r.catcher = util.NewCatcher()
 	r.point = Performance{

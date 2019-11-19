@@ -17,10 +17,9 @@ type groupStream struct {
 	catcher       util.Catcher
 }
 
-// NewGroupedRecorder blends the collapsed and the interval recorders,
-// but it persists during the Record call only if the specified
-// interval has elapsed. The reset method also resets the
-// last-collected time.
+// NewGroupedRecorder blends the single and the interval recorders, but it
+// persists during the EndIt call only if the specified interval has elapsed.
+// EndTest will persist any left over data.
 //
 // The Group recorder is not safe for concurrent access.
 func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Recorder {
@@ -32,8 +31,7 @@ func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Record
 	}
 }
 
-func (r *groupStream) Reset()                             { r.started = time.Now(); r.lastCollected = time.Now() }
-func (r *groupStream) Begin()                             { r.started = time.Now() }
+func (r *groupStream) BeginIt()                           { r.started = time.Now() }
 func (r *groupStream) IncOps(val int64)                   { r.point.Counters.Operations += val }
 func (r *groupStream) IncIterations(val int64)            { r.point.Counters.Number += val }
 func (r *groupStream) IncSize(val int64)                  { r.point.Counters.Size += val }
@@ -45,36 +43,27 @@ func (r *groupStream) SetID(val int64)                    { r.point.ID = val }
 func (r *groupStream) SetTime(t time.Time)                { r.point.Timestamp = t }
 func (r *groupStream) SetDuration(dur time.Duration)      { r.point.Timers.Duration += dur }
 func (r *groupStream) SetTotalDuration(dur time.Duration) { r.point.Timers.Total += dur }
-func (r *groupStream) End(dur time.Duration) {
+func (r *groupStream) EndIt(dur time.Duration) {
 	r.point.Counters.Number++
 	if !r.started.IsZero() {
 		r.point.Timers.Total += time.Since(r.started)
-		r.started = time.Time{}
 	}
 	r.point.Timers.Duration += dur
 
 	if time.Since(r.lastCollected) >= r.interval {
-		if r.point.Timestamp.IsZero() {
-			r.point.Timestamp = r.started
-		}
-
+		r.point.setTimestamp(r.started)
 		r.catcher.Add(r.collector.Add(r.point))
 		r.lastCollected = time.Now()
 		r.point.Timestamp = time.Time{}
 	}
+	r.started = time.Time{}
 }
 
-func (r *groupStream) Flush() error {
-	if r.point.Timestamp.IsZero() {
-		if !r.started.IsZero() {
-			r.point.Timestamp = r.started
-		} else {
-			r.point.Timestamp = time.Now()
-		}
+func (r *groupStream) EndTest() error {
+	if !r.point.Timestamp.IsZero() {
+		r.catcher.Add(r.collector.Add(r.point))
+		r.lastCollected = time.Now()
 	}
-
-	r.catcher.Add(r.collector.Add(r.point))
-	r.lastCollected = time.Now()
 
 	err := r.catcher.Resolve()
 	r.catcher = util.NewCatcher()

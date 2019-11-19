@@ -7,6 +7,7 @@ import (
 
 	"github.com/mongodb/ftdc"
 	"github.com/mongodb/ftdc/util"
+	"github.com/pkg/errors"
 )
 
 type intervalStream struct {
@@ -21,12 +22,11 @@ type intervalStream struct {
 	canceler context.CancelFunc
 }
 
-// NewIntervalRecorder has similar semantics to the collapsed
-// recorder, but has a background process that persists data on the
-// specified interval.
+// NewIntervalRecorder has similar semantics to the single recorder, but has a
+// background process that persists data on the specified interval.
 //
-// The background thread is started if it doesn't exist in the Begin
-// operation  and is terminated by the Flush operation.
+// The background thread is started in the Begin operation if it doesn't
+// already exist and is terminated by the EndTest operation.
 //
 // The interval recorder is safe for concurrent use.
 func NewIntervalRecorder(ctx context.Context, collector ftdc.Collector, interval time.Duration) Recorder {
@@ -48,10 +48,7 @@ func (r *intervalStream) worker(ctx context.Context, interval time.Duration) {
 			return
 		case <-ticker.C:
 			r.Lock()
-			if r.point.Timestamp.IsZero() {
-				r.point.Timestamp = r.started
-			}
-
+			r.point.setTimestamp(r.started)
 			r.catcher.Add(r.collector.Add(r.point))
 			r.point = Performance{
 				Gauges: r.point.Gauges,
@@ -79,7 +76,7 @@ func (r *intervalStream) SetID(id int64) {
 	r.Unlock()
 }
 
-func (r *intervalStream) Begin() {
+func (r *intervalStream) BeginIt() {
 	r.Lock()
 	if r.canceler == nil {
 		// start new background ticker
@@ -93,9 +90,10 @@ func (r *intervalStream) Begin() {
 	r.Unlock()
 }
 
-func (r *intervalStream) End(dur time.Duration) {
+func (r *intervalStream) EndIt(dur time.Duration) {
 	r.Lock()
 
+	r.point.setTimestamp(r.started)
 	if !r.started.IsZero() {
 		r.point.Timers.Total += time.Since(r.started)
 		r.started = time.Time{}
@@ -105,30 +103,25 @@ func (r *intervalStream) End(dur time.Duration) {
 	r.Unlock()
 }
 
-func (r *intervalStream) Flush() error {
+func (r *intervalStream) EndTest() error {
 	r.Lock()
+	// TODO: should we check that the cancler is nil?
 	r.canceler()
 	r.canceler = nil
 
-	if r.point.Timestamp.IsZero() {
-		if !r.started.IsZero() {
-			r.point.Timestamp = r.started
-		} else {
-			r.point.Timestamp = time.Now()
-		}
+	if !r.point.Timestamp.IsZero() {
+		r.catcher.Add(r.collector.Add(r.point))
+		r.started = time.Time{}
 	}
-
-	r.catcher.Add(r.collector.Add(r.point))
 	err := r.catcher.Resolve()
 	r.catcher = util.NewCatcher()
 	r.point = Performance{
 		Gauges: r.point.Gauges,
 	}
-	r.started = time.Time{}
 
 	r.Unlock()
 
-	return err
+	return errors.WithStack(err)
 }
 
 func (r *intervalStream) SetTotalDuration(dur time.Duration) {

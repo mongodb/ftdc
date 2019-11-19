@@ -107,3 +107,13 @@ func (p *Performance) Add(in *Performance) {
 	p.Gauges.Workers = in.Gauges.Workers
 	p.Gauges.State = in.Gauges.State
 }
+
+func (p *Performance) setTimestamp(started time.Time) {
+	if p.Timestamp.IsZero() {
+		if !started.IsZero() {
+			p.Timestamp = started
+		} else {
+			p.Timestamp = time.Now()
+		}
+	}
+}
