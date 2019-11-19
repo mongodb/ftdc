@@ -13,7 +13,7 @@ type singleStream struct {
 	collector ftdc.Collector
 }
 
-// NewSingleRecorder records a single event every time the EndTest() method is
+// NewSingleRecorder records a single event every time the EndTest method is
 // called, and otherwise just adds all counters and timing information to the
 // underlying point.
 //

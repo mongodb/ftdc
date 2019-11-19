@@ -13,7 +13,7 @@ import "time"
 // Recorder describes an interface that tests can use to track metrics and
 // events during performance testing or normal operation. Implementations of
 // recorder wrap an FTDC collector and will write data out to the collector for
-// reporting purposes. The  types produced by the collector use the Performance
+// reporting purposes. The types produced by the collector use the Performance
 // or PerformanceHDR types in this package.
 //
 // Choose the implementation of Recorder that will capture all required data
@@ -50,7 +50,7 @@ type Recorder interface {
 	SetFailed(bool)
 
 	// The BeginIteration and EndIteration methods mark the beginning and
-	// end of a tests's iteration. Typically calling EndIteration records
+	// end of a test's iteration. Typically calling EndIteration records
 	// the duration specified as its argument and increments the counter
 	// for number of iterations. Additionally there is a "total duration"
 	// value captured which represents the total time taken in the
@@ -79,12 +79,12 @@ type Recorder interface {
 	SetTime(time.Time)
 
 	// SetTotalDuration allows you to set the total time covered by the
-	// the in question. The total time is usually derived by the difference
-	// the between the time set in BeginIteration and the time when EndTest
-	// is called. Typically the duration passed to EndTest refers to a
-	// subset of this time (i.e. the amount of time that the operations in
-	// question took,) and the total time, includes some period of
-	// overhead.
+	// event in question. The total time is usually derived by the
+	// difference between the time set in BeginIteration and the time when
+	// EndTest is called. Typically the duration passed to EndTest refers
+	// to a subset of this time (i.e. the amount of time that the
+	// operations in question took), and the total time, includes some
+	// period of overhead.
 	//
 	// In simplest terms, this should typically be the time since the last
 	// event was recorded.

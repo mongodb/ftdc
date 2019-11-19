@@ -41,7 +41,7 @@ type PerformanceCounters struct {
 }
 
 // PerformanceTimers refers to all of the timing data for this event. In
-// general Duration+Waiting should equal the time since the last data point.
+// general Total should equal the time since the last data point.
 type PerformanceTimers struct {
 	Duration time.Duration `bson:"dur" json:"dur" yaml:"dur"`
 	Total    time.Duration `bson:"total" json:"total" yaml:"total"`

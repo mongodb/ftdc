@@ -18,14 +18,14 @@ type histogramGroupedStream struct {
 }
 
 // NewHistogramGroupedRecorder captures data and stores them with a
-// histogramGrouped format. Like the Grouped recorder, it persists an event if
-// the specified interval has elapsed since the last time an event was
-// captured. The reset method also resets the last-collected time.
+// histogram format. Like the Grouped recorder, it persists an event if the
+// specified interval has elapsed since the last time an event was captured.
+// The reset method also resets the last-collected time.
 //
 // The timer histgrams have a minimum value of 1 microsecond, and a maximum
-// value of 20 minutes, with 5 significant digits. The counter histogramGrouped
-// store between 0 and 1 million, with 5 significant digits. The gauges are
-// stored as integers.
+// value of 20 minutes, with 5 significant digits. The counter histograms store
+// between 0 and 1 million, with 5 significant digits. The gauges are stored as
+// integers.
 //
 // The histogram Grouped reporter is not safe for concurrent use without a
 // synchronixed wrapper.
