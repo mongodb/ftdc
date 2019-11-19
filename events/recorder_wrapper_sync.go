@@ -11,12 +11,11 @@ type syncRecorder struct {
 }
 
 // NewSynchronizedRecorder wraps a recorder implementation that is not
-// concurrent safe in a recorder implementation that provides safe
-// concurrent access without modifying the semantics of the recorder.
+// concurrent safe in a recorder implementation that provides safe concurrent
+// access without modifying the semantics of the recorder.
 //
-// Most Recorder implementations are not safe for concurrent use,
-// although some have this property as a result of persisting data on
-// an interval.
+// Most Recorder implementations are not safe for concurrent use, although some
+// have this property as a result of persisting data on an interval.
 func NewSynchronizedRecorder(r Recorder) Recorder {
 	return &syncRecorder{
 		recorder: r,
@@ -68,13 +67,14 @@ func (r *syncRecorder) SetTotalDuration(val time.Duration) {
 func (r *syncRecorder) SetDuration(val time.Duration) {
 	r.doOpDur(val, r.recorder.SetDuration)
 }
-func (r *syncRecorder) IncOps(val int64)        { r.doOpInt(val, r.recorder.IncOps) }
-func (r *syncRecorder) IncIterations(val int64) { r.doOpInt(val, r.recorder.IncIterations) }
-func (r *syncRecorder) IncSize(val int64)       { r.doOpInt(val, r.recorder.IncSize) }
-func (r *syncRecorder) IncError(val int64)      { r.doOpInt(val, r.recorder.IncError) }
-func (r *syncRecorder) SetState(val int64)      { r.doOpInt(val, r.recorder.SetState) }
-func (r *syncRecorder) SetWorkers(val int64)    { r.doOpInt(val, r.recorder.SetWorkers) }
-func (r *syncRecorder) SetFailed(val bool)      { r.doOpBool(val, r.recorder.SetFailed) }
-func (r *syncRecorder) BeginIt()                { r.doOp(r.recorder.BeginIt) }
-func (r *syncRecorder) EndIt(val time.Duration) { r.doOpDur(val, r.recorder.EndIt) }
-func (r *syncRecorder) EndTest() error          { return r.doOpErr(r.recorder.EndTest) }
+func (r *syncRecorder) IncOperations(val int64)        { r.doOpInt(val, r.recorder.IncOperations) }
+func (r *syncRecorder) IncIterations(val int64)        { r.doOpInt(val, r.recorder.IncIterations) }
+func (r *syncRecorder) IncSize(val int64)              { r.doOpInt(val, r.recorder.IncSize) }
+func (r *syncRecorder) IncError(val int64)             { r.doOpInt(val, r.recorder.IncError) }
+func (r *syncRecorder) SetState(val int64)             { r.doOpInt(val, r.recorder.SetState) }
+func (r *syncRecorder) SetWorkers(val int64)           { r.doOpInt(val, r.recorder.SetWorkers) }
+func (r *syncRecorder) SetFailed(val bool)             { r.doOpBool(val, r.recorder.SetFailed) }
+func (r *syncRecorder) BeginIteration()                { r.doOp(r.recorder.BeginIteration) }
+func (r *syncRecorder) EndIteration(val time.Duration) { r.doOpDur(val, r.recorder.EndIteration) }
+func (r *syncRecorder) EndTest() error                 { return r.doOpErr(r.recorder.EndTest) }
+func (r *syncRecorder) Reset()                         { r.doOp(r.recorder.Reset) }

@@ -22,7 +22,7 @@ type histogramSingle struct {
 // The timer histograms have a minimum value of 1 microsecond, and a maximum
 // value of 1 minute, with 5 significant digits. The counter histograms store
 // store between 0 and 10 thousand, with 5 significant digits. The gauges are
-// not stored as integers.
+// stored as integers.
 //
 // The histogram Single reporter is not safe for concurrent use without a
 // synchronized wrapper.
@@ -38,7 +38,7 @@ func (r *histogramSingle) SetID(id int64)       { r.point.ID = id }
 func (r *histogramSingle) SetState(val int64)   { r.point.Gauges.State = val }
 func (r *histogramSingle) SetWorkers(val int64) { r.point.Gauges.Workers = val }
 func (r *histogramSingle) SetFailed(val bool)   { r.point.Gauges.Failed = val }
-func (r *histogramSingle) IncOps(val int64) {
+func (r *histogramSingle) IncOperations(val int64) {
 	r.catcher.Add(r.point.Counters.Operations.RecordValue(val))
 }
 func (r *histogramSingle) IncSize(val int64) {
@@ -52,7 +52,7 @@ func (r *histogramSingle) IncIterations(val int64) {
 	r.catcher.Add(r.point.Counters.Number.RecordValue(val))
 }
 
-func (r *histogramSingle) EndIt(dur time.Duration) {
+func (r *histogramSingle) EndIteration(dur time.Duration) {
 	r.point.setTimestamp(r.started)
 	r.catcher.Add(r.point.Counters.Number.RecordValue(1))
 	r.catcher.Add(r.point.Timers.Duration.RecordValue(int64(dur)))
@@ -71,14 +71,18 @@ func (r *histogramSingle) SetDuration(dur time.Duration) {
 }
 
 func (r *histogramSingle) SetTime(t time.Time) { r.point.Timestamp = t }
-func (r *histogramSingle) BeginIt()            { r.started = time.Now() }
+func (r *histogramSingle) BeginIteration()     { r.started = time.Now() }
 
 func (r *histogramSingle) EndTest() error {
 	r.point.setTimestamp(r.started)
 	r.catcher.Add(r.collector.Add(*r.point))
+	err := r.catcher.Resolve()
+	r.Reset()
+	return errors.WithStack(err)
+}
+
+func (r *histogramSingle) Reset() {
+	r.catcher = util.NewCatcher()
 	r.point = NewHistogramMillisecond(r.point.Gauges)
 	r.started = time.Time{}
-	err := r.catcher.Resolve()
-	r.catcher = util.NewCatcher()
-	return errors.WithStack(err)
 }

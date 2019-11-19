@@ -4,15 +4,16 @@ import "time"
 
 // TimerManager is a subset of the testing.B tool, used to manage setup code.
 type TimerManager interface {
+	ResetTimer()
 	StartTimer()
 	StopTimer()
 }
 
 // NewShimRecorder takes a recorder and acts as a thin recorder, using the
-// the TimeManager interface for relevant Begin and End values.
+// TimeManager interface for relevant Begin & End values.
 //
-// Go's standard library testing package has a *B type for
-// benchmarking that you can pass as a TimerManager.
+// Go's standard library testing package has a *B type for benchmarking that
+// can pass as a TimerManager.
 func NewShimRecorder(r Recorder, tm TimerManager) Recorder {
 	return &stdShim{
 		b:        tm,
@@ -25,11 +26,15 @@ type stdShim struct {
 	Recorder
 }
 
+func (r *stdShim) Reset() {
+	r.b.ResetTimer()
+	r.Recorder.Reset()
+}
 func (r *stdShim) Begin() {
 	r.b.StartTimer()
-	r.Recorder.BeginIt()
+	r.Recorder.BeginIteration()
 }
 func (r *stdShim) End(dur time.Duration) {
 	r.b.StopTimer()
-	r.Recorder.EndIt(dur)
+	r.Recorder.EndIteration(dur)
 }
