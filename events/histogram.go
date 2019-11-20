@@ -1,11 +1,10 @@
 // Histogram
 //
-// The histogram representation is broadly similar to the Performance
-// structure but stores data in a histogram format, which offers a high
-// fidelity representation of a very large number of raw events
-// without the storage overhead. In general, use histograms to collect
-// data for operations with throughput in the thousands or more
-// operations per second.
+// The histogram representation is broadly similar to the Performance structure
+// but stores data in a histogram format, which offers a high fidelity
+// representation of a very large number of raw events without the storage
+// overhead. In general, use histograms to collect data for operation with
+// throughput in the thousands or more operations per second.
 package events
 
 import (
@@ -14,8 +13,8 @@ import (
 	"github.com/mongodb/ftdc/hdrhist"
 )
 
-// PerformanceHDR the same as the Performance structure, but with all
-// time duration values stored as histograms.
+// PerformanceHDR the same as the Performance structure, but with all time
+// duration and counter values stored as histograms.
 type PerformanceHDR struct {
 	Timestamp time.Time              `bson:"ts" json:"ts" yaml:"ts"`
 	ID        int64                  `bson:"id" json:"id" yaml:"id"`
@@ -82,4 +81,14 @@ func newMillisecondDurationHistogram() *hdrhist.Histogram {
 
 func newMillisecondCounterHistogram() *hdrhist.Histogram {
 	return hdrhist.New(0, 10*1000, 5)
+}
+
+func (p *PerformanceHDR) setTimestamp(started time.Time) {
+	if p.Timestamp.IsZero() {
+		if !started.IsZero() {
+			p.Timestamp = started
+		} else {
+			p.Timestamp = time.Now()
+		}
+	}
 }
