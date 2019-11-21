@@ -15,8 +15,8 @@ $(buildDir)/output.ftdc.test:perf_metrics.ftdc metrics.ftdc
 # end test files
 
 # start environment setup
-ifneq (,$(GOBIN))
- gobin := $(GOBIN)
+ifneq (,$(GO_BIN_PATH))
+ gobin := $(GO_BIN_PATH)
 else
  gobin := $(shell if [ -x /opt/golang/go1.9/bin/go ]; then echo /opt/golang/go1.9/bin/go; fi)
  ifeq (,$(gobin))
@@ -76,7 +76,7 @@ $(gopath)/src/%:
 lintDeps := $(addprefix $(gopath)/src/,$(lintDeps))
 $(buildDir)/.lintSetup:$(lintDeps)
 	@mkdir -p $(buildDir)
-	$(gopath)/bin/gometalinter --install >/dev/null && touch $@
+	$(if $(GO_BIN_PATH),export PATH=$(shell dirname $(GO_BIN_PATH)):${PATH} && ,)$(gopath)/bin/gometalinter --install >/dev/null && touch $@
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
 	@mkdir -p $(buildDir)
 	$(gobin) build -o $@ $<
@@ -118,8 +118,11 @@ lint-%:$(buildDir)/output.%.lint
 
 # start vendoring configuration
 vendor-clean:
+	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/stretchr/testify/
+	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/pkg/errors/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
 	find vendor/ -name '.git' | xargs rm -rf
+	find vendor/ -type d -empty | xargs rm -rf
 #   add phony targets
 phony += vendor-clean
 # end vendoring tooling configuration
