@@ -107,6 +107,8 @@ buildvariants:
     expansions:
       RACE_DETECTOR: true
       TEST_TIMEOUT: 45m
+      GO_BIN_PATH: /opt/golang/go1.10/bin/go
+      GOROOT: /opt/golang/go1.10
     run_on:
       - archlinux-build
     tasks: [ "testGroup" ]
@@ -144,6 +146,6 @@ buildvariants:
     expansions:
       SKIP_LONG: true 
       DISABLE_COVERAGE: true
-      GOBIN: "C:\\golang\\go1.9\\bin\\go"
+      GO_BIN_PATH: "C:\\golang\\go1.9\\bin\\go"
       GOROOT: "C:\\golang\\go1.9"
     tasks: [ "testGroup" ]
