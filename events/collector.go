@@ -48,11 +48,11 @@ func (c *basicCumulativeCollector) AddEvent(in *Performance) error {
 	}
 	if c.current == nil {
 		c.current = in
-		return c.Collector.Add(c.current.MarshalDocument())
+		return c.Collector.Add(c.current)
 	}
 
 	c.current.Add(in)
-	return c.Collector.Add(c.current.MarshalDocument())
+	return c.Collector.Add(c.current)
 }
 
 type passthroughCollector struct {
@@ -74,7 +74,7 @@ func (c *passthroughCollector) AddEvent(in *Performance) error {
 		return errors.New("cannot add nil performance event")
 	}
 
-	return c.Collector.Add(in.MarshalDocument())
+	return c.Collector.Add(in)
 }
 
 type samplingCollector struct {
@@ -110,7 +110,7 @@ func (c *samplingCollector) AddEvent(in *Performance) error {
 	c.count++
 
 	if shouldCollect {
-		return c.Collector.Add(c.current.MarshalDocument())
+		return c.Collector.Add(c.current)
 	}
 
 	return nil
@@ -147,7 +147,7 @@ func (c *randSamplingCollector) AddEvent(in *Performance) error {
 	}
 
 	if c.shouldCollect() {
-		return c.Collector.Add(c.current.MarshalDocument())
+		return c.Collector.Add(c.current)
 	}
 	return nil
 }
@@ -190,12 +190,12 @@ func (c *intervalSamplingCollector) AddEvent(in *Performance) error {
 	if c.current == nil {
 		c.current = in
 		c.lastCollected = time.Now()
-		return c.Collector.Add(c.current.MarshalDocument())
+		return c.Collector.Add(c.current)
 	}
 	c.current.Add(in)
 	if time.Since(c.lastCollected) >= c.dur {
 		c.lastCollected = time.Now()
-		return c.Collector.Add(c.current.MarshalDocument())
+		return c.Collector.Add(c.current)
 	}
 	return nil
 }

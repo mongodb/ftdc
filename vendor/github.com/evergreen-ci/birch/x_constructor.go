@@ -1,6 +1,7 @@
 package birch
 
 import (
+	"io"
 	"math"
 	"time"
 
@@ -34,6 +35,30 @@ func (DocumentConstructor) Reader(r Reader) *Document {
 	}
 
 	return doc
+}
+
+func (DocumentConstructor) ReadFrom(in io.Reader) *Document {
+	doc, err := DC.ReadFromErr(in)
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		panic(err)
+	}
+	return doc
+}
+
+func (DocumentConstructor) ReadFromErr(in io.Reader) (*Document, error) {
+	doc := DC.New()
+	_, err := doc.ReadFrom(in)
+	if err == io.EOF {
+		return nil, err
+	}
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return doc, nil
 }
 
 func (DocumentConstructor) ReaderErr(r Reader) (*Document, error) {

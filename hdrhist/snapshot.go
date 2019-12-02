@@ -3,6 +3,7 @@ package hdrhist
 import (
 	"encoding/json"
 
+	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -16,7 +17,16 @@ type Snapshot struct {
 	Counts                []int64 `bson:"counts" json:"counts" yaml:"counts"`
 }
 
-func (h *Histogram) MarshalBSON() ([]byte, error) { return bson.Marshal(h.Export()) }
+func (h *Histogram) MarshalDocument() (*birch.Document, error) {
+	return birch.DC.Make(5).Append(
+		birch.EC.Int64("lowest", h.lowestTrackableValue),
+		birch.EC.Int64("highest", h.highestTrackableValue),
+		birch.EC.Int64("figures", h.significantFigures),
+		birch.EC.SliceInt64("counts", h.counts),
+	), nil
+}
+
+func (h *Histogram) MarshalBSON() ([]byte, error) { return birch.MarshalDocumentBSON(h) }
 func (h *Histogram) MarshalJSON() ([]byte, error) { return json.Marshal(h.Export()) }
 
 func (h *Histogram) UnmarshalBSON(in []byte) error {

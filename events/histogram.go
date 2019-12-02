@@ -11,6 +11,7 @@ package events
 import (
 	"time"
 
+	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/ftdc/hdrhist"
 )
 
@@ -25,15 +26,15 @@ type PerformanceHDR struct {
 }
 
 type PerformanceCountersHDR struct {
-	Number     *hdrhist.Histogram
-	Operations *hdrhist.Histogram
-	Size       *hdrhist.Histogram
-	Errors     *hdrhist.Histogram
+	Number     *hdrhist.Histogram `bson:"n" json:"n" yaml:"n"`
+	Operations *hdrhist.Histogram `bson:"ops" json:"ops" yaml:"ops"`
+	Size       *hdrhist.Histogram `bson:"size" json:"size" yaml:"size"`
+	Errors     *hdrhist.Histogram `bson:"errors" json:"errors" yaml:"errors"`
 }
 
 type PerformanceTimersHDR struct {
-	Duration *hdrhist.Histogram
-	Total    *hdrhist.Histogram
+	Duration *hdrhist.Histogram `bson:"dur" json:"dur" yaml:"dur"`
+	Total    *hdrhist.Histogram `bson:"total" json:"total" yaml:"total"`
 }
 
 func NewHistogramSecond(g PerformanceGauges) *PerformanceHDR {
@@ -82,4 +83,26 @@ func newMillisecondDurationHistogram() *hdrhist.Histogram {
 
 func newMillisecondCounterHistogram() *hdrhist.Histogram {
 	return hdrhist.New(0, 10*1000, 5)
+}
+
+func (p *PerformanceHDR) MarshalDocument() (*birch.Document, error) {
+	return birch.DC.Elements(
+		birch.EC.Time("ts", p.Timestamp),
+		birch.EC.Int64("id", p.ID),
+		birch.EC.SubDocumentFromElements("counters",
+			birch.EC.DocumentMarshaler("n", p.Counters.Number),
+			birch.EC.DocumentMarshaler("ops", p.Counters.Operations),
+			birch.EC.DocumentMarshaler("size", p.Counters.Size),
+			birch.EC.DocumentMarshaler("errors", p.Counters.Errors),
+		),
+		birch.EC.SubDocumentFromElements("timers",
+			birch.EC.DocumentMarshaler("dur", p.Timers.Duration),
+			birch.EC.DocumentMarshaler("total", p.Timers.Total),
+		),
+		birch.EC.SubDocumentFromElements("gauges",
+			birch.EC.Int64("state", p.Gauges.State),
+			birch.EC.Int64("workers", p.Gauges.Workers),
+			birch.EC.Boolean("failed", p.Gauges.Failed),
+		),
+	), nil
 }

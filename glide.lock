@@ -14,7 +14,7 @@ imports:
   version: 85a8e363c138e7c405976deb9816c72efe54f7b4
 
 - name: github.com/evergreen-ci/birch
-  version: da7e58b5cca1d63dc9181790f6d69fca759bb78a
+  version: fd12af7acecfd1e333b385cb13a604a73d66872e
 
 - name: github.com/mongodb/grip
   version: ee248dc036226d9f87dc1ed28d22e5796960ff91

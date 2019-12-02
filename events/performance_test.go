@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPerformanceType(t *testing.T) {
@@ -27,8 +28,9 @@ func TestPerformanceType(t *testing.T) {
 	})
 	t.Run("Document", func(t *testing.T) {
 		perf := &Performance{}
-		doc := perf.MarshalDocument()
-		assert.NotNil(t, doc)
+		doc, err := perf.MarshalDocument()
+		require.NoError(t, err)
+		require.NotNil(t, doc)
 		assert.Equal(t, 5, doc.Len())
 	})
 	t.Run("BSON", func(t *testing.T) {

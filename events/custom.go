@@ -69,17 +69,7 @@ func (ps Custom) Swap(i, j int) { ps[i], ps[j] = ps[j], ps[i] }
 // array.
 func (ps Custom) Sort() { sort.Stable(ps) }
 
-func (ps Custom) MarshalBSON() ([]byte, error) {
-	ps.Sort()
-
-	doc := birch.DC.Make(ps.Len())
-
-	for _, elem := range ps {
-		doc.Append(birch.EC.Interface(elem.Name, elem.Value))
-	}
-
-	return doc.MarshalBSON()
-}
+func (ps Custom) MarshalBSON() ([]byte, error) { return birch.MarshalDocumentBSON(ps) }
 
 func (ps *Custom) UnmarshalBSON(in []byte) error {
 	doc, err := birch.ReadDocument(in)
@@ -101,4 +91,20 @@ func (ps *Custom) UnmarshalBSON(in []byte) error {
 	}
 
 	return nil
+}
+
+func (ps Custom) MarshalDocument() (*birch.Document, error) {
+	ps.Sort()
+
+	doc := birch.DC.Make(ps.Len())
+
+	for _, elem := range ps {
+		de, err := birch.EC.InterfaceErr(elem.Name, elem.Value)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+		doc.Append(de)
+	}
+
+	return doc, nil
 }
