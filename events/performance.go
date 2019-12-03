@@ -56,13 +56,14 @@ type PerformanceGauges struct {
 	Failed  bool  `bson:"failed" json:"failed" yaml:"failed"`
 }
 
-// MarshalBSON implements the bson marshaler interface to support converting
-// this type into BSON without relying on a reflection-based BSON library.
-func (p *Performance) MarshalBSON() ([]byte, error) { return p.MarshalDocument().MarshalBSON() }
+// MarshalBSON implements the bson marshaler interface to support
+// converting this type into BSON without relying on a
+// reflection-based BSON library.
+func (p *Performance) MarshalBSON() ([]byte, error) { return birch.MarshalDocumentBSON(p) }
 
-// MarshalDocument exports the Performance type as a birch.Document to support
-// more efficient operations.
-func (p *Performance) MarshalDocument() *birch.Document {
+// MarshalDocument exports the Performance type as a birch.Document to
+// support more efficient operations.
+func (p *Performance) MarshalDocument() (*birch.Document, error) {
 	return birch.DC.Elements(
 		birch.EC.Time("ts", p.Timestamp),
 		birch.EC.Int64("id", p.ID),
@@ -81,7 +82,7 @@ func (p *Performance) MarshalDocument() *birch.Document {
 			birch.EC.Int64("workers", p.Gauges.Workers),
 			birch.EC.Boolean("failed", p.Gauges.Failed),
 		)),
-	)
+	), nil
 }
 
 // Add combines the values of the input Performance struct into this struct,

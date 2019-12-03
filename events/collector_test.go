@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/ftdc"
 	"github.com/stretchr/testify/assert"
 )
@@ -98,4 +99,10 @@ func TestCollector(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFastMarshaling(t *testing.T) {
+	assert.Implements(t, (*birch.DocumentMarshaler)(nil), &Performance{})
+	assert.Implements(t, (*birch.DocumentMarshaler)(nil), &PerformanceHDR{})
+	assert.Implements(t, (*birch.DocumentMarshaler)(nil), Custom{})
 }
