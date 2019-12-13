@@ -89,6 +89,10 @@ func (p *Performance) MarshalDocument() (*birch.Document, error) {
 // logically, overriding the Gauges values as well as the timestamp and ID
 // ID values, while summing the Counters and Timers values.
 func (p *Performance) Add(in *Performance) {
+	if in.ID == 0 {
+		in.ID = p.ID + 1
+	}
+
 	p.Timestamp = in.Timestamp
 	p.ID = in.ID
 	p.Counters.Number += in.Counters.Number
