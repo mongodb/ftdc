@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/birch"
+	"github.com/pkg/errors"
 )
 
 // Performance represents a single raw event in a metrics collection system for
@@ -83,6 +84,83 @@ func (p *Performance) MarshalDocument() (*birch.Document, error) {
 			birch.EC.Boolean("failed", p.Gauges.Failed),
 		)),
 	), nil
+}
+
+func (p *Performance) UnmarshalDocument(doc *birch.Document) error {
+	iter := doc.Iterator()
+	for iter.Next() {
+		elem := iter.Element()
+		switch elem.Key() {
+		case "ts":
+			p.Timestamp = elem.Value().Time()
+		case "id":
+		case "counters":
+			if err := p.Counters.UnmarshalDocument(elem.Value().MutableDocument()); err != nil {
+				return errors.WithStack(err)
+			}
+		case "timers":
+			if err := p.Timers.UnmarshalDocument(elem.Value().MutableDocument()); err != nil {
+				return errors.WithStack(err)
+			}
+		case "gauges":
+			if err := p.Gauges.UnmarshalDocument(elem.Value().MutableDocument()); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+	}
+
+	return errors.WithStack(iter.Err())
+}
+
+func (p *PerformanceCounters) UnmarshalDocument(doc *birch.Document) error {
+	iter := doc.Iterator()
+	for iter.Next() {
+		elem := iter.Element()
+		switch elem.Key() {
+		case "n":
+			p.Number = elem.Value().Int64()
+		case "opts":
+			p.Operations = elem.Value().Int64()
+		case "size":
+			p.Size = elem.Value().Int64()
+		case "errors":
+			p.Errors = elem.Value().Int64()
+		}
+	}
+
+	return errors.WithStack(iter.Err())
+}
+
+func (p *PerformanceTimers) UnmarshalDocument(doc *birch.Document) error {
+	iter := doc.Iterator()
+	for iter.Next() {
+		elem := iter.Element()
+		switch elem.Key() {
+		case "dur":
+			p.Duration = time.Duration(elem.Value().Int64())
+		case "total":
+			p.Total = time.Duration(elem.Value().Int64())
+		}
+	}
+
+	return errors.WithStack(iter.Err())
+}
+
+func (p *PerformanceGauges) UnmarshalDocument(doc *birch.Document) error {
+	iter := doc.Iterator()
+	for iter.Next() {
+		elem := iter.Element()
+		switch elem.Key() {
+		case "state":
+			p.State = elem.Value().Int64()
+		case "workers":
+			p.Workers = elem.Value().Int64()
+		case "failed":
+			p.Failed = elem.Value().Boolean()
+		}
+	}
+
+	return errors.WithStack(iter.Err())
 }
 
 // Add combines the values of the input Performance struct into this struct,
