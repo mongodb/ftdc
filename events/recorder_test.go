@@ -430,7 +430,7 @@ func TestRecorder(t *testing.T) {
 
 						switch data := c.Data[0].(type) {
 						case Performance:
-							assert.Equal(t, time.Minute, data.Timers.Total.Round(time.Millisecond), "(%s)", time.Duration(data.Timers.Total))
+							assert.Equal(t, time.Minute, data.Timers.Total.Round(time.Millisecond), "(%s)", data.Timers.Total)
 						case PerformanceHDR:
 							count := data.Timers.Total.TotalCount()
 							assert.True(t, int64(1) <= count, "count=%d", count)
@@ -454,7 +454,7 @@ func TestRecorder(t *testing.T) {
 
 						switch data := c.Data[0].(type) {
 						case Performance:
-							assert.Equal(t, time.Minute, data.Timers.Duration.Round(time.Millisecond), "(%s)", time.Duration(data.Timers.Total))
+							assert.Equal(t, time.Minute, data.Timers.Duration.Round(time.Millisecond), "(%s)", data.Timers.Total)
 						case PerformanceHDR:
 							count := data.Timers.Total.TotalCount()
 							assert.True(t, int64(1) <= count, "count=%d", count)
