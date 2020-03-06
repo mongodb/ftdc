@@ -46,9 +46,6 @@ coverageOutput := $(foreach target,$(packages),$(buildDir)/output.$(target).cove
 coverageHtmlOutput := $(foreach target,$(packages),$(buildDir)/output.$(target).coverage.html)
 srcFiles := makefile $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "./scripts/*" -not -path "*\#*")
 testSrcFiles := makefile $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
-$(gopath)/src/%:
-	@-[ ! -d $(gopath) ] && mkdir -p $(gopath) || true
-	go get $(subst $(gopath)/src/,,$@)
 # end dependency installation tools
 
 
@@ -61,12 +58,12 @@ $(buildDir)/golangci-lint:
 	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(buildDir) v1.10.2 >/dev/null 2>&1 && touch $@
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
 	@mkdir -p $(buildDir)
-	go build -o $@ $<
+	$(gobin) build -o $@ $<
 # end lint setup targets
 
 
 # userfacing targets for basic build and development operations
-build:$(srcFiles) $(gopath)/src/$(projectPath)
+build:$(srcFiles)
 	@mkdir -p $(buildDir)
 	$(gobin) build $(subst $(name),,$(subst -,/,$(foreach pkg,$(packages),./$(pkg))))
 test:$(testOutput)
