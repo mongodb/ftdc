@@ -36,7 +36,7 @@ func BenchmarkIterator(b *testing.B) {
 			file, err := os.Open(test.Path)
 			require.NoError(b, err)
 			defer func() {
-				if err := file.Close(); err != nil {
+				if err = file.Close(); err != nil {
 					fmt.Println(err)
 				}
 			}()

@@ -27,7 +27,7 @@ func TestCollectRuntime(t *testing.T) {
 	require.NoError(t, err)
 
 	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
+		if err = os.RemoveAll(dir); err != nil {
 			fmt.Println(err)
 		}
 	}()
@@ -54,7 +54,8 @@ func TestCollectRuntime(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		files, err := ioutil.ReadDir(dir)
+		var files []os.FileInfo
+		files, err = ioutil.ReadDir(dir)
 		require.NoError(t, err)
 		assert.True(t, len(files) >= 1)
 
@@ -62,7 +63,8 @@ func TestCollectRuntime(t *testing.T) {
 		for idx, info := range files {
 			t.Run(fmt.Sprintf("FileNo.%d", idx), func(t *testing.T) {
 				path := filepath.Join(dir, info.Name())
-				f, err := os.Open(path)
+				var f *os.File
+				f, err = os.Open(path)
 				require.NoError(t, err)
 				defer func() { assert.NoError(t, f.Close()) }()
 				iter := ftdc.ReadMetrics(ctx, f)

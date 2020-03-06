@@ -33,26 +33,6 @@ ifeq ($(OS),Windows_NT)
 endif
 # end environment setup
 
-# start linting configuration
-#   package, testing, and linter dependencies specified
-#   separately. This is a temporary solution: eventually we should
-#   vendorize all of these dependencies.
-lintDeps := github.com/alecthomas/gometalinter
-#   include test files and give13m --vendor --aggregate --sort=line
-lintArgs := --tests --deadline=14m --vendor
-lintArgs += --enable-gc --disable=golint --disable=gocyclo --disable=gosec
-#   gotype produces false positives because it reads .a files which
-#   are rarely up to date.
-lintArgs += --skip="$(buildDir)" --skip="buildscripts" --skip="$(gopath)"
-#  add and configure additional linters
-lintArgs += --enable="misspell" # --enable="lll" --line-length=100
-#  suppress some lint errors (logging methods could return errors, and error checking in defers.)
-# lintArgs += --exclude="defers in this range loop.* \(staticcheck|megacheck\)$$"
-# lintArgs += --exclude=".*should use time.Until instead of t.Sub\(time.Now\(\)\).* \(gosimple|megacheck\)$$"
-# lintArgs += --exclude="suspect or:.*\(vet\)$$"
-# end lint configuration
-
-
 # start dependency installation tools
 #   implementation details for being able to lazily install dependencies.
 #   this block has no project specific configuration but defines
@@ -73,14 +53,15 @@ $(gopath)/src/%:
 
 
 # lint setup targets
-lintDeps := $(addprefix $(gopath)/src/,$(lintDeps))
-$(buildDir)/.lintSetup:$(lintDeps)
+lintDeps := $(buildDir)/golangci-lint $(buildDir)/.lintSetup $(buildDir)/run-linter
+$(buildDir)/.lintSetup:$(buildDir)/golangci-lint
 	@mkdir -p $(buildDir)
-	$(if $(GO_BIN_PATH),export PATH=$(shell dirname $(GO_BIN_PATH)):${PATH} && ,)$(gopath)/bin/gometalinter --install >/dev/null && touch $@
+	@touch $@
+$(buildDir)/golangci-lint:
+	@curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(buildDir) v1.10.2 >/dev/null 2>&1 && touch $@
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
 	@mkdir -p $(buildDir)
-	$(gobin) build -o $@ $<
-lint:$(buildDir)/.lintSetup $(lintTargets)
+	go build -o $@ $<
 # end lint setup targets
 
 
@@ -166,9 +147,9 @@ $(buildDir)/output.%.coverage.html:$(buildDir)/output.%.coverage
 	$(testRunEnv) $(gobin) tool cover -html=$< -o $@
 #  targets to generate gotest output from the linter.
 $(buildDir)/output.%.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
-	@./$< --output=$@ --lintArgs='$(lintArgs)' --packages='$*'
+	@./$< --output=$@ --lintBin="$(buildDir)/golangci-lint" --packages='$*'
 $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
-	@./$< --output="$@" --lintArgs='$(lintArgs)' --packages="$(packages)"
+	@./$< --output=$@ --lintBin="$(buildDir)/golangci-lint" --packages='$(packages)'
 # end test and coverage artifacts
 
 

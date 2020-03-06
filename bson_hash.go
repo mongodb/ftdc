@@ -45,22 +45,22 @@ func metricKeyHashValue(checksum hash.Hash, key string, value *birch.Value) int 
 	case bsontype.EmbeddedDocument:
 		return metricKeyHashDocument(checksum, key, value.MutableDocument())
 	case bsontype.Boolean:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 1
 	case bsontype.Double:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 1
 	case bsontype.Int32:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 1
 	case bsontype.Int64:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 1
 	case bsontype.DateTime:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 1
 	case bsontype.Timestamp:
-		checksum.Write([]byte(key))
+		_, _ = checksum.Write([]byte(key))
 		return 2
 	default:
 		return 0
