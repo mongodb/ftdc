@@ -117,7 +117,7 @@ func TestCollectJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	defer func() {
-		if err := os.RemoveAll(dir); err != nil {
+		if err = os.RemoveAll(dir); err != nil {
 			fmt.Println(err)
 		}
 	}()
@@ -147,10 +147,11 @@ func TestCollectJSON(t *testing.T) {
 	t.Run("SingleReaderBotchedDocument", func(t *testing.T) {
 		buf := &bytes.Buffer{}
 
-		docs, err := makeJSONRandComplex(10)
+		var docs [][]byte
+		docs, err = makeJSONRandComplex(10)
 		require.NoError(t, err)
 
-		docs[2] = docs[len(docs)-1][1:] // break the last document docuemnt
+		docs[2] = docs[len(docs)-1][1:] // break the last document
 
 		err = writeStream(docs, buf)
 		require.NoError(t, err)
@@ -171,7 +172,8 @@ func TestCollectJSON(t *testing.T) {
 	})
 	t.Run("ReadFromFile", func(t *testing.T) {
 		fn := filepath.Join(dir, "json-read-file-one")
-		f, err := os.Create(fn)
+		var f *os.File
+		f, err = os.Create(fn)
 		require.NoError(t, err)
 
 		require.NoError(t, writeStream(hundredDocs, f))
@@ -190,7 +192,8 @@ func TestCollectJSON(t *testing.T) {
 	})
 	t.Run("FollowFile", func(t *testing.T) {
 		fn := filepath.Join(dir, "json-read-file-two")
-		f, err := os.Create(fn)
+		var f *os.File
+		f, err = os.Create(fn)
 		require.NoError(t, err)
 
 		go func() {

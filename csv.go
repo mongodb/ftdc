@@ -114,7 +114,7 @@ func DumpCSV(ctx context.Context, iter *ChunkIterator, prefix string) error {
 		chunk := iter.Chunk()
 		if numFields == 0 {
 			fieldNames := chunk.getFieldNames()
-			if err := csvw.Write(fieldNames); err != nil {
+			if err = csvw.Write(fieldNames); err != nil {
 				return errors.Wrap(err, "problem writing field names")
 			}
 			numFields = len(fieldNames)
@@ -216,7 +216,8 @@ func ConvertFromCSV(ctx context.Context, bucketSize int, input io.Reader, output
 
 		elems := make([]*birch.Element, 0, len(header))
 		for idx := range record {
-			val, err := strconv.Atoi(record[idx])
+			var val int
+			val, err = strconv.Atoi(record[idx])
 			if err != nil {
 				continue
 			}

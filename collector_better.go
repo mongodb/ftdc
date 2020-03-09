@@ -127,7 +127,7 @@ func (c *betterCollector) Resolve() ([]byte, error) {
 
 	buf := bytes.NewBuffer([]byte{})
 	if c.metadata != nil {
-		_, err := birch.NewDocument(
+		_, err = birch.NewDocument(
 			birch.EC.Time("_id", c.startedAt),
 			birch.EC.Int32("type", 0),
 			birch.EC.SubDocument("doc", c.metadata)).WriteTo(buf)

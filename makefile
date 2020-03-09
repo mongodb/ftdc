@@ -31,27 +31,8 @@ ifeq ($(OS),Windows_NT)
   gopath := $(shell cygpath -m $(gopath))
  endif
 endif
+goEnv := GOPATH=$(gopath) $(if $(GO_BIN_PATH), PATH="$(shell dirname $(GO_BIN_PATH)):$(PATH)")
 # end environment setup
-
-# start linting configuration
-#   package, testing, and linter dependencies specified
-#   separately. This is a temporary solution: eventually we should
-#   vendorize all of these dependencies.
-lintDeps := github.com/alecthomas/gometalinter
-#   include test files and give13m --vendor --aggregate --sort=line
-lintArgs := --tests --deadline=14m --vendor
-lintArgs += --enable-gc --disable=golint --disable=gocyclo --disable=gosec
-#   gotype produces false positives because it reads .a files which
-#   are rarely up to date.
-lintArgs += --skip="$(buildDir)" --skip="buildscripts" --skip="$(gopath)"
-#  add and configure additional linters
-lintArgs += --enable="misspell" # --enable="lll" --line-length=100
-#  suppress some lint errors (logging methods could return errors, and error checking in defers.)
-# lintArgs += --exclude="defers in this range loop.* \(staticcheck|megacheck\)$$"
-# lintArgs += --exclude=".*should use time.Until instead of t.Sub\(time.Now\(\)\).* \(gosimple|megacheck\)$$"
-# lintArgs += --exclude="suspect or:.*\(vet\)$$"
-# end lint configuration
-
 
 # start dependency installation tools
 #   implementation details for being able to lazily install dependencies.
@@ -66,29 +47,28 @@ coverageOutput := $(foreach target,$(packages),$(buildDir)/output.$(target).cove
 coverageHtmlOutput := $(foreach target,$(packages),$(buildDir)/output.$(target).coverage.html)
 srcFiles := makefile $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "./scripts/*" -not -path "*\#*")
 testSrcFiles := makefile $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
-$(gopath)/src/%:
-	@-[ ! -d $(gopath) ] && mkdir -p $(gopath) || true
-	go get $(subst $(gopath)/src/,,$@)
 # end dependency installation tools
 
 
-# lint setup targets
-lintDeps := $(addprefix $(gopath)/src/,$(lintDeps))
-$(buildDir)/.lintSetup:$(lintDeps)
+# start lint setup targets
+lintDeps := $(buildDir)/golangci-lint $(buildDir)/.lintSetup $(buildDir)/run-linter
+$(buildDir)/.lintSetup:$(buildDir)/golangci-lint
 	@mkdir -p $(buildDir)
-	$(if $(GO_BIN_PATH),export PATH=$(shell dirname $(GO_BIN_PATH)):${PATH} && ,)$(gopath)/bin/gometalinter --install >/dev/null && touch $@
+	@touch $@
+$(buildDir)/golangci-lint:
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/76a82c6ed19784036bbf2d4c84d0228ca12381a4/install.sh | sh -s -- -b $(buildDir) v1.10.2 >/dev/null 2>&1
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
 	@mkdir -p $(buildDir)
-	$(gobin) build -o $@ $<
-lint:$(buildDir)/.lintSetup $(lintTargets)
+	$(goEnv) $(gobin) build -o $@ $<
 # end lint setup targets
 
 
 # userfacing targets for basic build and development operations
-build:$(srcFiles) $(gopath)/src/$(projectPath)
+build:$(srcFiles)
 	@mkdir -p $(buildDir)
-	$(gobin) build $(subst $(name),,$(subst -,/,$(foreach pkg,$(packages),./$(pkg))))
+	$(goEnv) $(gobin) build $(subst $(name),,$(subst -,/,$(foreach pkg,$(packages),./$(pkg))))
 test:$(testOutput)
+lint:$(lintTargets)
 coverage:$(coverageOutput)
 coverage-html:$(coverageHtmlOutput)
 list-tests:
@@ -157,18 +137,18 @@ endif
 # testing targets
 $(buildDir)/output.%.test: .FORCE
 	@mkdir -p $(buildDir)
-	$(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
+	$(goEnv) $(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
 $(buildDir)/output.%.coverage: $(buildDir)/ .FORCE
 	@mkdir -p $(buildDir)
-	$(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
-	@-[ -f $@ ] && $(testRunEnv) $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
+	$(goEnv) $(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
+	$(goEnv) @-[ -f $@ ] && $(goEnv) $(testRunEnv) $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
 $(buildDir)/output.%.coverage.html:$(buildDir)/output.%.coverage
-	$(testRunEnv) $(gobin) tool cover -html=$< -o $@
+	$(goEnv) $(testRunEnv) $(gobin) tool cover -html=$< -o $@
 #  targets to generate gotest output from the linter.
 $(buildDir)/output.%.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
-	@./$< --output=$@ --lintArgs='$(lintArgs)' --packages='$*'
+	@./$< --output=$@ --lintBin="$(buildDir)/golangci-lint" --packages='$*'
 $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
-	@./$< --output="$@" --lintArgs='$(lintArgs)' --packages="$(packages)"
+	@./$< --output=$@ --lintBin="$(buildDir)/golangci-lint" --packages='$(packages)'
 # end test and coverage artifacts
 
 
