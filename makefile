@@ -56,7 +56,7 @@ $(buildDir)/.lintSetup:$(buildDir)/golangci-lint
 	@mkdir -p $(buildDir)
 	@touch $@
 $(buildDir)/golangci-lint:
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/76a82c6ed19784036bbf2d4c84d0228ca12381a4/install.sh | sh -s -- -b $(buildDir) v1.23.8 >/dev/null 2>&1
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/76a82c6ed19784036bbf2d4c84d0228ca12381a4/install.sh | sh -s -- -b $(buildDir) v1.10.2 >/dev/null 2>&1
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/.lintSetup
 	@mkdir -p $(buildDir)
 	$(goEnv) $(gobin) build -o $@ $<
@@ -141,7 +141,7 @@ $(buildDir)/output.%.test: .FORCE
 $(buildDir)/output.%.coverage: $(buildDir)/ .FORCE
 	@mkdir -p $(buildDir)
 	$(goEnv) $(testRunEnv) $(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
-	$(goEnv) @-[ -f $@ ] && $(testRunEnv) $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
+	$(goEnv) @-[ -f $@ ] && $(goEnv) $(testRunEnv) $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
 $(buildDir)/output.%.coverage.html:$(buildDir)/output.%.coverage
 	$(goEnv) $(testRunEnv) $(gobin) tool cover -html=$< -o $@
 #  targets to generate gotest output from the linter.

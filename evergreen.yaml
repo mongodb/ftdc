@@ -116,8 +116,8 @@ buildvariants:
   - name: lint
     display_name: Lint (Arch Linux)
     expansions:
-      GO_BIN_PATH: /opt/golang/go1.13/bin/go
-      GOROOT: /opt/golang/go1.13
+      GO_BIN_PATH: /opt/golang/go1.9/bin/go
+      GOROOT: /opt/golang/go1.9
     run_on:
       - archlinux-test
     tasks: [ "lintGroup" ]
