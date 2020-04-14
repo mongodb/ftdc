@@ -65,7 +65,7 @@ func TestRecorder(t *testing.T) {
 
 							totalDur += dur
 
-							payload, ok := c.Data[i].(Performance)
+							payload, ok := c.Data[i].(*Performance)
 							require.True(t, ok)
 
 							assert.EqualValues(t, (i+1)*10, payload.Counters.Operations)
@@ -76,7 +76,7 @@ func TestRecorder(t *testing.T) {
 							lastTotal = payload.Timers.Total
 						}
 						require.NoError(t, r.EndTest())
-						payload, ok := c.Data[len(c.Data)-1].(Performance)
+						payload, ok := c.Data[len(c.Data)-1].(*Performance)
 						require.True(t, ok)
 						assert.EqualValues(t, iterations*10, payload.Counters.Operations)
 						assert.EqualValues(t, iterations, payload.Counters.Number)
@@ -115,7 +115,7 @@ func TestRecorder(t *testing.T) {
 						r.EndIteration(time.Minute)
 						require.Len(t, c.Data, 1)
 
-						payload, ok := c.Data[0].(Performance)
+						payload, ok := c.Data[0].(*Performance)
 						require.True(t, ok)
 						assert.EqualValues(t, 10, payload.Counters.Operations)
 						assert.EqualValues(t, 1, payload.Counters.Number)
@@ -209,12 +209,12 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) > 0)
 
 						switch data := c.Data[len(c.Data)-1].(type) {
-						case Performance:
+						case *Performance:
 							assert.True(t, data.Timers.Duration >= 9*time.Second, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
 							assert.EqualValues(t, data.Counters.Operations, 10)
 							assert.True(t, time.Since(data.Timestamp) <= time.Second)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -242,11 +242,11 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) > 0)
 
 						switch data := c.Data[len(c.Data)-1].(type) {
-						case Performance:
+						case *Performance:
 							assert.True(t, data.Timers.Duration >= time.Second, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
 							assert.EqualValues(t, data.Counters.Size, 10*1024)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -274,10 +274,10 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) > 0)
 
 						switch data := c.Data[len(c.Data)-1].(type) {
-						case Performance:
+						case *Performance:
 							assert.True(t, data.Timers.Duration >= 100*time.Millisecond, "%s", data.Timers.Duration)
 							assert.True(t, data.Timers.Total > 0)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, 10, data.Counters.Number.TotalCount())
 							assert.Equal(t, 1.0, data.Counters.Number.Mean())
 
@@ -319,9 +319,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.EqualValues(t, data.Gauges.State, 422)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, data.Gauges.State, 422, "%+v", data.Gauges)
 						default:
 							assert.True(t, false, "%T", data)
@@ -341,9 +341,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.EqualValues(t, data.Gauges.Workers, 422)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, data.Gauges.Workers, 422, "%+v", data.Gauges)
 						default:
 							assert.True(t, false, "%T", data)
@@ -362,9 +362,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.False(t, data.Gauges.Failed)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.False(t, data.Gauges.Failed)
 						default:
 							assert.True(t, false, "%T", data)
@@ -384,9 +384,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.True(t, data.Gauges.Failed)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.True(t, data.Gauges.Failed)
 						default:
 							assert.True(t, false, "%T", data)
@@ -408,9 +408,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.True(t, data.Gauges.Failed)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.True(t, data.Gauges.Failed)
 						default:
 							assert.True(t, false, "%T", data)
@@ -429,9 +429,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.Equal(t, time.Minute, data.Timers.Total.Round(time.Millisecond), "(%s)", data.Timers.Total)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							count := data.Timers.Total.TotalCount()
 							assert.True(t, int64(1) <= count, "count=%d", count)
 							assert.Equal(t, time.Minute, time.Duration(data.Timers.Total.Max()).Round(time.Millisecond))
@@ -453,9 +453,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.Equal(t, time.Minute, data.Timers.Duration.Round(time.Millisecond), "(%s)", data.Timers.Total)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							count := data.Timers.Total.TotalCount()
 							assert.True(t, int64(1) <= count, "count=%d", count)
 							assert.Equal(t, time.Minute, time.Duration(data.Timers.Duration.Max()).Round(time.Millisecond))
@@ -477,10 +477,10 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							// it's 42 or 53 depending on the behavior of end
 							assert.True(t, 42 == data.Counters.Number || 43 == data.Counters.Number) // nolint
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							count := data.Counters.Number.TotalCount()
 							assert.True(t, 1 <= count, "count=%d", count)
 							assert.EqualValues(t, 42, data.Counters.Number.Max())
@@ -502,9 +502,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.EqualValues(t, ts, data.Timestamp)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, ts, data.Timestamp)
 						default:
 							assert.True(t, false, "%T", data)
@@ -524,9 +524,9 @@ func TestRecorder(t *testing.T) {
 						require.True(t, len(c.Data) >= 1)
 
 						switch data := c.Data[0].(type) {
-						case Performance:
+						case *Performance:
 							assert.EqualValues(t, id, data.ID)
-						case PerformanceHDR:
+						case *PerformanceHDR:
 							assert.EqualValues(t, id, data.ID)
 						default:
 							assert.True(t, false, "%T", data)

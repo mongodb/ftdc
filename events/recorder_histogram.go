@@ -56,8 +56,7 @@ func (r *histogramStream) EndIteration(dur time.Duration) {
 		r.started = time.Time{}
 	}
 
-	r.catcher.Add(r.collector.Add(*r.point))
-	r.point.Timestamp = time.Time{}
+	r.catcher.Add(r.collector.Add(r.point))
 }
 
 func (r *histogramStream) SetDuration(dur time.Duration) {
@@ -77,7 +76,7 @@ func (r *histogramStream) BeginIteration()     { r.started = time.Now(); r.point
 
 func (r *histogramStream) EndTest() error {
 	if !r.point.Timestamp.IsZero() {
-		r.catcher.Add(r.collector.Add(*r.point))
+		r.catcher.Add(r.collector.Add(r.point))
 	}
 	err := r.catcher.Resolve()
 	r.Reset()

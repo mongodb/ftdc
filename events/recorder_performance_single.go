@@ -9,7 +9,7 @@ import (
 
 type singleStream struct {
 	started   time.Time
-	point     Performance
+	point     *Performance
 	collector ftdc.Collector
 }
 
@@ -21,6 +21,7 @@ type singleStream struct {
 // wrapper.
 func NewSingleRecorder(collector ftdc.Collector) Recorder {
 	return &singleStream{
+		point:     &Performance{Timestamp: time.Time{}},
 		collector: collector,
 	}
 }
@@ -55,7 +56,7 @@ func (r *singleStream) EndTest() error {
 }
 
 func (r *singleStream) Reset() {
-	r.point = Performance{
+	r.point = &Performance{
 		Gauges: r.point.Gauges,
 	}
 	r.started = time.Time{}

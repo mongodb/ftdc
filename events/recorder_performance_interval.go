@@ -11,7 +11,7 @@ import (
 )
 
 type intervalStream struct {
-	point     Performance
+	point     *Performance
 	started   time.Time
 	collector ftdc.Collector
 	catcher   util.Catcher
@@ -34,6 +34,7 @@ func NewIntervalRecorder(ctx context.Context, collector ftdc.Collector, interval
 	return &intervalStream{
 		collector: collector,
 		rootCtx:   ctx,
+		point:     &Performance{Timestamp: time.Time{}},
 		catcher:   util.NewCatcher(),
 		interval:  interval,
 	}
@@ -57,7 +58,7 @@ func (r *intervalStream) worker(ctx context.Context, interval time.Duration) {
 			}
 			r.point.setTimestamp(r.started)
 			r.catcher.Add(r.collector.Add(r.point))
-			r.point = Performance{
+			r.point = &Performance{
 				Gauges: r.point.Gauges,
 			}
 			r.Unlock()
@@ -130,7 +131,7 @@ func (r *intervalStream) reset() {
 		r.canceler = nil
 	}
 	r.catcher = util.NewCatcher()
-	r.point = Performance{
+	r.point = &Performance{
 		Gauges: r.point.Gauges,
 	}
 	r.started = time.Time{}

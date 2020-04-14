@@ -75,7 +75,7 @@ func (r *histogramSingle) BeginIteration()     { r.started = time.Now() }
 
 func (r *histogramSingle) EndTest() error {
 	r.point.setTimestamp(r.started)
-	r.catcher.Add(r.collector.Add(*r.point))
+	r.catcher.Add(r.collector.Add(r.point))
 	err := r.catcher.Resolve()
 	r.Reset()
 	return errors.WithStack(err)

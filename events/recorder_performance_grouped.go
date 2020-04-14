@@ -12,7 +12,7 @@ type groupStream struct {
 	started       time.Time
 	lastCollected time.Time
 	interval      time.Duration
-	point         Performance
+	point         *Performance
 	collector     ftdc.Collector
 	catcher       util.Catcher
 }
@@ -26,6 +26,7 @@ type groupStream struct {
 func NewGroupedRecorder(collector ftdc.Collector, interval time.Duration) Recorder {
 	return &groupStream{
 		collector:     collector,
+		point:         &Performance{Timestamp: time.Time{}},
 		catcher:       util.NewCatcher(),
 		interval:      interval,
 		lastCollected: time.Now(),
@@ -71,7 +72,7 @@ func (r *groupStream) EndTest() error {
 
 func (r *groupStream) Reset() {
 	r.catcher = util.NewCatcher()
-	r.point = Performance{
+	r.point = &Performance{
 		Gauges: r.point.Gauges,
 	}
 	r.started = time.Time{}
