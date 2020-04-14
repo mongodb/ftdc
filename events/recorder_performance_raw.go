@@ -10,7 +10,7 @@ import (
 
 type rawStream struct {
 	started   time.Time
-	point     Performance
+	point     *Performance
 	collector ftdc.Collector
 	catcher   util.Catcher
 }
@@ -23,6 +23,7 @@ type rawStream struct {
 func NewRawRecorder(collector ftdc.Collector) Recorder {
 	return &rawStream{
 		collector: collector,
+		point:     &Performance{Timestamp: time.Time{}},
 		catcher:   util.NewCatcher(),
 	}
 }
@@ -48,7 +49,6 @@ func (r *rawStream) EndIteration(dur time.Duration) {
 	r.point.setTimestamp(r.started)
 	r.point.Timers.Duration += dur
 	r.catcher.Add(r.collector.Add(r.point))
-	r.point.Timestamp = time.Time{}
 	r.started = time.Time{}
 }
 
@@ -63,7 +63,7 @@ func (r *rawStream) EndTest() error {
 
 func (r *rawStream) Reset() {
 	r.catcher = util.NewCatcher()
-	r.point = Performance{
+	r.point = &Performance{
 		Gauges: r.point.Gauges,
 	}
 	r.started = time.Time{}
