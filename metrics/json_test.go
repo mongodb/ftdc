@@ -200,11 +200,20 @@ func TestCollectJSON(t *testing.T) {
 		require.NoError(t, f.Close())
 
 		opts := CollectJSONOptions{
-			FileName:    fn,
-			SampleCount: 100,
+			FileName:      fn,
+			SampleCount:   100,
+			FlushInterval: 10 * time.Second,
 		}
 
-		_, err = CollectJSONStream(ctx, opts)
+		output, err := CollectJSONStream(ctx, opts)
+
+		iter := ftdc.ReadMetrics(ctx, bytes.NewReader(output))
+		i := 0
+		for iter.Next() {
+			i++
+		}
+
+		assert.Equal(t, 100, i)
 		assert.NoError(t, err)
 	})
 	t.Run("FollowFile", func(t *testing.T) {
@@ -231,7 +240,8 @@ func TestCollectJSON(t *testing.T) {
 			Follow:        true,
 		}
 
-		_, err = CollectJSONStream(ctx, opts)
+		output, err := CollectJSONStream(ctx, opts)
+		assert.Nil(t, output)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "operation aborted")
 	})
@@ -277,9 +287,10 @@ func TestCollectJSON(t *testing.T) {
 		}
 		ctx := context.Background()
 
-		_, err = CollectJSONStream(ctx, opts)
+		output, err := CollectJSONStream(ctx, opts)
+		assert.Equal(t, []byte{}, output)
 		assert.NoError(t, err)
-		_, err := os.Stat(filepath.Join(dir, "roundtrip.0"))
+		_, err = os.Stat(filepath.Join(dir, "roundtrip.0"))
 		require.False(t, os.IsNotExist(err))
 
 		fn, err := os.Open(filepath.Join(dir, "roundtrip.0"))

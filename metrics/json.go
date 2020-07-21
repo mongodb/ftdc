@@ -141,7 +141,7 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 
 		if info.SampleCount == 0 {
 			flushTimer.Reset(opts.FlushInterval)
-			return nil, nil
+			return []byte{}, nil
 		}
 
 		output, err := collector.Resolve()
@@ -159,23 +159,24 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 		}
 
 		outputCount++
-		collector.Reset()
-		flushTimer.Reset(opts.FlushInterval)
+		defer func() {
+			collector.Reset()
+			flushTimer.Reset(opts.FlushInterval)
+		}()
 
-		return nil, nil
+		return []byte{}, nil
 	}
 
 	docs, errs := opts.getSource()
 
 	for {
 		select {
-		//case <-
 		case <-ctx.Done():
 			return nil, errors.New("operation aborted")
 		case err := <-errs:
 			if err == nil || errors.Cause(err) == io.EOF {
-				_, errFlusher := flusher()
-				return nil, errors.Wrap(errFlusher, "problem flushing results at the end of the file")
+				output, errFlusher := flusher()
+				return output, errors.Wrap(errFlusher, "problem flushing results at the end of the file")
 			}
 			return nil, errors.WithStack(err)
 		case doc := <-docs:
@@ -183,8 +184,8 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 				return nil, errors.Wrap(err, "problem collecting results")
 			}
 		case <-flushTimer.C:
-			_, errFlusher := flusher()
-			return nil, errors.Wrap(errFlusher, "problem flushing results at the end of the file")
+			output, errFlusher := flusher()
+			return output, errors.Wrap(errFlusher, "problem flushing results")
 		}
 	}
 }
