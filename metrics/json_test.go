@@ -141,7 +141,7 @@ func TestCollectJSON(t *testing.T) {
 			InputSource:   reader,
 		}
 
-		err = CollectJSONStream(ctx, opts)
+		_, err = CollectJSONStream(ctx, opts)
 		assert.NoError(t, err)
 	})
 	t.Run("SingleReaderBotchedDocument", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestCollectJSON(t *testing.T) {
 			SampleCount:   100,
 		}
 
-		err = CollectJSONStream(ctx, opts)
+		_, err = CollectJSONStream(ctx, opts)
 		assert.Error(t, err)
 	})
 	t.Run("ReadFromFile", func(t *testing.T) {
@@ -187,11 +187,28 @@ func TestCollectJSON(t *testing.T) {
 			SampleCount: 100,
 		}
 
-		err = CollectJSONStream(ctx, opts)
+		_, err = CollectJSONStream(ctx, opts)
+		assert.NoError(t, err)
+	})
+	t.Run("NoOutputFilePrefix", func(t *testing.T) {
+		fn := filepath.Join(dir, "json-read-file-two")
+		var f *os.File
+		f, err = os.Create(fn)
+		require.NoError(t, err)
+
+		require.NoError(t, writeStream(hundredDocs, f))
+		require.NoError(t, f.Close())
+
+		opts := CollectJSONOptions{
+			FileName:    fn,
+			SampleCount: 100,
+		}
+
+		_, err = CollectJSONStream(ctx, opts)
 		assert.NoError(t, err)
 	})
 	t.Run("FollowFile", func(t *testing.T) {
-		fn := filepath.Join(dir, "json-read-file-two")
+		fn := filepath.Join(dir, "json-read-file-three")
 		var f *os.File
 		f, err = os.Create(fn)
 		require.NoError(t, err)
@@ -214,7 +231,7 @@ func TestCollectJSON(t *testing.T) {
 			Follow:        true,
 		}
 
-		err = CollectJSONStream(ctx, opts)
+		_, err = CollectJSONStream(ctx, opts)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "operation aborted")
 	})
@@ -260,7 +277,7 @@ func TestCollectJSON(t *testing.T) {
 		}
 		ctx := context.Background()
 
-		err = CollectJSONStream(ctx, opts)
+		_, err = CollectJSONStream(ctx, opts)
 		assert.NoError(t, err)
 		_, err := os.Stat(filepath.Join(dir, "roundtrip.0"))
 		require.False(t, os.IsNotExist(err))
