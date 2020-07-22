@@ -135,9 +135,9 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 	collector := ftdc.NewDynamicCollector(opts.SampleCount)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer flushTimer.Stop()
-	defer flushTimer.Reset(opts.FlushInterval)
 
 	flusher := func() ([]byte, error) {
+		defer flushTimer.Reset(opts.FlushInterval)
 		info := collector.Info()
 
 		if info.SampleCount == 0 {
@@ -161,10 +161,6 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 		}
 
 		outputCount++
-		defer func() {
-
-		}()
-
 		return []byte{}, nil
 	}
 
