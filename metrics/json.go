@@ -176,7 +176,8 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 			return nil, errors.New("operation aborted")
 		case err := <-errs:
 			if err == nil || errors.Cause(err) == io.EOF {
-				output, err := flusher()
+				var output []byte
+				output, err = flusher()
 				return output, errors.Wrap(err, "problem flushing results at the end of the file")
 			}
 			return nil, errors.WithStack(err)
