@@ -205,7 +205,8 @@ func TestCollectJSON(t *testing.T) {
 			FlushInterval: 10 * time.Second,
 		}
 
-		output, err := CollectJSONStream(ctx, opts)
+		var output []byte
+		output, err = CollectJSONStream(ctx, opts)
 
 		iter := ftdc.ReadMetrics(ctx, bytes.NewReader(output))
 		i := 0
@@ -240,7 +241,8 @@ func TestCollectJSON(t *testing.T) {
 			Follow:        true,
 		}
 
-		output, err := CollectJSONStream(ctx, opts)
+		var output []byte
+		output, err = CollectJSONStream(ctx, opts)
 		assert.Nil(t, output)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "operation aborted")
