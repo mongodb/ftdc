@@ -135,6 +135,7 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 	collector := ftdc.NewDynamicCollector(opts.SampleCount)
 	flushTimer := time.NewTimer(opts.FlushInterval)
 	defer flushTimer.Stop()
+	defer flushTimer.Reset(opts.FlushInterval)
 
 	flusher := func() ([]byte, error) {
 		info := collector.Info()
@@ -145,6 +146,7 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 		}
 
 		output, err := collector.Resolve()
+		defer collector.Reset()
 		if err != nil {
 			return nil, errors.Wrap(err, "problem resolving ftdc data")
 		}
@@ -160,8 +162,7 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 
 		outputCount++
 		defer func() {
-			collector.Reset()
-			flushTimer.Reset(opts.FlushInterval)
+
 		}()
 
 		return []byte{}, nil
@@ -175,8 +176,8 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 			return nil, errors.New("operation aborted")
 		case err := <-errs:
 			if err == nil || errors.Cause(err) == io.EOF {
-				output, errFlusher := flusher()
-				return output, errors.Wrap(errFlusher, "problem flushing results at the end of the file")
+				output, err := flusher()
+				return output, errors.Wrap(err, "problem flushing results at the end of the file")
 			}
 			return nil, errors.WithStack(err)
 		case doc := <-docs:
@@ -184,8 +185,8 @@ func CollectJSONStream(ctx context.Context, opts CollectJSONOptions) ([]byte, er
 				return nil, errors.Wrap(err, "problem collecting results")
 			}
 		case <-flushTimer.C:
-			output, errFlusher := flusher()
-			return output, errors.Wrap(errFlusher, "problem flushing results")
+			output, err := flusher()
+			return output, errors.Wrap(err, "problem flushing results")
 		}
 	}
 }
