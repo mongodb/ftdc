@@ -149,8 +149,7 @@ buildvariants:
       - windows-64-vs2015-small
       - windows-64-vs2015-test
     expansions:
-      SKIP_LONG: true 
       DISABLE_COVERAGE: true
-      GO_BIN_PATH: "C:\\golang\\go1.9\\bin\\go"
-      GOROOT: "C:\\golang\\go1.9"
+      GO_BIN_PATH: /cygdrive/c/golang/go1.9/bin/go
+      GOROOT: "C:/golang/go1.9"
     tasks: [ "testGroup" ]
