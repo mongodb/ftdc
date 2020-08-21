@@ -106,6 +106,7 @@ buildvariants:
     display_name: Race Detector (Arch Linux)
     expansions:
       RACE_DETECTOR: true
+      DISABLE_COVERAGE: true
       TEST_TIMEOUT: 45m
       GO_BIN_PATH: /opt/golang/go1.10/bin/go
       GOROOT: /opt/golang/go1.10
@@ -116,8 +117,8 @@ buildvariants:
   - name: lint
     display_name: Lint (Arch Linux)
     expansions:
-      GO_BIN_PATH: /opt/golang/go1.9/bin/go
-      GOROOT: /opt/golang/go1.9
+      GO_BIN_PATH: /opt/golang/go1.13/bin/go
+      GOROOT: /opt/golang/go1.13
     run_on:
       - archlinux-test
     tasks: [ "lintGroup" ]
@@ -125,6 +126,7 @@ buildvariants:
   - name: ubuntu1604
     display_name: Ubuntu 16.04
     expansions:
+      DISABLE_COVERAGE: true
       GO_BIN_PATH: /opt/golang/go1.9/bin/go
       GOROOT: /opt/golang/go1.9
     run_on:
