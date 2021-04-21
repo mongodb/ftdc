@@ -111,7 +111,7 @@ buildvariants:
       GO_BIN_PATH: /opt/golang/go1.10/bin/go
       GOROOT: /opt/golang/go1.10
     run_on:
-      - archlinux-build
+      - archlinux-new-large
     tasks: [ "testGroup" ]
 
   - name: lint
@@ -120,7 +120,7 @@ buildvariants:
       GO_BIN_PATH: /opt/golang/go1.13/bin/go
       GOROOT: /opt/golang/go1.13
     run_on:
-      - archlinux-test
+      - archlinux-new-small
     tasks: [ "lintGroup" ]
 
   - name: ubuntu1604
