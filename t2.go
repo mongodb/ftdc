@@ -1,16 +1,12 @@
-package main
+package ftdc
 
 import (
 	"context"
 	"io"
 	"log"
-	"os"
-	"strings"
 
 	"github.com/evergreen-ci/birch"
-	"github.com/mongodb/ftdc"
 
-	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
 
@@ -29,7 +25,7 @@ const SECOND_MS int64 = 1000
 	this might cause windows to span multiple seconds and intro gaps
 	find out if we need to handle when multiple seconds are in one chunk
 */
-func window(timestamp ftdc.Metric) int {
+func window(timestamp Metric) int {
 	var currentTime int64 = 0
 	var windowIdx int = -1
 	for idx, ts := range timestamp.Values {
@@ -60,9 +56,9 @@ func window(timestamp ftdc.Metric) int {
 }
 */
 
-func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorOpName string) error {
-	collector := ftdc.NewStreamingCollector(1000, output)
-	defer ftdc.FlushCollector(collector, output)
+func CreateStats(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
+	collector := NewStreamingCollector(1000, output)
+	defer FlushCollector(collector, output)
 
 	for iter.Next() {
 		if err := ctx.Err(); err != nil {
@@ -128,51 +124,4 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 	}
 
 	return nil
-}
-
-
-// this belongs in the curator repository
-// https://github.com/mongodb/curator/operations/ftdc.go
-func main() {
-	inputPath := os.Args[1]
-	outputPath := os.Args[2]
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Perpare the input
-	//
-	inputFile, err := os.Open(inputPath)
-	if err != nil {
-		errors.Wrapf(err, "problem opening file '%s'", inputPath)
-	}
-
-	//prepare Actor.Operation name
-	actorOp := strings.Split(inputPath, "/")
-	aoWithSuffix := strings.Split(actorOp[len(actorOp)-1], ".")
-	aoName := aoWithSuffix[0] + "." + aoWithSuffix[1]
-
-	defer func() { grip.Warning(inputFile.Close()) }()
-
-	// open the data source
-	//
-	var outputFile *os.File
-	if outputPath == "" {
-		outputFile = os.Stdout
-	} else {
-		if _, err = os.Stat(outputPath); !os.IsNotExist(err) {
-			errors.Errorf("cannot write ftdc to '%s', file already exists", outputPath)
-		}
-
-		outputFile, err = os.Create(outputPath)
-		if err != nil {
-			errors.Wrapf(err, "problem opening file '%s'", outputPath)
-		}
-		defer func() { grip.EmergencyFatal(outputFile.Close()) }()
-	}
-	// actually convert data
-	//
-	if err := CreateStats(ctx, ftdc.ReadChunks(ctx, inputFile), outputFile, aoName); err != nil {
-		errors.Wrap(err, "problem parsing csv")
-	}
 }
