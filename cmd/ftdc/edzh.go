@@ -63,8 +63,9 @@ func window(timestamp ftdc.Metric) int {
 func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := ftdc.NewStreamingCollector(1000, output)
 	defer ftdc.FlushCollector(collector, output)
+
 	for iter.Next() {
-		if ctx.Err() != nil {
+		if err := ctx.Err(); err != nil {
 			return errors.New("operation aborted")
 		}
 		chunk := iter.Chunk()
@@ -112,7 +113,7 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 				}
 			}
 		}
-		
+
 		actorOpElems := birch.NewDocument(elems...)
 		actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
 		cedarElems := birch.NewDocument(actorOpDoc, startTime, endTime)
