@@ -75,17 +75,25 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 		endOfWindowIdx := window(timestamp)
 		
 		elems := make([]*birch.Element, 0)
+		var startTime *birch.Element 
+		var endTime *birch.Element 
 		if endOfWindowIdx > -1 {
 			for _, metric := range chunk.Metrics {
 				switch name := metric.Key(); name {
 				case "ts":
 					currentTimestamp := metric.Values[endOfWindowIdx]
 					element := birch.EC.DateTime("timestamp", currentTimestamp)
+					startTime = birch.EC.DateTime("start", currentTimestamp)    
+					endTime = birch.EC.DateTime("end", metric.Values[endOfWindowIdx+1])
 					elems = append(elems, element)
+				case "counters.n":
+					elems = append(elems, birch.EC.Int64("n", metric.Values[endOfWindowIdx]))
 				case "counters.ops":
 					elems = append(elems, birch.EC.Int64("ops", metric.Values[endOfWindowIdx]))
 				case "counters.size":
 					elems = append(elems, birch.EC.Int64("size", metric.Values[endOfWindowIdx]))
+				case "counters.errors":
+					elems = append(elems, birch.EC.Int64("errors", metric.Values[endOfWindowIdx]))
 				case "timers.dur":
 					elems = append(elems, birch.EC.Int64("dur", metric.Values[endOfWindowIdx]))
 				case "timers.total":
@@ -94,11 +102,23 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 					break
 				}
 			}
+		} else {
+			for _, metric := range chunk.Metrics {
+				switch name := metric.Key(); name {
+				case "ts":
+					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values) - 2])
+					endTime = birch.EC.DateTime("end", metric.Values[len(metric.Values) - 1])
+				default:
+					break
+				}
+			}
 		}
 		actorOpElems := birch.NewDocument(elems...)
 		actorOpDoc := birch.EC.SubDocument(actorName, actorOpElems)
+		cedarElems := birch.NewDocument(actorOpDoc, startTime, endTime)
+		cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
 		if len(elems) > 0 {
-			if err := collector.Add(birch.NewDocument(actorOpDoc)); err != nil {
+			if err := collector.Add(birch.NewDocument(cedarDoc)); err != nil {
 				log.Fatal(err)
 				return errors.WithStack(err)
 			}
