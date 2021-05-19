@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/ftdc"
@@ -57,14 +58,11 @@ func window(timestamp ftdc.Metric) int {
   "start": 999,
   "end": 1000
 }
-
-
 */
 
-func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorName string) error {
+func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := ftdc.NewStreamingCollector(1000, output)
 	defer ftdc.FlushCollector(collector, output)
-	// prefix := "cedar." + actorName
 	for iter.Next() {
 		if ctx.Err() != nil {
 			return errors.New("operation aborted")
@@ -73,17 +71,18 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 
 		timestamp := chunk.Metrics[0]
 		endOfWindowIdx := window(timestamp)
-		
+
 		elems := make([]*birch.Element, 0)
-		var startTime *birch.Element 
-		var endTime *birch.Element 
+		var startTime *birch.Element
+		var endTime *birch.Element
+
 		if endOfWindowIdx > -1 {
 			for _, metric := range chunk.Metrics {
 				switch name := metric.Key(); name {
 				case "ts":
 					currentTimestamp := metric.Values[endOfWindowIdx]
 					element := birch.EC.DateTime("timestamp", currentTimestamp)
-					startTime = birch.EC.DateTime("start", currentTimestamp)    
+					startTime = birch.EC.DateTime("start", currentTimestamp)
 					endTime = birch.EC.DateTime("end", metric.Values[endOfWindowIdx+1])
 					elems = append(elems, element)
 				case "counters.n":
@@ -106,17 +105,19 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 			for _, metric := range chunk.Metrics {
 				switch name := metric.Key(); name {
 				case "ts":
-					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values) - 2])
-					endTime = birch.EC.DateTime("end", metric.Values[len(metric.Values) - 1])
+					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values)-2])
+					endTime = birch.EC.DateTime("end", metric.Values[len(metric.Values)-1])
 				default:
 					break
 				}
 			}
 		}
+		
 		actorOpElems := birch.NewDocument(elems...)
-		actorOpDoc := birch.EC.SubDocument(actorName, actorOpElems)
+		actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
 		cedarElems := birch.NewDocument(actorOpDoc, startTime, endTime)
 		cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
+
 		if len(elems) > 0 {
 			if err := collector.Add(birch.NewDocument(cedarDoc)); err != nil {
 				log.Fatal(err)
@@ -141,6 +142,12 @@ func main() {
 	if err != nil {
 		errors.Wrapf(err, "problem opening file '%s'", inputPath)
 	}
+
+	//prepare Actor.Operation name
+	actorOp := strings.Split(inputPath, "/")
+	aoWithSuffix := strings.Split(actorOp[len(actorOp)-1], ".")
+	aoName := aoWithSuffix[0] + "." + aoWithSuffix[1]
+
 	defer func() { grip.Warning(inputFile.Close()) }()
 
 	// open the data source
@@ -150,18 +157,18 @@ func main() {
 		outputFile = os.Stdout
 	} else {
 		if _, err = os.Stat(outputPath); !os.IsNotExist(err) {
-			 errors.Errorf("cannot write ftdc to '%s', file already exists", outputPath)
+			errors.Errorf("cannot write ftdc to '%s', file already exists", outputPath)
 		}
 
 		outputFile, err = os.Create(outputPath)
 		if err != nil {
-			 errors.Wrapf(err, "problem opening file '%s'", outputPath)
+			errors.Wrapf(err, "problem opening file '%s'", outputPath)
 		}
 		defer func() { grip.EmergencyFatal(outputFile.Close()) }()
 	}
 	// actually convert data
 	//
-	if err := CreateStats(ctx, ftdc.ReadChunks(ctx, inputFile), outputFile, "testactoroperation"); err != nil {
-		 errors.Wrap(err, "problem parsing csv")
+	if err := CreateStats(ctx, ftdc.ReadChunks(ctx, inputFile), outputFile, aoName); err != nil {
+		errors.Wrap(err, "problem parsing csv")
 	}
 }
