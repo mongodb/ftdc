@@ -32,7 +32,7 @@ functions:
       working_dir: gopath/src/github.com/mongodb/ftdc
       binary: make
       args: ["${make_args|}", "${target}"]
-      add_expansions_to_env: true
+      include_expansions_in_env: ["DISABLE_COVERAGE", "GO_BIN_PATH", "GOROOT", "RACE_DETECTOR", "TEST_TIMEOUT"]
       env:
         GOPATH: ${workdir}/gopath
         VENDOR_PKG: "github.com/${trigger_repo_owner}/${trigger_repo_name}"
@@ -108,8 +108,8 @@ buildvariants:
       RACE_DETECTOR: true
       DISABLE_COVERAGE: true
       TEST_TIMEOUT: 45m
-      GO_BIN_PATH: /opt/golang/go1.10/bin/go
-      GOROOT: /opt/golang/go1.10
+      GO_BIN_PATH: /opt/golang/go1.16/bin/go
+      GOROOT: /opt/golang/go1.16
     run_on:
       - archlinux-new-large
     tasks: [ "testGroup" ]
@@ -117,28 +117,28 @@ buildvariants:
   - name: lint
     display_name: Lint (Arch Linux)
     expansions:
-      GO_BIN_PATH: /opt/golang/go1.13/bin/go
-      GOROOT: /opt/golang/go1.13
+      GO_BIN_PATH: /opt/golang/go1.16/bin/go
+      GOROOT: /opt/golang/go1.16
     run_on:
       - archlinux-new-small
     tasks: [ "lintGroup" ]
 
-  - name: ubuntu1604
-    display_name: Ubuntu 16.04
+  - name: ubuntu
+    display_name: Ubuntu 18.04
     expansions:
       DISABLE_COVERAGE: true
-      GO_BIN_PATH: /opt/golang/go1.9/bin/go
-      GOROOT: /opt/golang/go1.9
+      GO_BIN_PATH: /opt/golang/go1.16/bin/go
+      GOROOT: /opt/golang/go1.16
     run_on:
-      - ubuntu1604-test
+      - ubuntu1804-test
     tasks: [ "testGroup" ]
 
   - name: macos
     display_name: macOS
     expansions:
       DISABLE_COVERAGE: true
-      GO_BIN_PATH: /opt/golang/go1.9/bin/go
-      GOROOT: /opt/golang/go1.9
+      GO_BIN_PATH: /opt/golang/go1.16/bin/go
+      GOROOT: /opt/golang/go1.16
     run_on:
       - macos-1014
     tasks: [ "testGroup" ]
@@ -152,6 +152,6 @@ buildvariants:
       - windows-64-vs2017-large
     expansions:
       DISABLE_COVERAGE: true
-      GO_BIN_PATH: /cygdrive/c/golang/go1.9/bin/go
-      GOROOT: "C:/golang/go1.9"
+      GO_BIN_PATH: /cygdrive/c/golang/go1.16/bin/go
+      GOROOT: "C:/golang/go1.16"
     tasks: [ "testGroup" ]
