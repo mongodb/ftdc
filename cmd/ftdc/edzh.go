@@ -15,31 +15,34 @@ import (
 )
 
 const SECOND_MS int64 = 1000
+const MAX_SAMPLES = 300
 
 // returns last line of current window
 // this will handle if a second of metrics spans across multiple chunks
 // I don't think this happens though
 // finds possible end of a window in metric values
 /**
-[998, 998, 999, 999| 1000, 1000, 1001]
+[... 998, 998, 999, 999| 1000, 1000, 1001 ... 1998, 1998, 1999, 1999| 2000, 2000, 2001 ...]
 								 ^    ^
 				  windowIdx  currentTime
 					999/1000 = 0
 					1000/1000 = 1, 1 > 0, so record the latest second windowIdx and currentTime
 	this might cause windows to span multiple seconds and intro gaps
 	find out if we need to handle when multiple seconds are in one chunk
+
+What if we don't find a second at all?
 */
-func window(timestamp ftdc.Metric) int {
-	var currentTime int64 = 0
+func window(tsMetric ftdc.Metric) (int, int64) {
+	var currSecond int64 = 0
 	var windowIdx int = -1
-	for idx, ts := range timestamp.Values {
-		if ts/SECOND_MS > currentTime {
+	for idx, ts := range tsMetric.Values {
+		if ts/SECOND_MS > currSecond {
 			windowIdx = idx - 1
-			currentTime = ts / SECOND_MS
+			currSecond = ts / SECOND_MS
 		}
 	}
 
-	return windowIdx
+	return windowIdx, currSecond
 }
 
 /*
@@ -61,7 +64,7 @@ func window(timestamp ftdc.Metric) int {
 */
 
 func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorOpName string) error {
-	collector := ftdc.NewStreamingCollector(1000, output)
+	collector := ftdc.NewStreamingCollector(MAX_SAMPLES-1, output)
 	defer ftdc.FlushCollector(collector, output)
 
 	for iter.Next() {
@@ -70,22 +73,17 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 		}
 		chunk := iter.Chunk()
 
-		timestamp := chunk.Metrics[0]
-		endOfWindowIdx := window(timestamp)
+		tsMetric := chunk.Metrics[0]
+		endOfWindowIdx, currSecond := window(tsMetric)
 
 		elems := make([]*birch.Element, 0)
 		var startTime *birch.Element
-		var endTime *birch.Element
 
 		if endOfWindowIdx > -1 {
 			for _, metric := range chunk.Metrics {
 				switch name := metric.Key(); name {
 				case "ts":
-					currentTimestamp := metric.Values[endOfWindowIdx]
-					element := birch.EC.DateTime("timestamp", currentTimestamp)
-					startTime = birch.EC.DateTime("start", currentTimestamp)
-					endTime = birch.EC.DateTime("end", metric.Values[endOfWindowIdx+1])
-					elems = append(elems, element)
+					startTime = birch.EC.DateTime("start", currSecond*SECOND_MS)
 				case "counters.n":
 					elems = append(elems, birch.EC.Int64("n", metric.Values[endOfWindowIdx]))
 				case "counters.ops":
@@ -106,8 +104,7 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 			for _, metric := range chunk.Metrics {
 				switch name := metric.Key(); name {
 				case "ts":
-					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values)-2])
-					endTime = birch.EC.DateTime("end", metric.Values[len(metric.Values)-1])
+					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values)-1])
 				default:
 					break
 				}
@@ -116,7 +113,7 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 
 		actorOpElems := birch.NewDocument(elems...)
 		actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
-		cedarElems := birch.NewDocument(actorOpDoc, startTime, endTime)
+		cedarElems := birch.NewDocument(startTime, actorOpDoc)
 		cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
 
 		if len(elems) > 0 {
@@ -129,7 +126,6 @@ func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer
 
 	return nil
 }
-
 
 // this belongs in the curator repository
 // https://github.com/mongodb/curator/operations/ftdc.go
