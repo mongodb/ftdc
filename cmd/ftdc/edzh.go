@@ -47,9 +47,9 @@ func window(tsMetric ftdc.Metric) (int, int64) {
 
 /*
 {
+	"start": 1000,
   "cedar": {
     "Actor.Operation": {
-      "timestamp": 999, // non-cumulative, taken from ts
       "n": 0            // cumulative, taken from counters.n
       "ops": 0,         // cumulative, taken from counters.ops
       "size": 0,        // cumulative, taken from counters.size
@@ -57,66 +57,130 @@ func window(tsMetric ftdc.Metric) (int, int64) {
       "dur": 0,         // cumulative, taken from timers.dur
       "total": 0        // cumulative, taken from timers.total
     }
-  },
-  "start": 999,
-  "end": 1000
+  }
 }
 */
 
 func CreateStats(ctx context.Context, iter *ftdc.ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := ftdc.NewStreamingCollector(MAX_SAMPLES-1, output)
 	defer ftdc.FlushCollector(collector, output)
+	currentSecond := int64(0)
+	endOfSecondIdx := -1
+	prevChunk := iter.Chunk()
 
 	for iter.Next() {
 		if err := ctx.Err(); err != nil {
 			return errors.New("operation aborted")
 		}
 		chunk := iter.Chunk()
-
-		tsMetric := chunk.Metrics[0]
-		endOfWindowIdx, currSecond := window(tsMetric)
-
 		elems := make([]*birch.Element, 0)
 		var startTime *birch.Element
 
-		if endOfWindowIdx > -1 {
-			for _, metric := range chunk.Metrics {
-				switch name := metric.Key(); name {
-				case "ts":
-					startTime = birch.EC.DateTime("start", currSecond*SECOND_MS)
-				case "counters.n":
-					elems = append(elems, birch.EC.Int64("n", metric.Values[endOfWindowIdx]))
-				case "counters.ops":
-					elems = append(elems, birch.EC.Int64("ops", metric.Values[endOfWindowIdx]))
-				case "counters.size":
-					elems = append(elems, birch.EC.Int64("size", metric.Values[endOfWindowIdx]))
-				case "counters.errors":
-					elems = append(elems, birch.EC.Int64("errors", metric.Values[endOfWindowIdx]))
-				case "timers.dur":
-					elems = append(elems, birch.EC.Int64("dur", metric.Values[endOfWindowIdx]))
-				case "timers.total":
-					elems = append(elems, birch.EC.Int64("total", metric.Values[endOfWindowIdx]))
-				default:
-					break
-				}
-			}
-		} else {
-			for _, metric := range chunk.Metrics {
-				switch name := metric.Key(); name {
-				case "ts":
-					startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values)-1])
-				default:
-					break
-				}
-			}
-		}
+		tsMetric := chunk.Metrics[0]
+/* [998, 999, 999] [1000, 1000, 1001]
+currentSecond = 0
+idx = 2
 
-		actorOpElems := birch.NewDocument(elems...)
-		actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
-		cedarElems := birch.NewDocument(startTime, actorOpDoc)
-		cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
+next chunk:
+currentSecond = 0
+ts/SECOND_MS = 1
+idx = 2
+*/
+		for idx, ts := range tsMetric.Values {
+			if ts/SECOND_MS == currentSecond {
+				endOfSecondIdx = idx
+			} else {
+				if endOfSecondIdx > -1 {
+					if endOfSecondIdx == len(prevChunk.Metrics[0].Values) - 1 {
+						for _, metric := range prevChunk.Metrics {
+							switch name := metric.Key(); name {
+							case "ts":
+								startTime = birch.EC.DateTime("start", currentSecond*SECOND_MS)
+							case "counters.n":
+								elems = append(elems, birch.EC.Int64("n", metric.Values[endOfSecondIdx]))
+							case "counters.ops":
+								elems = append(elems, birch.EC.Int64("ops", metric.Values[endOfSecondIdx]))
+							case "counters.size":
+								elems = append(elems, birch.EC.Int64("size", metric.Values[endOfSecondIdx]))
+							case "counters.errors":
+								elems = append(elems, birch.EC.Int64("errors", metric.Values[endOfSecondIdx]))
+							case "timers.dur":
+								elems = append(elems, birch.EC.Int64("dur", metric.Values[endOfSecondIdx]))
+							case "timers.total":
+								elems = append(elems, birch.EC.Int64("total", metric.Values[endOfSecondIdx]))
+							default:
+								break
+							}
+						}
+					} else {
+						for _, metric := range chunk.Metrics {
+							switch name := metric.Key(); name {
+							case "ts":
+								startTime = birch.EC.DateTime("start", currentSecond*SECOND_MS)
+							case "counters.n":
+								elems = append(elems, birch.EC.Int64("n", metric.Values[endOfSecondIdx]))
+							case "counters.ops":
+								elems = append(elems, birch.EC.Int64("ops", metric.Values[endOfSecondIdx]))
+							case "counters.size":
+								elems = append(elems, birch.EC.Int64("size", metric.Values[endOfSecondIdx]))
+							case "counters.errors":
+								elems = append(elems, birch.EC.Int64("errors", metric.Values[endOfSecondIdx]))
+							case "timers.dur":
+								elems = append(elems, birch.EC.Int64("dur", metric.Values[endOfSecondIdx]))
+							case "timers.total":
+								elems = append(elems, birch.EC.Int64("total", metric.Values[endOfSecondIdx]))
+							default:
+								break
+							}
+						}
+					}
+				}
+				endOfSecondIdx = idx
+				currentSecond = ts / SECOND_MS
+				println(currentSecond)
+			}
+			prevChunk = chunk;
+		}
+		// endOfWindowIdx, currSecond := window(tsMetric)
+
+		// if endOfWindowIdx > -1 {
+		// for _, metric := range chunk.Metrics {
+		// 	switch name := metric.Key(); name {
+		// 	case "ts":
+		// 		startTime = birch.EC.DateTime("start", currSecond*SECOND_MS)
+		// 	case "counters.n":
+		// 		elems = append(elems, birch.EC.Int64("n", metric.Values[endOfWindowIdx]))
+		// 	case "counters.ops":
+		// 		elems = append(elems, birch.EC.Int64("ops", metric.Values[endOfWindowIdx]))
+		// 	case "counters.size":
+		// 		elems = append(elems, birch.EC.Int64("size", metric.Values[endOfWindowIdx]))
+		// 	case "counters.errors":
+		// 		elems = append(elems, birch.EC.Int64("errors", metric.Values[endOfWindowIdx]))
+		// 	case "timers.dur":
+		// 		elems = append(elems, birch.EC.Int64("dur", metric.Values[endOfWindowIdx]))
+		// 	case "timers.total":
+		// 		elems = append(elems, birch.EC.Int64("total", metric.Values[endOfWindowIdx]))
+		// 	default:
+		// 		break
+		// 	}
+		// }
+		// } else {
+		// 	for _, metric := range chunk.Metrics {
+		// 		switch name := metric.Key(); name {
+		// 		case "ts":
+		// 			startTime = birch.EC.DateTime("start", metric.Values[len(metric.Values)-1])
+		// 		default:
+		// 			break
+		// 		}
+		// 	}
+		// }
 
 		if len(elems) > 0 {
+
+			actorOpElems := birch.NewDocument(elems...)
+			actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
+			cedarElems := birch.NewDocument(startTime, actorOpDoc)
+			cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
 			if err := collector.Add(birch.NewDocument(cedarDoc)); err != nil {
 				log.Fatal(err)
 				return errors.WithStack(err)
