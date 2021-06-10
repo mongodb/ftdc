@@ -108,6 +108,7 @@ func extractMetricsFromValue(val *birch.Value) (extractedMetrics, error) {
 	case bsontype.DateTime:
 		metrics.values = append(metrics.values, birch.VC.Int64(epochMs(val.Time())))
 		metrics.types = append(metrics.types, bsontype.DateTime)
+		metrics.ts = val.Time()
 	case bsontype.Timestamp:
 		t, i := val.Timestamp()
 		metrics.values = append(metrics.values, birch.VC.Int64(int64(t)), birch.VC.Int64(int64(i)))
