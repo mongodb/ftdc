@@ -35,7 +35,7 @@ func newStreamingCollector(maxSamples int, writer io.Writer) *streamingCollector
 
 func (c *streamingCollector) Reset() { c.count = 0; c.Collector.Reset() }
 func (c *streamingCollector) Add(in interface{}) error {
-	if c.count-1 >= c.maxSamples {
+	if c.count >= c.maxSamples {
 		if err := FlushCollector(c, c.output); err != nil {
 			return errors.Wrap(err, "problem flushing collector contents")
 		}
