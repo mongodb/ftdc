@@ -1,7 +1,7 @@
 # start project configuration
 name := ftdc
 buildDir := build
-packages := $(name) events hdrhist metrics util ftdc
+packages := $(name) events hdrhist metrics util
 orgPath := github.com/mongodb
 projectPath := $(orgPath)/$(name)
 # end project configuration
@@ -57,8 +57,6 @@ $(buildDir)/golangci-lint:
 $(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/golangci-lint
 	$(gobin) build -o $@ $<
 # end lint setup targets
-$(buildDir)/ftdc:cmd/ftdc/edzh.go
-	$(goEnv) $(gobin) build -o $@ $<
 
 
 # userfacing targets for basic build and development operations
