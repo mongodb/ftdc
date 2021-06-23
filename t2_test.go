@@ -3,10 +3,13 @@ package ftdc
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"testing"
-	"math/rand"
+	"time"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +48,7 @@ func TestTranslateGennyIntegration(t *testing.T) {
 			require.NoError(t, err)
 
 			t.Run("Translate", func(t *testing.T) {
+				startAt := time.Now()
 				iter := ReadChunks(ctx, bytes.NewBuffer(data))
 				out := &bytes.Buffer{}
 				err := TranslateGenny(ctx, iter, out, "test")
@@ -54,6 +58,7 @@ func TestTranslateGennyIntegration(t *testing.T) {
 				iter = ReadChunks(ctx, out)
 				counter := 0
 				num := 0
+				lastChunk := false
 				for iter.Next() {
 					c := iter.Chunk()
 					counter++
@@ -65,12 +70,26 @@ func TestTranslateGennyIntegration(t *testing.T) {
 					require.True(t, len(metric.Values) > 0)
 
 					assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
-					assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
+
+					// only check length of values if it's not the last chunk
+					if (len(metric.Values) < test.expectedMetrics) {
+						require.Equal(t, false, lastChunk)
+						lastChunk = true
+					}
+
+					if (!lastChunk) {
+						assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
+					}
 				}
 
 				assert.NoError(t, iter.Err())
 				assert.Equal(t, test.expectedNum, num)
 				assert.Equal(t, test.expectedChunks, counter)
+				fmt.Println(testMessage{
+					"series":   num,
+					"iters":    counter,
+					"dur_secs": time.Since(startAt).Seconds(),
+				})
 			})
 		})
 	}

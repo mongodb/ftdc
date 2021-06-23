@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"math"
+
 	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 )
