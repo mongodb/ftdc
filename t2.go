@@ -15,14 +15,17 @@ const MAX_SAMPLES = 300
 
 func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := NewStreamingCollector(MAX_SAMPLES, output)
-	defer FlushCollector(collector, output)
-	
+	var err error
+	defer func() {
+		err = FlushCollector(collector, output)
+	}()
+
 	currentSecond := int64(0)
 	endOfSecondIdx := -1
 	prevChunk := iter.Chunk()
 
 	for iter.Next() {
-		if err := ctx.Err(); err != nil {
+		if err = ctx.Err(); err != nil {
 			return errors.New("operation aborted")
 		}
 		currChunk := iter.Chunk()
@@ -33,7 +36,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 
 		for idx, ts := range timestamp.Values {
 			if math.Ceil(float64(ts)/float64(SECOND_MS)) != float64(currentSecond) && endOfSecondIdx > -1 {
-				
+
 				chunk := currChunk
 				if endOfSecondIdx == len(prevChunk.Metrics[0].Values)-1 {
 					chunk = prevChunk
@@ -65,7 +68,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 				}
 			}
 			endOfSecondIdx = idx
-			currentSecond = int64(math.Ceil(float64(ts)/float64(SECOND_MS)))
+			currentSecond = int64(math.Ceil(float64(ts) / float64(SECOND_MS)))
 			prevChunk = currChunk
 		}
 

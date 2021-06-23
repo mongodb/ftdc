@@ -17,8 +17,8 @@ import (
 
 func TestTranslateGennyIntegration(t *testing.T) {
 	for _, test := range []struct {
-		name 						string
-		path 						string
+		name            string
+		path            string
 		skipSlow        bool
 		skipAll         bool
 		expectedNum     int
@@ -28,14 +28,14 @@ func TestTranslateGennyIntegration(t *testing.T) {
 		docLen          int
 	}{
 		{
-			name: "GennyMock",
-			path: "genny_metrics.ftdc",
-			docLen: 4,
-			expectedNum: 9,
-			expectedChunks: 4,
+			name:            "GennyMock",
+			path:            "genny_metrics.ftdc",
+			docLen:          4,
+			expectedNum:     9,
+			expectedChunks:  4,
 			expectedMetrics: 300,
-			reportInterval: 1000,
-			skipSlow: true,
+			reportInterval:  1000,
+			skipSlow:        true,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -72,12 +72,12 @@ func TestTranslateGennyIntegration(t *testing.T) {
 					assert.Equal(t, metric.startingValue, metric.Values[0], "key=%s", metric.Key())
 
 					// only check length of values if it's not the last chunk
-					if (len(metric.Values) < test.expectedMetrics) {
+					if len(metric.Values) < test.expectedMetrics {
 						require.Equal(t, false, lastChunk)
 						lastChunk = true
 					}
 
-					if (!lastChunk) {
+					if !lastChunk {
 						assert.Len(t, metric.Values, test.expectedMetrics, "%d: %d", len(metric.Values), test.expectedMetrics)
 					}
 				}
