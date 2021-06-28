@@ -30,7 +30,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 
 	for iter.Next() {
 		if err = ctx.Err(); err != nil {
-			return errors.New("operation aborted")
+			return err
 		}
 		if prevChunk == nil {
 			prevChunk = iter.Chunk()
