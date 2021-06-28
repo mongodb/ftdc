@@ -20,13 +20,12 @@ const (
 // cumulative event driven metrics into metrics of one-second granularity.
 func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := NewStreamingCollector(max_samples, output)
-	var err error
 
 	prevSecond := int64(0)
 	var prevChunk *Chunk
 
 	for iter.Next() {
-		if err = ctx.Err(); err != nil {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if prevChunk == nil {
