@@ -15,7 +15,7 @@ const (
 	max_samples int   = 300
 )
 
-// TranslateGenny exports the contents of a stream of genny ts.ftdc 
+// TranslateGenny exports the contents of a stream of genny ts.ftdc
 // chunks into cedar ftdc which is readable using t2. Translates
 // cumulative event driven metrics into metrics of one-second granularity.
 func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
