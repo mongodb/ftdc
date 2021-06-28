@@ -60,7 +60,6 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 					chunk = prevChunk
 				}
 
-				// create element
 				for _, metric := range chunk.Metrics {
 					switch name := metric.Key(); name {
 					case "ts":
@@ -90,7 +89,6 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 			}
 		}
 
-		// create doc
 		if len(elems) > 0 {
 			actorOpElems := birch.NewDocument(elems...)
 			actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
