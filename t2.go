@@ -20,7 +20,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 		err = FlushCollector(collector, output)
 	}()
 
-	currentSecond := int64(0)
+	prevSecond := int64(0)
 	endOfSecondIdx := -1
 	prevChunk := iter.Chunk()
 
@@ -35,7 +35,8 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 		timestamp := currChunk.Metrics[0]
 
 		for idx, ts := range timestamp.Values {
-			if math.Ceil(float64(ts)/float64(SECOND_MS)) != float64(currentSecond) && endOfSecondIdx > -1 {
+			currSecond := math.Ceil(float64(ts) / float64(SECOND_MS))
+			if currSecond != float64(prevSecond) && endOfSecondIdx > -1 {
 
 				chunk := currChunk
 				if endOfSecondIdx == len(prevChunk.Metrics[0].Values)-1 {
@@ -45,7 +46,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 				for _, metric := range chunk.Metrics {
 					switch name := metric.Key(); name {
 					case "ts":
-						startTime = birch.EC.DateTime("start", currentSecond*SECOND_MS)
+						startTime = birch.EC.DateTime("start", prevSecond*SECOND_MS)
 					case "counters.n":
 						elems = append(elems, birch.EC.Int64("n", metric.Values[endOfSecondIdx]))
 					case "counters.ops":
@@ -68,7 +69,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 				}
 			}
 			endOfSecondIdx = idx
-			currentSecond = int64(math.Ceil(float64(ts) / float64(SECOND_MS)))
+			prevSecond = int64(currSecond)
 			prevChunk = currChunk
 		}
 
