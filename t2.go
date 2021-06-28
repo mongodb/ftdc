@@ -37,7 +37,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 
 		// While Metrics can be identified using Metrics[i].Key(),
 		// each metric has a fixed position in the Metrics slice.
-		// The 0th position in Metrics is timestamp
+		// The 0th position in Metrics is timestamp.
 		timestamp := currChunk.Metrics[0]
 		for i, ts := range timestamp.Values {
 			currSecond := int64(math.Ceil(float64(ts) / float64(second_ms)))
