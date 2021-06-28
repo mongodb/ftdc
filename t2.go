@@ -21,12 +21,9 @@ const (
 func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := NewStreamingCollector(max_samples, output)
 	var err error
-	defer func() {
-		err = FlushCollector(collector, output)
-	}()
 
 	prevSecond := int64(0)
-	prevChunk := iter.Chunk()
+	var prevChunk *Chunk
 
 	for iter.Next() {
 		if err = ctx.Err(); err != nil {
@@ -101,5 +98,5 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 		}
 	}
 
-	return nil
+	return errors.Wrap(FlushCollector(collector, output), "flushing collector")
 }
