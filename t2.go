@@ -87,7 +87,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 						log.Fatal(err)
 						return errors.WithStack(err)
 					}
-					
+
 					elems = nil
 				}
 			}
