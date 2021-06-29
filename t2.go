@@ -23,6 +23,7 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 
 	var prevSecond int64
 	var prevChunk *Chunk
+	var elems []*birch.Element
 
 	for iter.Next() {
 		if err := ctx.Err(); err != nil {
@@ -32,7 +33,6 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 			prevChunk = iter.Chunk()
 		}
 		currChunk := iter.Chunk()
-		elems := make([]*birch.Element, 0)
 		var startTime *birch.Element
 
 		// While Metrics can be identified using Metrics[i].Key(),
@@ -77,17 +77,19 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 				}
 				prevSecond = currSecond
 				prevChunk = currChunk
-			}
-		}
 
-		if len(elems) > 0 {
-			actorOpElems := birch.NewDocument(elems...)
-			actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
-			cedarElems := birch.NewDocument(startTime, actorOpDoc)
-			cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
-			if err := collector.Add(birch.NewDocument(cedarDoc)); err != nil {
-				log.Fatal(err)
-				return errors.WithStack(err)
+				if len(elems) > 0 {
+					actorOpElems := birch.NewDocument(elems...)
+					actorOpDoc := birch.EC.SubDocument(actorOpName, actorOpElems)
+					cedarElems := birch.NewDocument(startTime, actorOpDoc)
+					cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
+					if err := collector.Add(birch.NewDocument(cedarDoc)); err != nil {
+						log.Fatal(err)
+						return errors.WithStack(err)
+					}
+					
+					elems = nil
+				}
 			}
 		}
 	}
