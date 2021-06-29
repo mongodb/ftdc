@@ -42,6 +42,10 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 		for i, ts := range timestamp.Values {
 			currSecond := int64(math.Ceil(float64(ts) / float64(second_ms)))
 
+			if prevSecond == 0 {
+				prevSecond = currSecond
+			}
+
 			// If we've iterated to the next second, record the values in this sample.
 			if currSecond != prevSecond {
 				idx := i
