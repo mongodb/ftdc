@@ -51,15 +51,6 @@ func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, 
 				idx := i
 				chunk := currChunk
 
-				// If the intended sample to be recorded is in the previous chunk, iterate
-				// through the values of the previous chunk instead. This handles the edge
-				// case where the recorded index is both the last sample of both the chunk
-				// and the whole second window.
-				if currChunk != prevChunk {
-					idx = len(prevChunk.Metrics[0].Values) - 1
-					chunk = prevChunk
-				}
-
 				for _, metric := range chunk.Metrics {
 					switch name := metric.Key(); name {
 					case "ts":
