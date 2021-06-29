@@ -21,7 +21,7 @@ const (
 func TranslateGenny(ctx context.Context, iter *ChunkIterator, output io.Writer, actorOpName string) error {
 	collector := NewStreamingCollector(max_samples, output)
 
-	prevSecond := int64(0)
+	var prevSecond int64;
 	var prevChunk *Chunk
 
 	for iter.Next() {
