@@ -32,7 +32,7 @@ func TestTranslateGennyIntegration(t *testing.T) {
 			path:            "genny_metrics.ftdc",
 			docLen:          4,
 			expectedNum:     9,
-			expectedChunks:  4,
+			expectedChunks:  1,
 			expectedMetrics: 300,
 			reportInterval:  1000,
 			skipSlow:        true,
