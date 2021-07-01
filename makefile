@@ -11,7 +11,9 @@ metrics.ftdc:
 	curl -LO "https://ftdc-test-files.s3.amazonaws.com/metrics.ftdc"
 perf_metrics.ftdc:
 	curl -LO "https://ftdc-test-files.s3.amazonaws.com/perf_metrics.ftdc"
-$(buildDir)/output.ftdc.test:perf_metrics.ftdc metrics.ftdc
+genny_metrics.ftdc:
+	curl -LO "https://ftdc-test-files.s3.amazonaws.com/genny_metrics.ftdc"
+$(buildDir)/output.ftdc.test:perf_metrics.ftdc metrics.ftdc genny_metrics.ftdc
 # end test files
 
 # start environment setup
