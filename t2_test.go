@@ -46,12 +46,22 @@ func TestTranslateGennyIntegration(t *testing.T) {
 			defer cancel()
 			data, err := ioutil.ReadAll(file)
 			require.NoError(t, err)
-
+			
+			var mockSlice []*GennyOutputMetadata
+			var mockGennyMetadata GennyOutputMetadata
+			mockGennyMetadata.startTime = 1625003933
+			mockGennyMetadata.endTime = 1625004233
+			mockGennyMetadata.name = "test"
+			
 			t.Run("Translate", func(t *testing.T) {
-				startAt := time.Now()
+				
+				//setup metadata
 				iter := ReadChunks(ctx, bytes.NewBuffer(data))
+				mockGennyMetadata.iter = iter
+
+				startAt := time.Now()
 				out := &bytes.Buffer{}
-				err := TranslateGenny(ctx, iter, out, "test")
+				err := TranslateGenny(ctx, append(mockSlice, &mockGennyMetadata), out)
 				require.NoError(t, err)
 
 				// verify output
