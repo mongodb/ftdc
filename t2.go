@@ -66,7 +66,6 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 			}
 		}
 
-		// 
 		if len(workloadDoc) > 1 {
 			cedarElems := birch.NewDocument(workloadDoc...)
 			cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
