@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"math"
-	"os"
 
 	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
@@ -80,8 +79,8 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 
 // Determine StartTime and EndTime of a genny workload file
 // by passing through all of its chunks.
-func GetGennyTime(ctx context.Context, input *os.File, gennyOutputMetadata GennyOutputMetadata) GennyOutputMetadata {
-	iter := ReadChunks(ctx, input)
+func GetGennyTime(ctx context.Context, gennyOutputMetadata GennyOutputMetadata) GennyOutputMetadata {
+	iter := gennyOutputMetadata.Iter
 
 	var endTime int64
 	for iter.Next() {
@@ -94,7 +93,6 @@ func GetGennyTime(ctx context.Context, input *os.File, gennyOutputMetadata Genny
 	}
 	gennyOutputMetadata.EndTime = int64(math.Ceil(float64(endTime) / float64(second_ms)))
 	iter.Close()
-	input.Close()
 
 	return gennyOutputMetadata
 }
