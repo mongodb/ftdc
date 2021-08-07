@@ -5,16 +5,17 @@ import (
 	"io"
 	"log"
 	"math"
+	"os"
 
 	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
 )
 
 type GennyOutputMetadata struct {
-	name       string
-	iter       *ChunkIterator
-	startTime  int64
-	endTime    int64
+	Name       string
+	Iter       *ChunkIterator
+	StartTime  int64
+	EndTime    int64
 	prevIdx    int
 	prevSample []*birch.Element
 	prevSecond int64
@@ -35,8 +36,11 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 
 	// Determine when the whole genny workload starts and ends
 	for _, gennyOut := range gennyOutputSlice {
-		workloadStartSec = min(workloadStartSec, gennyOut.startTime)
-		workloadEndSec = max(workloadEndSec, gennyOut.endTime)
+		workloadStartSec = min(workloadStartSec, gennyOut.StartTime)
+		workloadEndSec = max(workloadEndSec, gennyOut.EndTime)
+		if gennyOut.prevSample == nil {
+			gennyOut.prevSample = createZeroedMetrics()
+		}
 	}
 
 	// Iterate through the whole workload duration
@@ -47,20 +51,22 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 		var workloadDoc []*birch.Element
 		startTime := birch.EC.DateTime("start", timeSecond*second_ms)
 		workloadDoc = append(workloadDoc, startTime)
-		// iterate through each workload
+
+		// Append prevSample to workloadDoc if the file has ended, we don't find the next window,
+		// or if the operation hasn't started at the current time in seconds.
 		for _, gennyOut := range gennyOutputSlice {
 			if timeSecond >= gennyOut.prevSecond {
-				if elems := translateCurrentSecond(gennyOut); elems != nil {
-					workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.name, birch.NewDocument(elems...)))
+				if elems := translateAtNextWindow(gennyOut); elems != nil {
+					workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.Name, birch.NewDocument(elems...)))
 				} else {
-					workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.name, birch.NewDocument(gennyOut.prevSample...)))
+					workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.Name, birch.NewDocument(gennyOut.prevSample...)))
 				}
 			} else {
-				workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.name, birch.NewDocument(gennyOut.prevSample...)))
+				workloadDoc = append(workloadDoc, birch.EC.SubDocument(gennyOut.Name, birch.NewDocument(gennyOut.prevSample...)))
 			}
 		}
 
-		// If the workload doc contains elems, add it to the collector
+		// 
 		if len(workloadDoc) > 1 {
 			cedarElems := birch.NewDocument(workloadDoc...)
 			cedarDoc := birch.EC.SubDocument("cedar", cedarElems)
@@ -73,10 +79,33 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 	return errors.Wrap(FlushCollector(collector, output), "flushing collector")
 }
 
-func translateCurrentSecond(gennyOutput *GennyOutputMetadata) []*birch.Element {
+// Determine StartTime and EndTime of a genny workload file
+// by passing through all of its chunks.
+func GetGennyTime(ctx context.Context, input *os.File, gennyOutputMetadata GennyOutputMetadata) GennyOutputMetadata {
+	iter := ReadChunks(ctx, input)
+
+	var endTime int64
+	for iter.Next() {
+		if gennyOutputMetadata.StartTime == 0 {
+			gennyOutputMetadata.StartTime = int64(math.Ceil(float64(iter.Chunk().Metrics[0].Values[0]) / float64(second_ms)))
+		}
+		iter.Chunk().GetMetadata()
+		timestamp := iter.Chunk().Metrics[0].Values
+		endTime = max(endTime, timestamp[len(timestamp)-1])
+	}
+	gennyOutputMetadata.EndTime = int64(math.Ceil(float64(endTime) / float64(second_ms)))
+	iter.Close()
+	input.Close()
+
+	return gennyOutputMetadata
+}
+
+// Go through the chunks until we find the end of the window, i.e., a change in second.
+// Updates GennyOutputMetadata prev values.
+func translateAtNextWindow(gennyOutput *GennyOutputMetadata) []*birch.Element {
 	var elems []*birch.Element
 
-	iter := gennyOutput.iter
+	iter := gennyOutput.Iter
 
 	if iter.Chunk() == nil {
 		iter.Next()
@@ -102,6 +131,8 @@ func translateCurrentSecond(gennyOutput *GennyOutputMetadata) []*birch.Element {
 			}
 		}
 
+		// If the end of window isn't found, try the next chunk.
+		// If the file has ended, returns nil.
 		if elems == nil {
 			if iter.Next() {
 				gennyOutput.prevIdx = 0
@@ -113,7 +144,7 @@ func translateCurrentSecond(gennyOutput *GennyOutputMetadata) []*birch.Element {
 	return elems
 }
 
-// Take the current index and extract all of the corresponding metrics
+// Take the current chunk and index translate the corresponding metrics
 func translateMetrics(idx int, metrics []Metric) []*birch.Element {
 	var elems []*birch.Element
 	for _, metric := range metrics {
@@ -141,7 +172,7 @@ func translateMetrics(idx int, metrics []Metric) []*birch.Element {
 	return elems
 }
 
-// Generate a sample of 0s for samples preceding an actor operation starttime.
+// Generate a sample of 0s for samples preceding an actor operation StartTime.
 func createZeroedMetrics() []*birch.Element {
 	var elems []*birch.Element
 
