@@ -13,9 +13,9 @@ import (
 // GennyOutputMetadata aids in the genny output translation process.
 // It stores the actor operation Name, the ftdc file's chunk Iter and
 // operation StartTime and EndTime. These values must be set prior to
-// calling TranslateGenny. Stores prev values that are modified
-// during the translation process once a window is found to allow for
-// ftdc files to resume from where it previously recorded a window.
+// calling TranslateGenny. Stores prev values to allow for ftdc files
+// to resume from where it previously recorded a window. These values
+// are updated during the translation process upon finding a window.
 type GennyOutputMetadata struct {
 	Name       string
 	Iter       *ChunkIterator
