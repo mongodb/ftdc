@@ -10,6 +10,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// GennyOutputMetadata aids in the genny output translation process.
+// It stores the actor operation Name, the ftdc file's chunk Iter and
+// operation StartTime and EndTime. These values must be set prior to
+// calling TranslateGenny. It also stores prev values that are modified
+// during the translation process once a window is found to allow for
+// ftdc files to resume from where it previously recorded a window.
 type GennyOutputMetadata struct {
 	Name       string
 	Iter       *ChunkIterator
@@ -33,7 +39,7 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 	workloadStartSec := int64(math.MaxInt64)
 	workloadEndSec := int64(0)
 
-	// Determine when the whole genny workload starts and ends
+	// Determine when the whole genny workload starts and ends.
 	for _, gennyOut := range gennyOutputSlice {
 		workloadStartSec = min(workloadStartSec, gennyOut.StartTime)
 		workloadEndSec = max(workloadEndSec, gennyOut.EndTime)
@@ -42,7 +48,7 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 		}
 	}
 
-	// Iterate through the whole workload duration
+	// Iterate through the whole workload duration.
 	for timeSecond := workloadStartSec; timeSecond < workloadEndSec; timeSecond++ {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -77,7 +83,7 @@ func TranslateGenny(ctx context.Context, gennyOutputSlice []*GennyOutputMetadata
 	return errors.Wrap(FlushCollector(collector, output), "flushing collector")
 }
 
-// Determine StartTime and EndTime of a genny workload file
+// GetGennyTime determines the StartTime and EndTime of a genny workload file
 // by passing through all of its chunks.
 func GetGennyTime(ctx context.Context, gennyOutputMetadata GennyOutputMetadata) GennyOutputMetadata {
 	iter := gennyOutputMetadata.Iter
@@ -97,8 +103,8 @@ func GetGennyTime(ctx context.Context, gennyOutputMetadata GennyOutputMetadata) 
 	return gennyOutputMetadata
 }
 
-// Go through the chunks until we find the end of the window, i.e., a change in second.
-// Updates GennyOutputMetadata prev values.
+// translateAtNextWindow iterates through the chunks until we find the end
+// of the window, i.e., a change in second. Updates GennyOutputMetadata prev values.
 func translateAtNextWindow(gennyOutput *GennyOutputMetadata) []*birch.Element {
 	var elems []*birch.Element
 
@@ -141,7 +147,7 @@ func translateAtNextWindow(gennyOutput *GennyOutputMetadata) []*birch.Element {
 	return elems
 }
 
-// Take the current chunk and index translate the corresponding metrics
+// translateMetrics takes the current chunk and index translate the corresponding metrics.
 func translateMetrics(idx int, metrics []Metric) []*birch.Element {
 	var elems []*birch.Element
 	for _, metric := range metrics {
@@ -169,7 +175,7 @@ func translateMetrics(idx int, metrics []Metric) []*birch.Element {
 	return elems
 }
 
-// Generate a sample of 0s for samples preceding an actor operation StartTime.
+// createZeroedMetrics generates a sample of 0s for samples preceding a genny output StartTime.
 func createZeroedMetrics() []*birch.Element {
 	var elems []*birch.Element
 
