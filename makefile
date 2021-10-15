@@ -14,12 +14,28 @@ ifneq (,$(GOROOT))
 gobin := $(GOROOT)/bin/go
 endif
 
+gocache := $(GOCACHE)
+ifeq (,$(gocache))
+gocache := $(abspath $(buildDir)/.cache)
+endif
+lintCache := $(GOLANGCI_LINT_CACHE)
+ifeq (,$(lintCache))
+lintCache := $(abspath $(buildDir)/.lint-cache)
+endif
+
 ifeq ($(OS),Windows_NT)
 gobin := $(shell cygpath $(gobin))
-export GOCACHE := $(shell cygpath -m $(abspath $(buildDir)/.cache))
-export GOLANGCI_LINT_CACHE := $(shell cygpath -m $(abspath $(buildDir)/.lint-cache))
+gocache := $(shell cygpath -m $(gocache))
+lintCache := $(shell cygpath -m $(lintCache))
 export GOPATH := $(shell cygpath -m $(GOPATH))
-export GOROOT := $(shell cygpath -m $(goroot))
+export GOROOT := $(shell cygpath -m $(GOROOT))
+endif
+
+ifneq ($(gocache),$(GOCACHE))
+export GOCACHE := $(gocache)
+endif
+ifneq ($(lintCache),$(GOLANGCI_LINT_CACHE))
+export GOLANGCI_LINT_CACHE := $(lintCache)
 endif
 
 export GO111MODULE := off
@@ -74,9 +90,9 @@ phony += compile lint test coverage coverage-html
 # start convenience targets for running tests and coverage tasks on a
 # specific package.
 test-%: $(buildDir)/output.%.test
-	@grep -s -q -e "^PASS" $<
+	
 coverage-%: $(buildDir)/output.%.coverage
-	@grep -s -q -e "^PASS" $(subst coverage,test,$<)
+	
 html-coverage-%: $(buildDir)/output.%.coverage $(buildDir)/output.%.coverage.html
 	@grep -s -q -e "^PASS" $(subst coverage,test,$<)
 lint-%: $(buildDir)/output.%.lint
@@ -108,9 +124,11 @@ testArgs += -timeout=30m
 endif
 $(buildDir)/output.%.test: .FORCE
 	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
-$(buildDir)/output.%.coverage: $(buildDir)/ .FORCE
+	@grep -s -q -e "^PASS" $@
+$(buildDir)/output.%.coverage: .FORCE
 	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
 	@-[ -f $@ ] && $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
+	@grep -s -q -e "^PASS" $(subst coverage,test,$@)
 $(buildDir)/output.%.coverage.html: $(buildDir)/output.%.coverage
 	$(gobin) tool cover -html=$< -o $@
 
