@@ -111,7 +111,7 @@ buildvariants:
       RACE_DETECTOR: true
       DISABLE_COVERAGE: true
       GOROOT: /opt/golang/go1.16
-      TEST_TIMEOUT: 45m
+      TEST_TIMEOUT: 1h
     run_on:
       - archlinux-new-large
     tasks: [ "testGroup" ]
