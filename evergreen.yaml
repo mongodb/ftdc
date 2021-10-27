@@ -82,7 +82,7 @@ task_groups:
     tasks: [ ".lint"]
     max_hosts: 2
     setup_group:
-      - func: get-project
+      - func: get-project-and-modules
     setup_task:
       - func: run-make
         vars: { target: "clean-results" }
@@ -94,7 +94,7 @@ task_groups:
     setup_group_can_fail_task: true
     share_processes: true
     setup_group:
-      - func: get-project
+      - func: get-project-and-modules
     setup_task:
       - func: run-make
         vars: { target: "clean-results" }
