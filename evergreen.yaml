@@ -3,7 +3,7 @@
 #######################################
 variables:
   - &run-build
-    # runs a build operations. The task name in evergreen should
+    # runs a build operation. The task name in evergreen should
     # correspond to a make target for the build operation.
     name: test
     commands:
@@ -14,29 +14,32 @@ variables:
 #              Functions              #
 #######################################
 functions:
-  get-project:
-    command: git.get_project
-    type: setup
-    params:
-      directory: gopath/src/github.com/mongodb/ftdc
+  get-project-and-modules:
+    - command: git.get_project
+      type: system
+      params:
+        directory: ftdc
+    - command: subprocess.exec
+      type: setup
+      params:
+        working_dir: ftdc
+        binary: make
+        args: ["mod-tidy"]
+        include_expansions_in_env: ["GOROOT"]
   parse-results:
     command: gotest.parse_files
     type: setup
     params:
       files:
-        - "gopath/src/github.com/mongodb/ftdc/build/output.*"
+        - "ftdc/build/output.*"
   run-make:
     command: subprocess.exec
     type: test
     params:
-      working_dir: gopath/src/github.com/mongodb/ftdc
+      working_dir: ftdc
       binary: make
       args: ["${make_args|}", "${target}"]
       include_expansions_in_env: ["DISABLE_COVERAGE", "GOROOT", "RACE_DETECTOR", "TEST_TIMEOUT"]
-      env:
-        GOPATH: ${workdir}/gopath
-        VENDOR_PKG: "github.com/${trigger_repo_owner}/${trigger_repo_name}"
-        VENDOR_REVISION: ${trigger_revision}
 
 #######################################
 #                Tasks                #
@@ -79,7 +82,7 @@ task_groups:
     tasks: [ ".lint"]
     max_hosts: 2
     setup_group:
-      - func: get-project
+      - func: get-project-and-modules
     setup_task:
       - func: run-make
         vars: { target: "clean-results" }
@@ -91,7 +94,7 @@ task_groups:
     setup_group_can_fail_task: true
     share_processes: true
     setup_group:
-      - func: get-project
+      - func: get-project-and-modules
     setup_task:
       - func: run-make
         vars: { target: "clean-results" }
@@ -107,8 +110,8 @@ buildvariants:
     expansions:
       RACE_DETECTOR: true
       DISABLE_COVERAGE: true
-      TEST_TIMEOUT: 45m
       GOROOT: /opt/golang/go1.16
+      TEST_TIMEOUT: 1h
     run_on:
       - archlinux-new-large
     tasks: [ "testGroup" ]
