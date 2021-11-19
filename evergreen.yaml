@@ -6,6 +6,7 @@ variables:
     # runs a build operation. The task name in evergreen should
     # correspond to a make target for the build operation.
     name: test
+    must_have_test_results: true
     commands:
       - func: run-make
         vars: { target: "${task_name}" }
@@ -88,7 +89,7 @@ tasks:
 
 task_groups:
   - name: lintGroup
-    tasks: [ ".lint"]
+    tasks: [ ".lint" ]
     max_hosts: 2
     setup_group:
       - func: get-project-and-modules
@@ -98,7 +99,7 @@ task_groups:
     teardown_task:
       - func: parse-results
   - name: testGroup
-    tasks: [ ".test"]
+    tasks: [ ".test" ]
     max_hosts: 2
     setup_group_can_fail_task: true
     share_processes: true
