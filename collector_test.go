@@ -78,13 +78,13 @@ func TestCollectorInterface(t *testing.T) {
 					t.Skip("without compressing these tests don't make much sense")
 				}
 				for name, docs := range map[string][]*birch.Document{
-					"Integers": []*birch.Document{
+					"Integers": {
 						testutil.RandFlatDocument(5),
 						testutil.RandFlatDocument(5),
 						testutil.RandFlatDocument(5),
 						testutil.RandFlatDocument(5),
 					},
-					"DecendingHandIntegers": []*birch.Document{
+					"DecendingHandIntegers": {
 						birch.NewDocument(birch.EC.Int64("one", 43), birch.EC.Int64("two", 5)),
 						birch.NewDocument(birch.EC.Int64("one", 89), birch.EC.Int64("two", 4)),
 						birch.NewDocument(birch.EC.Int64("one", 99), birch.EC.Int64("two", 3)),
