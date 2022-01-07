@@ -41,7 +41,7 @@ func (c *batchCollector) Info() CollectorInfo {
 }
 
 func (c *batchCollector) Reset() {
-	c.chunks = []*betterCollector{&betterCollector{maxDeltas: c.maxSamples}}
+	c.chunks = []*betterCollector{{maxDeltas: c.maxSamples}}
 }
 
 func (c *batchCollector) SetMetadata(in interface{}) error {
