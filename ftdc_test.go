@@ -286,11 +286,6 @@ func TestRoundTrip(t *testing.T) {
 				if test.numStats == 0 || (test.randStats && !strings.Contains(collect.name, "Dynamic")) {
 					continue
 				}
-				/*
-					if test.name != "Floats" {
-						continue
-					}
-				*/
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 					assert.NoError(t, collector.SetMetadata(testutil.CreateEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
