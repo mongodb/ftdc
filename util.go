@@ -45,13 +45,6 @@ func readDocument(in interface{}) (*birch.Document, error) {
 
 func getOffset(count, sample, metric int) int { return metric*count + sample }
 
-func undeltaFloats(value int64, deltas []int64) []int64 {
-	out := make([]int64, 1, len(deltas)+1)
-	out[0] = value
-
-	return append(out, deltas...)
-}
-
 func undelta(value int64, deltas []int64) []int64 {
 	out := make([]int64, len(deltas)+1)
 	out[0] = value

@@ -25,4 +25,5 @@ require (
 	github.com/shirou/gopsutil v3.21.9+incompatible // indirect
 	github.com/tklauser/go-sysconf v0.3.9 // indirect
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1 // indirect
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 )
