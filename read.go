@@ -9,7 +9,6 @@ import (
 	"io"
 
 	"github.com/evergreen-ci/birch"
-	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/pkg/errors"
 )
 
@@ -123,12 +122,7 @@ func readChunks(ctx context.Context, ch <-chan *birch.Document, o chan<- *Chunk)
 				}
 				metrics[i].Values[j] = int64(delta)
 			}
-			if metrics[i].originalType == bsontype.Double {
-				metrics[i].Values = undeltaFloats(v.startingValue, metrics[i].Values)
-			} else {
-				metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
-			}
-
+			metrics[i].Values = undelta(v.startingValue, metrics[i].Values)
 		}
 		select {
 		case o <- &Chunk{

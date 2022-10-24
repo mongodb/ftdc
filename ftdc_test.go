@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evergreen-ci/birch"
 	"github.com/mongodb/ftdc/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -142,13 +141,12 @@ func TestReadPathIntegration(t *testing.T) {
 							require.Equal(t, test.expectedMetrics, array.Len())
 							elems++
 						}
-						// this is inexact
-						// because of timestamps...l
+						// This is inexact because of
+						// timestamps.
 						assert.True(t, len(c.Metrics) >= elems)
 						assert.Equal(t, elems, data.Len())
 					}
 				}
-
 				assert.NoError(t, iter.Err())
 
 				assert.Equal(t, test.expectedNum, num)
@@ -288,29 +286,23 @@ func TestRoundTrip(t *testing.T) {
 				if test.numStats == 0 || (test.randStats && !strings.Contains(collect.name, "Dynamic")) {
 					continue
 				}
-				if test.name != "Floats" {
-					continue
-				}
 				t.Run(test.name, func(t *testing.T) {
 					collector := collect.factory()
 					assert.NoError(t, collector.SetMetadata(testutil.CreateEventRecord(42, int64(time.Minute), rand.Int63n(7), 4)))
 
-					var docs []*birch.Document
 					for _, d := range test.docs {
 						assert.NoError(t, collector.Add(d))
-						docs = append(docs, d)
 					}
-
 					data, err := collector.Resolve()
 					require.NoError(t, err)
 					iter := ReadStructuredMetrics(ctx, bytes.NewBuffer(data))
 
 					docNum := 0
 					for iter.Next() {
-						require.True(t, docNum < len(docs))
+						require.True(t, docNum < len(test.docs))
 						roundtripDoc := iter.Document()
 
-						assert.Equal(t, fmt.Sprint(roundtripDoc), fmt.Sprint(docs[docNum]))
+						assert.Equal(t, fmt.Sprint(test.docs[docNum]), fmt.Sprint(roundtripDoc))
 						docNum++
 					}
 				})

@@ -121,7 +121,7 @@ func extractMetricsFromValue(val *birch.Value) (extractedMetrics, error) {
 func extractDelta(current *birch.Value, previous *birch.Value) (int64, error) {
 	switch current.Type() {
 	case bsontype.Double:
-		return normalizeFloat(current.Double() - previous.Double()), nil
+		return normalizeFloat(current.Double()) - normalizeFloat(previous.Double()), nil
 	case bsontype.Int64:
 		return current.Int64() - previous.Int64(), nil
 	default:
