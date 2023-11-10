@@ -58,8 +58,6 @@ func (r *intervalHistogramStream) worker(ctx context.Context, interval time.Dura
 			}
 			r.point.setTimestamp(r.started)
 			r.catcher.Add(r.collector.Add(r.point))
-			r.point.Timestamp = time.Time{}
-			r.point = NewHistogramMillisecond(r.point.Gauges)
 			r.Unlock()
 		}
 	}

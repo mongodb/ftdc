@@ -27,7 +27,6 @@ func NewBufferedCollector(ctx context.Context, size int, coll Collector) Collect
 		for {
 			select {
 			case <-ctx.Done():
-				close(c.pipe)
 				if len(c.pipe) != 0 {
 					for in := range c.pipe {
 						c.catcher.Add(c.Collector.Add(in))
