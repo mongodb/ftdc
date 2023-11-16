@@ -58,9 +58,6 @@ func (r *intervalStream) worker(ctx context.Context, interval time.Duration) {
 			}
 			r.point.setTimestamp(r.started)
 			r.catcher.Add(r.collector.Add(r.point))
-			r.point = &Performance{
-				Gauges: r.point.Gauges,
-			}
 			r.Unlock()
 		}
 	}

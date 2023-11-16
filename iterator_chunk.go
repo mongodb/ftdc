@@ -15,18 +15,18 @@ import (
 //
 // Use the iterator as follows:
 //
-//    iter := ReadChunks(ctx, file)
+//	iter := ReadChunks(ctx, file)
 //
-//    for iter.Next() {
-//        chunk := iter.Chunk()
+//	for iter.Next() {
+//	    chunk := iter.Chunk()
 //
-//        // <manipulate chunk>
+//	    // <manipulate chunk>
 //
-//    }
+//	}
 //
-//    if err := iter.Err(); err != nil {
-//        return err
-//    }
+//	if err := iter.Err(); err != nil {
+//	    return err
+//	}
 //
 // You MUST call the Chunk() method no more than once per iteration.
 //

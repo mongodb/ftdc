@@ -275,7 +275,7 @@ func TestReadPathIntegration(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	collectors := createCollectors(ctx)

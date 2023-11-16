@@ -1,7 +1,7 @@
 // Package events contains a number of different data types and
 // formats that you can use to populate ftdc metrics series.
 //
-// Custom and CustomPoint
+// # Custom and CustomPoint
 //
 // The "custom" types allow you to construct arbirary key-value pairs
 // without using maps and have them be well represented in FTDC
