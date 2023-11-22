@@ -51,12 +51,14 @@ func metricForType(key string, path []string, val *birch.Value) []Metric {
 	case bsontype.Array:
 		return metricForArray(key, path, val.MutableArray())
 	case bsontype.EmbeddedDocument:
-		path = append(path, key)
+		newPath := make([]string, len(path))
+		copy(newPath, path)
+		newPath = append(newPath, key)
 
 		o := []Metric{}
-		for _, ne := range metricForDocument(path, val.MutableDocument()) {
+		for _, ne := range metricForDocument(newPath, val.MutableDocument()) {
 			o = append(o, Metric{
-				ParentPath:    path,
+				ParentPath:    ne.ParentPath,
 				KeyName:       ne.KeyName,
 				startingValue: ne.startingValue,
 				originalType:  ne.originalType,
