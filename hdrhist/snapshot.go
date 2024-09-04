@@ -5,7 +5,7 @@ import (
 
 	"github.com/evergreen-ci/birch"
 	"github.com/pkg/errors"
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // A Snapshot is an exported view of a Histogram, useful for serializing them.
