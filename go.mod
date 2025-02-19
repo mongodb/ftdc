@@ -1,6 +1,6 @@
 module github.com/mongodb/ftdc
 
-go 1.20
+go 1.24
 
 require (
 	github.com/evergreen-ci/birch v0.0.0-20191213201306-f4dae6f450a2
