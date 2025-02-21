@@ -9,7 +9,7 @@ import (
 	"github.com/evergreen-ci/birch/bsontype"
 	"github.com/mongodb/ftdc/util"
 	"github.com/pkg/errors"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func (c *Chunk) exportMatrix() map[string]interface{} {
