@@ -3,7 +3,7 @@ module github.com/mongodb/ftdc
 go 1.24
 
 require (
-	github.com/evergreen-ci/birch v0.0.0-20250224221624-64f481f4b888
+	github.com/evergreen-ci/birch v0.0.0-20191213201306-f4dae6f450a2
 	github.com/mongodb/grip v0.0.0-20250224221724-fc8adcb1fe8e
 	github.com/papertrail/go-tail v0.0.0-20180509224916-973c153b0431
 	github.com/pkg/errors v0.9.1
