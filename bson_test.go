@@ -207,8 +207,9 @@ func TestBSONValueToMetric(t *testing.T) {
 		Key   string
 		Path  []string
 
-		Expected  int64
-		OutputLen int
+		Expected    int64
+		ExpectedKey string
+		OutputLen   int
 	}{
 		{
 			Name:  "ObjectID",
@@ -378,6 +379,19 @@ func TestBSONValueToMetric(t *testing.T) {
 			Key:       "foo",
 			Path:      []string{"really", "exists"},
 		},
+		{
+			Name: "EmbeddedDocumentInEmbeddedDocument",
+			Value: birch.VC.DocumentFromElements(
+				birch.EC.SubDocumentFromElements("a",
+					birch.EC.SubDocumentFromElements("b",
+						birch.EC.SubDocumentFromElements("c",
+							birch.EC.Int64("foo", 42)).Copy()))),
+			OutputLen:   1,
+			Expected:    42,
+			ExpectedKey: "foo.a.b.c.foo",
+			Key:         "foo",
+			Path:        []string{},
+		},
 	} {
 		t.Run(test.Name, func(t *testing.T) {
 			m := metricForType(test.Key, test.Path, test.Value)
@@ -386,6 +400,9 @@ func TestBSONValueToMetric(t *testing.T) {
 			if test.OutputLen > 0 {
 				assert.Equal(t, test.Expected, m[0].startingValue)
 				assert.True(t, strings.HasPrefix(m[0].KeyName, test.Key))
+				if test.ExpectedKey != "" {
+					assert.Equal(t, test.ExpectedKey, m[0].Key())
+				}
 				assert.True(t, strings.HasPrefix(m[0].Key(), strings.Join(test.Path, ".")))
 			} else {
 				assert.NotNil(t, m)
